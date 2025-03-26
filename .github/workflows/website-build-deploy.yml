@@ -3,15 +3,8 @@ name: Build and Deploy Website
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'QT_API/**'
-      - 'QT_FrontEnd/**'
-      - '.github/workflows/docker-build-website.yml'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'QT_API/**'
-      - 'QT_FrontEnd/**'
   workflow_dispatch:
 
 jobs:
@@ -22,23 +15,22 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
-      
-    - name: Debug - Show file structure
+    
+    - name: Debug - Show API directory structure
       run: |
-        echo "Repository structure:"
-        ls -la
-        echo "QT_API structure:"
-        ls -la QT_API || echo "Directory doesn't exist"
-        echo "QT_FrontEnd structure:"
-        ls -la QT_FrontEnd || echo "Directory doesn't exist"
-        echo "Finding Dockerfiles:"
-        find . -name "Dockerfile" | sort
-        echo "Finding ASP.NET projects:"
-        find . -name "*.csproj" | grep -i "website" || echo "No website projects found"
-      
+        echo "QT_API directory structure:"
+        ls -la QT_API
+        echo "Finding API project files:"
+        find QT_API -name "*.csproj"
+    
+    - name: Debug - Show Frontend directory structure
+      run: |
+        echo "QT_FrontEnd directory structure:"
+        ls -la QT_FrontEnd
+    
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
-      
+    
     - name: Login to DockerHub
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v2
@@ -46,81 +38,61 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    # Create a dynamic API Dockerfile
+    # Create a simple API Dockerfile that works with any project structure
     - name: Create API Dockerfile
       run: |
-        # Find the actual main project and its referenced projects
-        MAIN_PROJ=$(find ./QT_API -name "*Website.csproj" | grep -i "Quintessence" | head -1)
-        MAIN_PROJ_REL=$(echo "$MAIN_PROJ" | sed 's|^\./||')
-        MAIN_DIR=$(dirname "$MAIN_PROJ")
-        MAIN_NAME=$(basename "$MAIN_PROJ" .csproj)
-        
-        echo "Found main project at: $MAIN_PROJ"
-        
-        # Find all referenced projects
-        PROJECT_REFS=""
-        for PROJ in $(find ./QT_API -name "*.csproj" | grep -v "$MAIN_PROJ"); do
-          PROJ_REL=$(echo "$PROJ" | sed 's|^\./||')
-          PROJECT_REFS+="COPY [\"$PROJ_REL\", \"$(dirname "$PROJ_REL")/\"]\n"
-        done
-        
-        # Create API Dockerfile with the correct paths
-        cat > ./QT_API/Dockerfile << EOL
+        cat > QT_API/Dockerfile << EOL
         FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
         WORKDIR /app
         EXPOSE 80
         EXPOSE 443
 
         FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-        ARG BUILD_CONFIGURATION=Release
         WORKDIR /src
-
-        # Copy main project file
-        COPY ["$MAIN_PROJ_REL", "$(dirname "$MAIN_PROJ_REL")/"]
         
-        # Copy referenced project files
-        $(echo -e "$PROJECT_REFS")
-        
-        # Restore packages
-        RUN dotnet restore "$MAIN_PROJ_REL"
-        
-        # Copy everything else and build
+        # Copy everything first
         COPY . .
-        WORKDIR "/src/$(dirname "$MAIN_PROJ_REL")"
-        RUN dotnet build "$MAIN_NAME.csproj" -c \$BUILD_CONFIGURATION -o /app/build
         
-        # Publish
-        FROM build AS publish
-        ARG BUILD_CONFIGURATION=Release
-        RUN dotnet publish "$MAIN_NAME.csproj" -c \$BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+        # Find the main project file
+        RUN find . -name "*Website.csproj" | grep -i "quintessence" > project.txt
+        RUN cat project.txt
+        
+        # Set the main project path
+        RUN export MAIN_PROJ=\$(cat project.txt) && \\
+            export MAIN_DIR=\$(dirname "\$MAIN_PROJ") && \\
+            echo "Project: \$MAIN_PROJ" && \\
+            echo "Directory: \$MAIN_DIR" && \\
+            # Restore dependencies
+            dotnet restore "\$MAIN_PROJ" && \\
+            # Build the project
+            cd "\$MAIN_DIR" && \\
+            dotnet build -c Release -o /app/build && \\
+            # Publish the project
+            dotnet publish -c Release -o /app/publish
         
         # Final image
         FROM base AS final
         WORKDIR /app
-        COPY --from=publish /app/publish .
-        ENTRYPOINT ["dotnet", "$MAIN_NAME.dll"]
+        COPY --from=build /app/publish .
+        ENTRYPOINT ["dotnet", "Quintessence Website.dll"]
         EOL
         
         echo "Created API Dockerfile:"
-        cat ./QT_API/Dockerfile
+        cat QT_API/Dockerfile
     
-    # Create a dynamic Frontend Dockerfile
+    # Create a simple Frontend Dockerfile
     - name: Create Frontend Dockerfile
       run: |
-        # Create Angular Frontend Dockerfile
-        cat > ./QT_FrontEnd/Dockerfile << EOL
+        cat > QT_FrontEnd/Dockerfile << EOL
         # Build stage
         FROM node:18 AS build
         WORKDIR /app
 
-        # Copy package.json and package-lock.json
-        COPY package*.json ./
-        RUN npm ci
-
-        # Copy the rest of the application
+        # Copy everything
         COPY . .
-
-        # Build the Angular application
+        
+        # Install dependencies and build
+        RUN npm ci
         RUN npm run build -- --configuration production
 
         # Production stage with Nginx
@@ -150,8 +122,8 @@ jobs:
         EOL
         
         echo "Created Frontend Dockerfile:"
-        cat ./QT_FrontEnd/Dockerfile
-      
+        cat QT_FrontEnd/Dockerfile
+    
     - name: Build and push API image
       uses: docker/build-push-action@v4
       with:
