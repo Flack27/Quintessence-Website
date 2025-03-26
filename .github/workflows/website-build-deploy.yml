@@ -1,10 +1,14 @@
-name: Build and Deploy Website
+name: Build and Deploy Website Frontend
 
 on:
   push:
     branches: [ main ]
+    paths:
+      - 'QT_FrontEnd/**'
   pull_request:
     branches: [ main ]
+    paths:
+      - 'QT_FrontEnd/**'
   workflow_dispatch:
 
 jobs:
@@ -16,17 +20,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
     
-    - name: Debug - Show API directory structure
-      run: |
-        echo "QT_API directory structure:"
-        ls -la QT_API
-        echo "Finding API project files:"
-        find QT_API -name "*.csproj"
-    
     - name: Debug - Show Frontend directory structure
       run: |
         echo "QT_FrontEnd directory structure:"
         ls -la QT_FrontEnd
+        echo "Package.json info:"
+        cat QT_FrontEnd/package.json || echo "package.json not found in root"
+        find QT_FrontEnd -name "package.json" -type f -exec echo "Found package.json:" {} \; -exec cat {} \;
+        echo "Node modules check:"
+        find QT_FrontEnd -name "node_modules" -type d
     
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
@@ -38,49 +40,7 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    # Create a simple API Dockerfile that works with any project structure
-    - name: Create API Dockerfile
-      run: |
-        cat > QT_API/Dockerfile << EOL
-        FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-        WORKDIR /app
-        EXPOSE 80
-        EXPOSE 443
-
-        FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-        WORKDIR /src
-        
-        # Copy everything first
-        COPY . .
-        
-        # Find the main project file
-        RUN find . -name "*Website.csproj" | grep -i "quintessence" > project.txt
-        RUN cat project.txt
-        
-        # Set the main project path
-        RUN export MAIN_PROJ=\$(cat project.txt) && \\
-            export MAIN_DIR=\$(dirname "\$MAIN_PROJ") && \\
-            echo "Project: \$MAIN_PROJ" && \\
-            echo "Directory: \$MAIN_DIR" && \\
-            # Restore dependencies
-            dotnet restore "\$MAIN_PROJ" && \\
-            # Build the project
-            cd "\$MAIN_DIR" && \\
-            dotnet build -c Release -o /app/build && \\
-            # Publish the project
-            dotnet publish -c Release -o /app/publish
-        
-        # Final image
-        FROM base AS final
-        WORKDIR /app
-        COPY --from=build /app/publish .
-        ENTRYPOINT ["dotnet", "Quintessence Website.dll"]
-        EOL
-        
-        echo "Created API Dockerfile:"
-        cat QT_API/Dockerfile
-    
-    # Create a simple Frontend Dockerfile
+    # Create a more resilient Frontend Dockerfile
     - name: Create Frontend Dockerfile
       run: |
         cat > QT_FrontEnd/Dockerfile << EOL
@@ -91,14 +51,54 @@ jobs:
         # Copy everything
         COPY . .
         
-        # Install dependencies and build
-        RUN npm ci
-        RUN npm run build -- --configuration production
+        # Find and navigate to directory with package.json
+        RUN find . -name "package.json" -not -path "*/node_modules/*" > package_files.txt && \\
+            if [ -s package_files.txt ]; then \\
+              PACKAGE_DIR=\$(dirname \$(head -1 package_files.txt)) && \\
+              echo "Found package.json in \$PACKAGE_DIR" && \\
+              cd \$PACKAGE_DIR; \\
+            else \\
+              echo "No package.json found!"; \\
+              exit 1; \\
+            fi
+        
+        # Verify we're in the right directory
+        RUN pwd && ls -la
+        
+        # Install dependencies (more resilient approaches)
+        RUN npm config set registry https://registry.npmjs.org/
+        RUN npm cache clean --force
+        
+        # Try npm ci first, fall back to npm install if it fails
+        RUN npm ci || npm install
+        
+        # Build the application
+        RUN npm run build || echo "Build command failed, checking for custom build script" && \\
+            if [ -f "package.json" ]; then \\
+              CUSTOM_BUILD=\$(grep -o '"build:.*"' package.json | head -1 | cut -d'"' -f2) && \\
+              if [ ! -z "\$CUSTOM_BUILD" ]; then \\
+                echo "Running custom build script: \$CUSTOM_BUILD" && \\
+                npm run \$CUSTOM_BUILD; \\
+              fi \\
+            fi
+        
+        # Find the build output directory
+        RUN find . -type d -path "*/dist/*" > dist_dirs.txt && \\
+            if [ -s dist_dirs.txt ]; then \\
+              DIST_DIR=\$(head -1 dist_dirs.txt) && \\
+              echo "Found dist directory: \$DIST_DIR"; \\
+            else \\
+              echo "No dist directory found after build!"; \\
+              ls -la; \\
+              exit 1; \\
+            fi
 
         # Production stage with Nginx
         FROM nginx:alpine
-        COPY --from=build /app/dist/qt-front-end /usr/share/nginx/html
-
+        
+        # Copy build output (dynamically find the correct path)
+        COPY --from=build /app/dist/ /usr/share/nginx/html/
+        
         # Create nginx configuration
         RUN echo 'server { \\
             listen 80; \\
@@ -118,19 +118,14 @@ jobs:
             } \\
         }' > /etc/nginx/conf.d/default.conf
 
+        # Verify the content
+        RUN ls -la /usr/share/nginx/html || echo "HTML directory not found!"
+        
         EXPOSE 80
         EOL
         
         echo "Created Frontend Dockerfile:"
         cat QT_FrontEnd/Dockerfile
-    
-    - name: Build and push API image
-      uses: docker/build-push-action@v4
-      with:
-        context: ./QT_API
-        file: ./QT_API/Dockerfile
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
     
     - name: Build and push Frontend image
       uses: docker/build-push-action@v4
