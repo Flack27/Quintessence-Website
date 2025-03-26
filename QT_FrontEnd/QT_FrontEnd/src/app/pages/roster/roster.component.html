@@ -1,0 +1,40 @@
+<body>
+  <div class="container">
+    <div class="page-header">
+      <div class="title">
+        <h1>Roster</h1>
+      </div>
+      <div class="title-line"></div>
+    </div>
+
+    <div *ngIf="loading" class="loading">
+      <p>Loading roster...</p>
+    </div>
+
+    <div *ngIf="errorMessage" class="error-message">
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div class="invisible-container" id="container" *ngIf="!loading && !errorMessage">
+      <div class="item" *ngFor="let user of users">
+        <img [src]="user.avatar" class="item-icon" alt="{{ user.displayName }}'s avatar" />
+        <p class="name">{{ user.displayName }}</p>
+        <p class="role" [ngClass]="getRoleColorClass(user.roles)">{{ getHighestPriorityRole(user.roles) }}</p>
+        <div class="bottom-container">
+          <a *ngIf="user.steam" (click)="ensureHttpPrefix(user.steam)">
+            <img src="/assets/steam.svg" class="link-icon" alt="Steam" />
+          </a>
+          <a *ngIf="user.x" (click)="ensureHttpPrefix(user.x)">
+            <img src="/assets/x.svg" class="link-icon" alt="X" />
+          </a>
+          <a *ngIf="user.twitch" (click)="ensureHttpPrefix(user.twitch)">
+            <img src="/assets/twitch.svg" class="link-icon" alt="Twitch" />
+          </a>
+          <a *ngIf="user.youtube" (click)="ensureHttpPrefix(user.youtube)">
+            <img src="/assets/youtube.svg" class="link-icon" alt="YouTube" />
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>

@@ -1,0 +1,251 @@
+<!-- Full-Screen Dashboard Layout -->
+<body>
+  <div class="dashboard-container fullscreen-dashboard">
+    <header class="dashboard-header">
+      <div class="title">
+        <h1>Dashboard</h1>
+      </div>
+      <div class="title-line title-line-lg"></div>
+    </header>
+
+    <div class="dashboard-content-wrapper">
+      <div class="sidebar-wrap">
+        <!-- Left Sidebar: User Selection -->
+        <div class="dashboard-sidebar">
+          <!-- User Selection Sidebar -->
+          <div class="sidebar-section">
+            <div class="sidebar-header">
+              <h3>
+                Select Users
+              </h3>
+              <div class="selection-counter" [ngClass]="{'selection-limit': selectedUsers.length >= 10, 'disabled': selectedStat !== null}">
+                {{selectedUsers.length}}/10 selected
+              </div>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-container">
+              <input type="text"
+                     placeholder="Search users..."
+                     [(ngModel)]="userSearchText"
+                     (input)="filterUsers()"
+                     class="search-input"
+                     [disabled]="selectedStat !== null"
+                     [class.disabled]="selectedStat !== null">
+              <i class="fas fa-search search-icon"></i>
+            </div>
+
+            <!-- User Listing -->
+            <div class="user-list-container">
+              <div *ngFor="let user of filteredUsers"
+                   class="user-list-item"
+                   [class.selected]="isUserSelected(user.id)"
+                   [class.disabled]="selectedStat !== null || (!isUserSelected(user.id) && selectedUsers.length >= 10)"
+                   (click)="selectedStat === null && toggleUserSelection(user.id)">
+                <div class="user-info">
+                  <img [src]="user.avatar" alt="Avatar" class="user-avatar">
+                  <div class="user-name">{{user.username}}</div>
+                </div>
+                <div class="selection-indicator">
+                  <i *ngIf="isUserSelected(user.id)" class="fas fa-check-circle"></i>
+                  <i *ngIf="!isUserSelected(user.id) && selectedUsers.length < 10 && selectedStat === null" class="fas fa-circle"></i>
+                  <i *ngIf="(!isUserSelected(user.id) && selectedUsers.length >= 10) || selectedStat !== null" class="fas fa-times-circle"></i>
+                </div>
+              </div>
+
+              <div *ngIf="filteredUsers.length === 0" class="no-users-message">
+                No users found matching your search.
+              </div>
+            </div>
+
+            <div class="selection-help">
+              <small>Select up to 10 users to compare</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content Area -->
+      <div class="dashboard-main">
+        <!-- Stats Row -->
+        <div class="stats-row">
+          <div *ngIf="!loading && stats" class="stat-item"
+               [class.active]="selectedStat === 'message'"
+               (click)="onStatItemClick('message')"
+               (keydown.enter)="onStatItemClick('message')"
+               tabindex="0"
+               role="button"
+               [attr.aria-pressed]="selectedStat === 'message'">
+            <h3><i class="fas fa-comment stat-icon"></i> Messages</h3>
+            <p>{{ selectedStat === 'message' && periodStats ? periodStats.messageCount : stats.MessageCount }}</p>
+          </div>
+
+          <!-- Apply the same fix to the other stat items -->
+          <div *ngIf="!loading && stats" class="stat-item"
+               [class.active]="selectedStat === 'voice'"
+               (click)="onStatItemClick('voice')"
+               (keydown.enter)="onStatItemClick('voice')"
+               tabindex="0"
+               role="button"
+               [attr.aria-pressed]="selectedStat === 'voice'">
+            <h3><i class="fas fa-microphone stat-icon"></i> Voice Time</h3>
+            <p>{{ selectedStat === 'voice' && periodStats ? periodStats.voiceTime : stats.VoiceTime }} hrs</p>
+          </div>
+
+          <div *ngIf="!loading && stats" class="stat-item"
+               [class.active]="selectedStat === 'events'"
+               (click)="onStatItemClick('events')"
+               (keydown.enter)="onStatItemClick('events')"
+               tabindex="0"
+               role="button"
+               [attr.aria-pressed]="selectedStat === 'events'">
+            <h3><i class="fas fa-calendar-alt stat-icon"></i>Event Signups</h3>
+            <p>{{ selectedStat === 'events' && periodStats ? periodStats.eventsCount : stats.EventsCount }}</p>
+          </div>
+
+          <div *ngIf="!loading && stats" class="stat-item"
+               [class.active]="selectedStat === 'forms'"
+               (click)="onStatItemClick('forms')"
+               (keydown.enter)="onStatItemClick('forms')"
+               tabindex="0"
+               role="button"
+               [attr.aria-pressed]="selectedStat === 'forms'">
+            <h3><i class="fas fa-file-alt stat-icon"></i> Form Submissions</h3>
+            <p>{{ selectedStat === 'forms' && periodStats ? periodStats.submissions : stats.Submissions }}</p>
+          </div>
+        </div>
+
+        <!-- Activity Graph Section -->
+        <div class="graph-section">
+          <!-- Graph Controls -->
+          <div class="graph-controls">
+            <div class="control-group">
+              <label>Activity Type</label>
+              <div class="control-buttons">
+                <button *ngFor="let type of activityTypes"
+                        [class.active]="activityType === type.value"
+                        [class.disabled]="selectedStat !== null"
+                        [disabled]="selectedStat !== null"
+                        (click)="onActivityTypeChange(type.value)">
+                  {{ type.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label>Time Range</label>
+              <div class="control-buttons">
+                <button *ngFor="let range of timeRanges"
+                        [class.active]="timeRange === range.value"
+                        (click)="onTimeRangeChange(range.value)">
+                  {{ range.label }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom Date Range - Always visible -->
+            <div class="control-group">
+              <div class="date-picker-group">
+                <div class="date-input">
+                  <label>From</label>
+                  <input type="date"
+                         [(ngModel)]="customStartDate"
+                         name="startDate"
+                         [disabled]="!showCustomRange"
+                         [class.disabled]="!showCustomRange">
+                </div>
+                <div class="date-input">
+                  <label>To</label>
+                  <input type="date"
+                         [(ngModel)]="customEndDate"
+                         name="endDate"
+                         [disabled]="!showCustomRange"
+                         [class.disabled]="!showCustomRange">
+                </div>
+                <button class="apply-button"
+                        (click)="applyCustomRange()"
+                        [disabled]="!showCustomRange"
+                        [class.disabled]="!showCustomRange">
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Chart Area -->
+          <div class="chart-container">
+            <!-- Loading State -->
+            <div *ngIf="loading" class="loading">
+              <div class="spinner"></div>
+            </div>
+
+            <!-- Error Message -->
+            <div *ngIf="errorMessage" class="error">
+              <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+            </div>
+
+            <canvas #activityChart id="activityChart" class="activity-chart"></canvas>
+
+            <!-- Overlay message when no data -->
+            <div *ngIf="activityData.length === 0 && !loading" class="no-data-overlay">
+              <i class="fas fa-chart-line"></i>
+              <p>No activity data available for the selected criteria.</p>
+              <p class="help-text">Try selecting different users or time range.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Sidebar: Admin Menu -->
+      <div class="sidebar-wrap">
+        <div class="dashboard-sidebar admin-sidebar">
+          <div class="sidebar-header">
+            <h3>Administration</h3>
+          </div>
+
+          <!-- Config Section -->
+          <div class="sidebar-section">
+            <h4>Configuration</h4>
+            <button class="sidebar-button" [routerLink]="'/menu/xpconfig'">
+              <i class="fas fa-cogs"></i> XP Config
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/eventsconfig'">
+              <i class="fas fa-calendar-check"></i> Event Config
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/reactionconfig'">
+              <i class="fas fa-smile"></i> Reaction Config
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/automation'">
+              <i class="fas fa-robot"></i> Automation Config
+            </button>
+          </div>
+
+          <!-- Activity Section -->
+          <div class="sidebar-section">
+            <h4>Activity Tracking</h4>
+            <button class="sidebar-button" [routerLink]="'/menu/events'">
+              <i class="fas fa-calendar-day"></i> Event Activity
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/messages'">
+              <i class="fas fa-comment-dots"></i> Message Activity
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/voice'">
+              <i class="fas fa-headset"></i> Voice Activity
+            </button>
+          </div>
+
+          <!-- Forms Section -->
+          <div class="sidebar-section">
+            <h4>Form Management</h4>
+            <button class="sidebar-button" [routerLink]="'/menu/forms'">
+              <i class="fas fa-edit"></i> Form Editor
+            </button>
+            <button class="sidebar-button" [routerLink]="'/menu/submissions'">
+              <i class="fas fa-inbox"></i> Form Submissions
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>

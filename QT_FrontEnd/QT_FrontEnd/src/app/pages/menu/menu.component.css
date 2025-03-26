@@ -1,0 +1,604 @@
+/* Full-Screen Dashboard Styles */
+body {
+  background-image: url('/assets/backgrounds/background-A.webp');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(82, 15, 115, 0.4) 0%, rgba(21, 1, 51, 0.6) 100%);
+  }
+
+/* Remove the max-width constraint to use full screen */
+.fullscreen-dashboard {
+  max-width: 100%;
+  width: 100%;
+  height: calc(100vh - 76px);
+  overflow: hidden;
+  padding: var(--spacing-md);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* Adjust header for full width */
+.dashboard-header {
+  margin-bottom: var(--spacing-md);
+}
+
+/* Main content wrapper - 3 column layout */
+.dashboard-content-wrapper {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  gap: var(--spacing-md);
+  flex: 1;
+  overflow: hidden;
+  height: calc(100% - 100px); /* Account for header */
+}
+
+/* Sidebar styling (left and right) */
+.dashboard-sidebar {
+  background: rgba(11, 9, 22, 0.4);
+  border: 1px solid var(--primary-medium);
+  border-radius: var(--border-radius-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+/* Admin sidebar specific styling */
+.admin-sidebar {
+  padding: var(--spacing-sm);
+}
+
+/* Sidebar sections */
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-sm);
+  border-bottom: 1px solid rgba(82, 15, 115, 0.3);
+  flex: 0 0 auto;
+}
+
+  .sidebar-section h4 {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .sidebar-section:last-child {
+    border-bottom: none;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+/* User selection takes most of the space in left sidebar */
+.user-list-container {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Main content area */
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Stats row at the top of main content */
+.stats-row {
+  display: grid;
+  padding-top: 5px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+}
+
+.stat-item {
+  height: auto;
+  min-height: 120px;
+}
+
+/* Graph section takes remaining space */
+.graph-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(11, 9, 22, 0.4);
+  border: 1px solid var(--primary-medium);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  overflow: hidden;
+}
+
+/* Graph controls row */
+.graph-controls {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+/* Chart container fills remaining space */
+.chart-container {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Sidebar buttons */
+.sidebar-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(11, 9, 22, 0.4);
+  border: 1px solid var(--primary-medium);
+  border-radius: var(--border-radius-sm);
+  color: white;
+  margin-bottom: var(--spacing-xs);
+  cursor: pointer;
+  transition: all var(--transition-medium);
+  text-align: left;
+}
+
+  .sidebar-button:hover {
+    background: rgba(82, 15, 115, 0.3);
+    border-color: var(--secondary-blue);
+  }
+
+  .sidebar-button i {
+    color: var(--secondary-blue);
+    width: 20px;
+    text-align: center;
+  }
+
+/* Quick access buttons in left sidebar */
+.quick-access-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+/* Section titles */
+.section-title {
+  margin-bottom: var(--spacing-sm);
+  font-size: 1.3rem;
+  background: linear-gradient(90deg, var(--secondary-blue), var(--secondary-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* Sidebar headers */
+.sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--primary-medium);
+}
+
+  .sidebar-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: white;
+  }
+
+/* Activity chart should fill available space */
+.activity-chart {
+  width: 100%;
+  height: 100%;
+}
+
+/* Custom date range responsiveness */
+.custom-range-controls {
+  width: 100%;
+}
+
+.date-picker-group {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+}
+
+
+/* User list item styling */
+.user-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-xs);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: rgba(21, 1, 51, 0.3);
+}
+
+  .user-list-item:hover {
+    background: rgba(82, 15, 115, 0.3);
+  }
+
+  .user-list-item.selected {
+    background: rgba(82, 15, 115, 0.5);
+    border-left: 3px solid var(--secondary-blue);
+  }
+
+  .user-list-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+/* Custom date range styles */
+.custom-range-controls {
+  width: 100%;
+  margin-top: var(--spacing-sm);
+}
+
+.date-picker-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  align-items: flex-end;
+}
+
+.date-input {
+  flex: 1;
+  min-width: 140px;
+}
+
+  .date-input input {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(11, 9, 22, 0.6);
+    border: 1px solid var(--primary-medium);
+    border-radius: var(--border-radius-sm);
+    color: white;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: "Poppins", Arial, sans-serif;
+  }
+
+    .date-input input:focus {
+      outline: none;
+      border-color: var(--secondary-pink);
+      box-shadow: var(--glow-sm);
+    }
+
+    .date-input input::-webkit-calendar-picker-indicator {
+      filter: invert(1); /* Make calendar icon white */
+      opacity: 0.7;
+    }
+
+.apply-button {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background: var(--secondary-blue);
+  border: none;
+  border-radius: var(--border-radius-sm);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-bottom: 5px;
+}
+
+  .apply-button:hover {
+    background: var(--secondary-pink);
+    box-shadow: var(--glow-sm);
+  }
+
+/* Graph controls */
+.graph-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  flex-shrink: 0;
+}
+
+.control-group {
+  min-width: 200px;
+}
+
+  .control-group label {
+    display: block;
+    margin-bottom: var(--spacing-xs);
+    color: white;
+    font-weight: 500;
+  }
+
+.control-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs);
+}
+
+  .control-buttons button {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: rgba(11, 9, 22, 0.6);
+    border: 1px solid var(--primary-medium);
+    border-radius: var(--border-radius-sm);
+    color: white;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-family: "Poppins", Arial, sans-serif;
+    height: 34px;
+  }
+
+    .control-buttons button:hover {
+      background: rgba(82, 15, 115, 0.3);
+      border-color: var(--secondary-pink);
+    }
+
+    .control-buttons button.active {
+      background: linear-gradient(90deg, var(--primary-medium), rgba(150, 69, 196, 0.8));
+      border-color: var(--secondary-pink);
+      box-shadow: var(--glow-sm);
+    }
+
+/* Search Box Styles */
+.search-container {
+  position: relative;
+  margin-bottom: var(--spacing-md);
+  flex-shrink: 0;
+  margin-top: 0px;
+}
+
+.search-input {
+  width: 100%;
+  padding: var(--spacing-sm) var(--spacing-md);
+  padding-left: calc(var(--spacing-md) + 16px);
+  background: rgba(21, 1, 51, 0.5);
+  border: 1px solid var(--primary-medium);
+  border-radius: var(--border-radius-sm);
+  color: white;
+  font-size: 0.9rem;
+}
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--secondary-blue);
+    box-shadow: var(--glow-sm);
+  }
+
+  .search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+.search-icon {
+  position: absolute;
+  left: var(--spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+.sidebar-header {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--primary-medium);
+}
+
+  .sidebar-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: white;
+  }
+
+.selection-counter {
+  font-size: 0.85rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  background: rgba(82, 15, 115, 0.3);
+  color: white;
+}
+
+  .selection-counter.selection-limit {
+    background: rgba(255, 56, 96, 0.3);
+  }
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  margin-right: var(--spacing-sm);
+  font-size: 0.9rem;
+  background-color: var(--primary-medium);
+}
+
+.user-name {
+  color: white;
+  font-size: 0.95rem;
+  max-width: 170px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.selection-indicator {
+  color: white;
+  font-size: 1rem;
+}
+
+  .selection-indicator .fa-check-circle {
+    color: var(--secondary-blue);
+  }
+
+  .selection-indicator .fa-times-circle {
+    color: rgba(255, 56, 96, 0.7);
+
+  }
+
+
+/* Updated Stat Item styles to make them clickable */
+.sidebar-wrap {
+  padding-top: 5px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.stat-item {
+  background: var(--card-gradient);
+  border: 2px solid var(--primary-medium);
+  border-radius: var(--border-radius-md);
+  text-align: center;
+  padding: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-medium);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 160px;
+  cursor: pointer; /* Add cursor pointer to indicate clickability */
+  position: relative; /* For potential indicator positioning */
+  overflow: hidden;
+}
+
+  .stat-item:hover {
+    border-color: var(--secondary-blue);
+    transform: translateY(-2px); /* Slight lift effect on hover */
+    z-index: 1;
+  }
+
+  /* Active state for the selected stat item */
+  .stat-item.active {
+    border-color: var(--secondary-blue);
+    transform: translateY(-2px); /* Slight lift effect on hover */
+    z-index: 1;
+  }
+
+  .stat-item h3 {
+    font-size: 1.2rem;
+    margin-top: 0;
+    margin-bottom: var(--spacing-md);
+    color: #fff;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+  }
+
+  .stat-item p {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(45deg, var(--secondary-blue), var(--secondary-pink));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    margin: 0;
+  }
+
+.stat-icon {
+  font-size: 2rem; /* Match the text size */
+  background: linear-gradient(45deg, var(--secondary-blue), var(--secondary-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  display: inline-block;
+}
+
+
+.date-input input.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(21, 1, 51, 0.3);
+  border-color: var(--primary-medium);
+}
+
+.apply-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+  .apply-button.disabled:hover {
+    transform: none;
+    background: var(--secondary-blue);
+  }
+
+
+/* Styles for disabled buttons */
+.control-buttons button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(21, 1, 51, 0.3);
+  border-color: var(--primary-medium);
+}
+
+  .control-buttons button.disabled:hover {
+    background: rgba(21, 1, 51, 0.3);
+    border-color: var(--primary-medium);
+    box-shadow: none;
+    transform: none;
+  }
+
+/* Disabled input styles */
+.search-input.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(11, 9, 22, 0.4);
+}
+
+/* Global mode indicator */
+.global-mode-indicator {
+  font-size: 0.8rem;
+  font-weight: normal;
+  color: var(--secondary-blue);
+  margin-left: 0.5rem;
+  white-space: nowrap;
+}
+
+/* Selection counter disabled */
+.selection-counter.disabled {
+  opacity: 0.5;
+  background: rgba(21, 1, 51, 0.3);
+}
+
+
+/* Make the sidebars collapsible on smaller screens */
+@media screen and (max-width: 1400px) {
+  .dashboard-content-wrapper {
+    grid-template-columns: 240px 1fr 240px;
+  }
+
+  .sidebar-button span {
+    font-size: 0.85rem;
+  }
+}
+

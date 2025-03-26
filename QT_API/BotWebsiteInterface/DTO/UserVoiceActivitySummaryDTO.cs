@@ -1,0 +1,22 @@
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace QuintessenceWebsiteInterface.DTO
+{
+    [Table("UserVoiceActivitySummary")]
+    public class UserVoiceActivitySummaryDTO
+    {
+        public int Id { get; set; }
+        public long UserId { get; set; }
+        public DateTime Date { get; set; } // Just store the day (with time at 00:00:00)
+        public decimal VoiceMinutes { get; set; }
+        public int XpEarned { get; set; }
+
+        // Foreign key relationship
+        public virtual UsersDTO User { get; set; } = null!;
+    }
+}

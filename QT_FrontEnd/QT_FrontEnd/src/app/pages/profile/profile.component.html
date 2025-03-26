@@ -1,0 +1,125 @@
+<!-- Profile Page Component with Equal Height Containers -->
+<body>
+  <div class="container">
+    <div class="page-header">
+      <div class="title">
+        <h1>Profile</h1>
+      </div>
+      <div class="title-line"></div>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Loading profile...</span>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="!loading && errorMessage" class="error">
+      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+    </div>
+
+    <!-- Profile Content -->
+    <div class="profile-container" *ngIf="!loading && !errorMessage && user">
+      <div class="item">
+        <img [src]="user.avatar" class="item-icon" alt="{{ user.displayName }}'s avatar" />
+        <h2 class="name">{{ user.displayName }}</h2>
+        <p class="role" [ngClass]="getRoleColorClass(user.roles)">{{ getHighestPriorityRole(user.roles) }}</p>
+        <!-- Add spacer to push bottom container down -->
+        <div class="spacer"></div>
+        <div class="bottom-container">
+          <a *ngIf="user.steam" (click)="ensureHttpPrefix(user.steam)">
+            <img src="/assets/steam.svg" class="link-icon" alt="Steam" />
+          </a>
+          <a *ngIf="user.x" (click)="ensureHttpPrefix(user.x)">
+            <img src="/assets/x.svg" class="link-icon" alt="X" />
+          </a>
+          <a *ngIf="user.twitch" (click)="ensureHttpPrefix(user.twitch)">
+            <img src="/assets/twitch.svg" class="link-icon" alt="Twitch" />
+          </a>
+          <a *ngIf="user.youtube" (click)="ensureHttpPrefix(user.youtube)">
+            <img src="/assets/youtube.svg" class="link-icon" alt="YouTube" />
+          </a>
+        </div>
+      </div>
+
+      <div class="profile-edit-container">
+        <div class="edit-section">
+          <h3 class="section-title">
+            <i class="fas fa-link"></i> Social Media Links
+            <span *ngIf="savingLinks" class="saving-indicator">
+              <div class="spinner"></div> Saving...
+            </span>
+            <span *ngIf="saveSuccess" class="success-indicator">
+              <i class="fas fa-check-circle"></i> Saved!
+            </span>
+          </h3>
+
+          <form (ngSubmit)="saveLinks()" #linkForm="ngForm">
+            <div class="form-group">
+              <label for="steam">
+                <img src="/assets/steam.svg" class="input-icon" alt="Steam" />
+                Steam Profile URL
+              </label>
+              <input type="text"
+                     id="steam"
+                     name="steam"
+                     class="profile-input"
+                     [(ngModel)]="userLinks.steam"
+                     placeholder="https://steamcommunity.com/profiles/yoursteamid/"
+                     (input)="saveSuccess = false" />
+            </div>
+
+            <div class="form-group">
+              <label for="x">
+                <img src="/assets/x.svg" class="input-icon" alt="X" />
+                X Profile URL
+              </label>
+              <input type="text"
+                     id="x"
+                     name="x"
+                     class="profile-input"
+                     [(ngModel)]="userLinks.x"
+                     placeholder="https://x.com/yourusername"
+                     (input)="saveSuccess = false" />
+            </div>
+
+            <div class="form-group">
+              <label for="twitch">
+                <img src="/assets/twitch.svg" class="input-icon" alt="Twitch" />
+                Twitch Channel URL
+              </label>
+              <input type="text"
+                     id="twitch"
+                     name="twitch"
+                     class="profile-input"
+                     [(ngModel)]="userLinks.twitch"
+                     placeholder="https://twitch.tv/yourusername"
+                     (input)="saveSuccess = false" />
+            </div>
+
+            <div class="form-group">
+              <label for="youtube">
+                <img src="/assets/youtube.svg" class="input-icon" alt="YouTube" />
+                YouTube Channel URL
+              </label>
+              <input type="text"
+                     id="youtube"
+                     name="youtube"
+                     class="profile-input"
+                     [(ngModel)]="userLinks.youtube"
+                     placeholder="https://youtube.com/@yourusername"
+                     (input)="saveSuccess = false" />
+            </div>
+
+            <div class="button-container">
+              <button type="submit" class="standard-button" [disabled]="savingLinks">
+                <i class="fas fa-save"></i> Save Links
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>

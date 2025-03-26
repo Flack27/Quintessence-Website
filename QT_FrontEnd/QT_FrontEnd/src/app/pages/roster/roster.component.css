@@ -1,0 +1,147 @@
+/* ==== ROSTER CARDS ==== */
+body {
+  background-image: url('/assets/backgrounds/background-D.webp');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(82, 15, 115, 0.4) 0%, rgba(21, 1, 51, 0.6) 100%);
+}
+
+.invisible-container {
+  justify-content: center;
+  padding-bottom: var(--spacing-xl);
+  gap: var(--spacing-lg);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 0.1fr));
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 200px;
+  height: 280px;
+  padding-top: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border: 2px solid var(--primary-medium);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  background: rgba(11, 9, 22, 0.8);
+  transition: all var(--transition-medium);
+  position: relative;
+  box-shadow: var(--shadow-sm);
+}
+
+  .item:hover {
+    transform: translateY(-8px);
+    border-color: var(--secondary-blue);
+    box-shadow: var(--shadow-md), 0 0 15px rgba(99, 193, 255, 0.2);
+  }
+
+    .item:hover .bottom-container {
+      border-top-color: var(--secondary-blue);
+    }
+
+.item-icon {
+  width: 100px;
+  height: 100px;
+  border-radius: var(--border-radius-circle);
+  margin-bottom: var(--spacing-sm);
+  border: 3px solid transparent;
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-medium);
+}
+
+.item:hover .item-icon {
+  transform: scale(1.05);
+  border: 3px solid var(--secondary-blue);
+  box-shadow: var(--shadow-md), 0 0 10px rgba(99, 193, 255, 0.5);
+}
+
+.name {
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  margin: var(--spacing-xs) 0;
+  color: white;
+  transition: color var(--transition-medium);
+}
+
+.item:hover .name {
+  color: var(--secondary-blue);
+}
+
+.role {
+  font-size: 16px;
+  text-align: center;
+  margin: var(--spacing-xs) 0 var(--spacing-md);
+  font-weight: 500;
+}
+
+.bottom-container {
+  display: flex;
+  width: 100%;
+  border-top: 2px solid var(--primary-medium);
+  justify-content: center;
+  align-items: center;
+  padding-top: var(--spacing-sm);
+  transition: all var(--transition-medium);
+}
+
+.link-icon {
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  margin: 0 5px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+  .link-icon:hover {
+    transform: scale(1.2);
+  }
+
+/* Role colors */
+.Monarchs {
+  color: #ff0092;
+}
+
+.Advisors {
+  color: #c603ff;
+}
+
+.Auxiliary {
+  color: #e385ff;
+}
+
+.Guild-Bot {
+  color: #fc66dc;
+}
+
+.Main-Roster {
+  color: #028cf6;
+}
+
+
+@media (max-width: 1150px) {
+  .invisible-container {
+    justify-content: center;
+  }
+}

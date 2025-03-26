@@ -1,0 +1,76 @@
+<!-- Forms Management Component HTML -->
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <h1>Form Editor</h1>
+      </div>
+      <div class="title-line title-line-lg"></div>
+    </header>
+
+    <!-- Loading Animation -->
+    <div *ngIf="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Loading forms...</span>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="error">
+      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+    </div>
+
+    <!-- Add Button and Forms Table -->
+    <div *ngIf="!loading && forms.length > 0">
+      <div class="add-button-container">
+        <button class="add-button" (click)="addForm()" aria-label="Add new form">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="forms-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Description</th>
+              <th>Active</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let form of forms" (click)="selectForm(form.formId)">
+              <td>{{ form.title }}</td>
+              <td class="description" [title]="form.description">{{ form.description }}</td>
+              <td>
+                <label class="switch">
+                  <input type="checkbox"
+                         [checked]="form.isActive"
+                         [disabled]="form.isActive"
+                         (click)="$event.stopPropagation()"
+                         (change)="handleToggle(form)" />
+                  <span class="slider" (click)="$event.stopPropagation()"></span>
+                </label>
+              </td>
+              <td>
+                <button class="remove-btn"
+                        aria-label="Delete form"
+                        (click)="deleteForm(form.formId); $event.stopPropagation()">
+                  &times;
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- No Forms Found -->
+    <div *ngIf="!loading && forms.length === 0" class="no-messages">
+      <i class="fas fa-file-alt"></i>
+      <p>No forms found.</p>
+      <button class="standard-button" (click)="addForm()">
+        <i class="fas fa-plus-circle"></i> Create Form
+      </button>
+    </div>
+  </div>
+</body>

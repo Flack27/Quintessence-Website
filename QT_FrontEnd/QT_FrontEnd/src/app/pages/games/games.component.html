@@ -1,0 +1,198 @@
+<!-- Games Page Component -->
+<div class="container games-container">
+  <div class="page-header">
+    <div class="title">
+      <h1>Games</h1>
+    </div>
+    <div class="title-line"></div>
+  </div>
+
+  <!-- Game Type Tabs -->
+  <div class="games-tabs">
+    <button class="tab-button active" data-tab="upcoming">Upcoming Games</button>
+    <button class="tab-button" data-tab="prior">Prior Games</button>
+  </div>
+
+  <!-- Upcoming Games Grid -->
+  <div class="tab-content" id="upcoming-tab">
+    <div class="games-grid">
+      <!-- Aion 2 -->
+      <div class="game-card" (click)="openExternalLink('https://aion2.plaync.com')">
+        <img src="/assets/gamecards/Aion2_Gamecard.jpg" alt="Aion 2" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Aion 2 is the long-awaited sequel to the classic MMORPG, bringing fresh mechanics, a new world, and intense aerial combat.</p>
+          <div class="game-meta">
+            <span>Release: Q1 2026</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- ArcheAge Chronicles -->
+      <div class="game-card" (click)="openExternalLink('https://archeagechronicles.kakaogames.com/')">
+        <img src="/assets/gamecards/Archeage_Chronicles_Gamecard.jpg" alt="Archeage Chronicles" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">ArcheAge Chronicles reimagines the sandbox MMORPG with action combat and a greater focus on PvE adventures.</p>
+          <div class="game-meta">
+            <span>Release: Q2 2026</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ashes of Creation -->
+      <div class="game-card" (click)="openExternalLink('https://ashesofcreation.com')">
+        <img src="/assets/gamecards/Ashes_of_Creation_Gamecard.jpg" alt="Ashes of Creation" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Ashes of Creation is an ambitious MMORPG with a dynamic, player-driven world and long beta testing phase.</p>
+          <div class="game-meta">
+            <span>Release: TBA</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bellatores -->
+      <div class="game-card" (click)="openExternalLink('https://www.bellatores.com/en/')">
+        <img src="/assets/gamecards/Bellatores_Gamecard.jpg" alt="Bellator" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Bellatores is a medieval MMORPG with large-scale PvP battles and a strong emphasis on guild warfare.</p>
+          <div class="game-meta">
+            <span>Release: TBA</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chrono Odyssey -->
+      <div class="game-card" (click)="openExternalLink('https://chronoodyssey.com')">
+        <img src="/assets/gamecards/Chrono_Odyssey_Gamecard.jpg" alt="Chrono Odyssey" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Chrono Odyssey showcases stunning visuals and time manipulation mechanics, promising a unique MMORPG experience.</p>
+          <div class="game-meta">
+            <span>Release: TBA</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Perfect New World -->
+      <div class="game-card" (click)="openExternalLink('https://pnw.perfectworld.com')">
+        <img src="/assets/gamecards/Perfect_New_World_Gamecard.jpg" alt="Perfect New World" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Perfect New World is an action-packed MMORPG where players become Soul Tamers, exploring a vast world full of mysteries.</p>
+          <div class="game-meta">
+            <span>Release: TBA</span>
+            <span class="game-status status-upcoming">Upcoming</span>
+          </div>
+          <div class="external-link">
+            <i class="fas fa-external-link-alt"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Prior Games Grid -->
+  <div class="tab-content" id="prior-tab" style="display: none;">
+    <div class="games-grid">
+      <!-- Throne and Liberty -->
+      <div class="game-card" (click)="viewGameDetails('throne-and-liberty')">
+        <img src="/assets/gamecards/Throne_and_Liberty_Gamecard.jpg" alt="Throne and Liberty" class="game-image">
+        <div class="game-overlay">
+          <p class="game-description">Throne and Liberty was the first game we played as Quintessence and managed to accumalate a variety of achievements during our time in Solsium. We're looking forward to building upon the lessons learned & reputation acquired in the next MMO. </p>
+          <div class="game-meta">
+            <span>2024-2025</span>
+            <span class="game-status status-completed">Completed</span>
+          </div>
+        </div>
+        <div class="achievement-icon">
+          <i class="fas fa-trophy"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Timeline -->
+    <div class="games-timeline">
+      <div class="timeline-line"></div>
+      <div class="timeline-entry">
+        <div class="timeline-content">
+          <div class="timeline-date">April 2024</div>
+          <h3 class="timeline-title">Throne and Liberty Beta</h3>
+          <p class="timeline-description">Quintessence participated in the closed beta, establishing strategies and preparing for the full release.</p>
+        </div>
+      </div>
+
+      <div class="timeline-entry">
+        <div class="timeline-content">
+          <div class="timeline-date">October 2024</div>
+          <h3 class="timeline-title">Throne and Liberty Launch</h3>
+          <p class="timeline-description">We secured our first castle during the Siege the Day event, claiming another in the first release castle siege.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Game Details Modal -->
+<div class="game-details-modal" id="game-details-modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <img src="" alt="" class="modal-image" id="modal-image">
+      <div class="modal-image-overlay"></div>
+      <h2 class="modal-title" id="modal-title"></h2>
+      <div class="modal-close" (click)="closeGameDetails()">
+        <i class="fas fa-times"></i>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="game-info">
+        <div class="info-column">
+          <div class="info-item">
+            <div class="info-label">Time Period</div>
+            <div class="info-value" id="game-period"></div>
+          </div>
+        </div>
+        <div class="info-column">
+          <div class="info-item">
+            <div class="info-label">Player Count</div>
+            <div class="info-value" id="game-players"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="game-description-full" id="game-description-full">
+        <!-- Game description will be loaded dynamically -->
+      </div>
+      
+      <div class="achievements-section">
+        <h3 class="section-title">Guild Achievements</h3>
+        <div class="achievements-grid" id="achievements-grid">
+          <!-- Achievements will be loaded dynamically -->
+        </div>
+      </div> 
+      <div class="gallery-section">
+        <h3 class="section-title">Gallery</h3>
+        <div class="gallery-grid" id="gallery-grid">
+          <!-- Gallery images will be loaded dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

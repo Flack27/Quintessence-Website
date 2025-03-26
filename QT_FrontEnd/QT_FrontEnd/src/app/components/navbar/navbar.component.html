@@ -1,0 +1,43 @@
+<nav>
+  <div class="navbar-container">
+    <!-- Logo on the left -->
+    <div class="logo">
+      <a routerLink="/">
+        <img src="/assets/logo.png" alt="Quintessence Logo" />
+      </a>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <div class="mobile-toggle" (click)="toggleMobileMenu()">
+      <i class="fas" [ngClass]="isMobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+    </div>
+
+    <!-- Navigation Links - right aligned -->
+    <ul [ngClass]="{'mobile-open': isMobileMenuOpen}">
+      <li><a routerLink="/" (click)="closeMobileMenu()">Home</a></li>
+      <li *ngIf="user?.claims?.is_admin" class="li-menu"><a routerLink="/menu" (click)="closeMobileMenu()">Menu</a></li>
+      <li><a routerLink="/apply" (click)="closeMobileMenu()">Apply</a></li>
+      <li><a routerLink="/games" (click)="closeMobileMenu()">Games</a></li>
+      <li><a routerLink="/roster" (click)="closeMobileMenu()">Roster</a></li>
+
+      <!-- Login Link -->
+      <li *ngIf="!user?.isAuthenticated">
+        <a href="api/accounts/login/home">Login</a>
+      </li>
+
+      <!-- User Dropdown -->
+      <li class="user-info" *ngIf="user?.isAuthenticated">
+        <div class="user" (click)="toggleDropdown()">
+          <img [src]="user?.claims?.avatar_url"
+               alt="User Avatar"
+               class="avatar" />
+          <span>{{ user?.claims?.display_name }}</span>
+        </div>
+        <ul class="dropdown">
+          <li *ngIf="user?.claims?.is_main_roster"><a routerLink="/profile" (click)="closeMobileMenu()">Profile</a></li>
+          <li><a (click)="logout(); closeMobileMenu()">Logout</a></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</nav>

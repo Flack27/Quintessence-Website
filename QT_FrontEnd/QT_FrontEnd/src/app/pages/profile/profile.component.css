@@ -1,0 +1,342 @@
+/* Profile Page Styles */
+
+/* Background styling (matching roster page) */
+body {
+  background-image: url('/assets/backgrounds/background-D.webp');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(82, 15, 115, 0.4) 0%, rgba(21, 1, 51, 0.6) 100%);
+}
+
+/* Profile container layout */
+.profile-container {
+  display: flex;
+  gap: var(--spacing-xl);
+  margin-top: var(--spacing-lg);
+  align-items: stretch; /* Make children stretch to the same height */
+  flex-wrap: wrap;
+  height: 560px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  height: auto;
+  width: 400px;
+  height: 560px;
+  padding-top: 40px;
+  padding-bottom: 40px;
+  border: 4px solid var(--primary-medium);
+  border-radius: var(--border-radius-lg);
+  overflow: hidden;
+  background: rgba(11, 9, 22, 0.8);
+  transition: all var(--transition-medium);
+  position: relative;
+  box-shadow: var(--shadow-md);
+}
+
+  .item:hover {
+    transform: translateY(-8px);
+    border-color: var(--secondary-blue);
+    box-shadow: var(--shadow-md), 0 0 15px rgba(99, 193, 255, 0.2);
+  }
+
+    .item:hover .bottom-container {
+      border-top-color: var(--secondary-blue);
+    }
+
+.item-icon {
+  width: 200px;
+  height: 200px;
+  border-radius: var(--border-radius-circle);
+  margin-bottom: var(--spacing-md);
+  border: 6px solid transparent;
+  object-fit: cover;
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-medium);
+}
+
+.item:hover .item-icon {
+  transform: scale(1.05);
+  border-color: var(--secondary-blue);
+  box-shadow: var(--shadow-md), 0 0 10px rgba(99, 193, 255, 0.5);
+}
+
+.name {
+  font-size: 36px;
+  font-weight: 600;
+  text-align: center;
+  margin: var(--spacing-sm) 0;
+  color: white;
+  transition: color var(--transition-medium);
+}
+
+.item:hover .name {
+  color: var(--secondary-blue);
+}
+
+.role {
+  font-size: 32px;
+  text-align: center;
+  margin: var(--spacing-sm) 0 40px;
+  font-weight: 500;
+}
+
+.bottom-container {
+  display: flex;
+  width: 100%;
+  border-top: 4px solid var(--primary-medium);
+  justify-content: center;
+  align-items: center;
+  padding-top: var(--spacing-sm);
+  transition: all var(--transition-medium);
+  margin-top: auto; /* Push to bottom of container */
+}
+
+.link-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  margin: 0 5px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+  .link-icon:hover {
+    transform: scale(1.2);
+  }
+
+/* Role colors */
+.Monarchs {
+  color: #ff0092;
+  border-color: #ff0092;
+}
+
+.Advisors {
+  color: #c603ff;
+  border-color: #c603ff;
+}
+
+.Auxiliary {
+  color: #e385ff;
+  border-color: #e385ff;
+}
+
+.Guild-Bot {
+  color: #fc66dc;
+  border-color: #fc66dc;
+}
+
+.Main-Roster {
+  color: #028cf6;
+  border-color: #028cf6;
+}
+
+.profile-social {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-md);
+}
+
+.social-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(11, 9, 22, 0.6);
+  padding: var(--spacing-xs);
+  border: 2px solid var(--primary-medium);
+  transition: all var(--transition-medium);
+  cursor: pointer;
+}
+
+  .social-icon:hover {
+    transform: scale(1.2);
+    border-color: var(--secondary-blue);
+    box-shadow: var(--shadow-sm), 0 0 10px rgba(99, 193, 255, 0.5);
+  }
+
+/* Profile edit section */
+.profile-edit-container {
+  flex: 1;
+  min-width: 300px;
+  height: 560px;
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-section {
+  background: rgba(11, 9, 22, 0.8);
+  border: 2px solid var(--primary-medium);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  transition: all var(--transition-medium);
+  box-shadow: var(--shadow-md);
+  /* Make this flex grow to fill the available space */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+  .edit-section form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .edit-section:hover {
+    border-color: var(--secondary-blue);
+    box-shadow: var(--shadow-lg), var(--glow);
+  }
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-lg);
+  color: var(--secondary-blue);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  position: relative;
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 2px solid var(--primary-medium);
+}
+
+  .section-title i {
+    color: var(--secondary-blue);
+  }
+
+.edit-section:hover .section-title {
+  border-color: var(--secondary-blue);
+}
+
+
+
+/* Form styling */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+  .form-group label {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-xs);
+    font-weight: 600;
+    color: white;
+  }
+
+.input-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.profile-input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  background: rgba(11, 9, 22, 0.6);
+  border: 2px solid var(--primary-medium);
+  border-radius: var(--border-radius-md);
+  color: white;
+  font-size: 1rem;
+  outline: none;
+  transition: all var(--transition-medium);
+}
+
+  .profile-input:focus {
+    border-color: var(--secondary-blue);
+    box-shadow: 0 0 15px rgba(99, 193, 255, 0.3);
+  }
+
+  .profile-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+/* Button container */
+.button-container {
+  margin-top: auto;
+  display:flex;
+  justify-content: center;
+}
+
+.spacer {
+  flex: 1;
+  min-height: var(--spacing-md);
+}
+
+/* Standard button is already in your main CSS */
+.standard-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-width: 180px;
+  justify-content: center;
+}
+
+  .standard-button[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+/* Success and saving indicators */
+.saving-indicator,
+.success-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-left: auto;
+  font-size: 0.9rem;
+  font-weight: normal;
+}
+
+.saving-indicator {
+  color: var(--secondary-blue);
+}
+
+.success-indicator {
+  color: #2ed573;
+}
+
+  .success-indicator i {
+    color: #2ed573;
+  }
+
+@media (max-width: 768px) {
+  .profile-container {
+    flex-direction: column;
+  }
+
+  .item {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .edit-section {
+    height: auto;
+    min-height: 400px;
+  }
+}
+
+
+
+

@@ -1,0 +1,67 @@
+<!-- Signups Component HTML -->
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <h1>Event Signups</h1>
+      </div>
+      <div class="title-line title-line-xl"></div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <input type="text"
+             [(ngModel)]="searchQuery"
+             class="search-bar"
+             placeholder="Search participants by name..."
+             (input)="filterSignups()" />
+    </div>
+
+
+    <!-- Event Details Banner -->
+    <div class="event-details-banner">
+      <span class="event-name">
+        <i class="fas fa-calendar-alt"></i>
+        {{ eventTitle }}
+      </span>
+      <span class="event-date">
+        <i class="fas fa-clock"></i>
+        {{ eventDate }}
+      </span>
+      <span class="signup-count">
+        <i class="fas fa-users"></i>
+        Signups: {{ filteredSignups.length }}
+      </span>
+    </div>
+
+    <!-- Loading Animation -->
+    <div *ngIf="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Loading signups...</span>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="error">
+      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+    </div>
+
+    <!-- Signups List -->
+    <section *ngIf="!loading && filteredSignups" class="signups-section">
+      <ul *ngIf="filteredSignups.length > 0; else noSignups">
+        <li *ngFor="let signup of filteredSignups" class="signup-item">
+          <img [src]="signup.avatar" alt="Avatar" class="signup-avatar">
+          <span class="signup-name">{{ signup.displayName }}</span>
+        </li>
+      </ul>
+      <ng-template #noSignups>
+        <div class="no-signups">
+          <i class="fas fa-user-slash"></i>
+          <p>No signups found for this event.</p>
+          <button *ngIf="searchQuery" class="standard-button" (click)="clearSearch()">
+            Clear Search
+          </button>
+        </div>
+      </ng-template>
+    </section>
+  </div>
+  </body>

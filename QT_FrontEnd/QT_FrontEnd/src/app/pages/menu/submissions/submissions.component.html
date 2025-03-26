@@ -1,0 +1,90 @@
+<!-- Submissions Component HTML -->
+<body>
+  <div class="container">
+    <header>
+      <div class="title">
+        <h1>Submissions</h1>
+      </div>
+      <div class="title-line title-line-xl"></div>
+    </header>
+
+    <!-- Search Bar -->
+    <div class="search-container">
+      <input type="text"
+             [(ngModel)]="searchQuery"
+             class="search-bar"
+             placeholder="Search by username or form title..."
+             (input)="filterSubmissions()" />
+    </div>
+
+    <!-- Loading Animation -->
+    <div *ngIf="loading" class="loading">
+      <div class="spinner"></div>
+      <span>Loading submissions...</span>
+    </div>
+
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="error">
+      <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+    </div>
+
+    <!-- Submissions Table -->
+    <div *ngIf="!loading && filteredSubmissions.length > 0" class="table-container">
+      <table class="submissions-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Username</th>
+            <th>Form</th>
+            <th>Submit Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let submission of paginatedSubmissions" (click)="selectSubmission(submission.submissionId)">
+            <td class="avatar-cell">
+              <div class="avatar-wrapper">
+                <img [src]="submission.avatar" alt="Avatar" class="avatar" />
+              </div>
+            </td>
+            <td>{{ submission.userName }}</td>
+            <td>{{ submission.title }}</td>
+            <td>{{ submission.submitDate | date: 'MMM d, y, h:mm a' }}</td>
+            <td>
+              <span class="status-badge" [ngClass]="{
+              'status-approved': submission.approved === true,
+              'status-rejected': submission.approved === false,
+              'status-pending': submission.approved === null || submission.approved === undefined}">
+                <i class="fas" [ngClass]="{
+                'fa-check-circle': submission.approved === true,
+                'fa-times-circle': submission.approved === false,
+                'fa-clock': submission.approved === null || submission.approved === undefined}"></i>
+                {{ submission.approved === true ? 'Approved' : submission.approved === false ? 'Rejected' : 'Pending' }}
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div *ngIf="!loading && filteredSubmissions.length > itemsPerPage" class="pagination-controls">
+      <button (click)="previousPage()" [disabled]="currentPage === 1">
+        <i class="fas fa-chevron-left"></i> Previous
+      </button>
+      <span>Page {{ currentPage }} of {{ totalPages }}</span>
+      <button (click)="nextPage()" [disabled]="currentPage === totalPages">
+        Next <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+
+    <!-- No Submissions Found -->
+    <div *ngIf="!loading && filteredSubmissions.length === 0" class="no-messages">
+      <i class="fas fa-inbox"></i>
+      <p>No submissions found matching your search criteria.</p>
+      <button *ngIf="searchQuery" class="standard-button" (click)="clearSearch()">
+        Clear Search
+      </button>
+    </div>
+  </div>
+</body>

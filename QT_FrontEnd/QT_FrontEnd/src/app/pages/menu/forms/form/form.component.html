@@ -1,0 +1,179 @@
+<!-- Form Editor Component -->
+<body>
+  <div class="container">
+    <div class="form-container">
+      <header>
+        <input id="formTitle"
+               type="text"
+               [(ngModel)]="form.title"
+               class="form-title"
+               (blur)="saveFormChanges()"
+               placeholder="Form Title" />
+
+        <textarea id="formDescription"
+                  rows="3"
+                  [(ngModel)]="form.description"
+                  class="form-description"
+                  (blur)="saveFormChanges()"
+                  placeholder="Form Description"></textarea>
+      </header>
+
+      <!-- Loading or Error Messages -->
+      <div *ngIf="loading" class="loading">Loading form editor...</div>
+      <div *ngIf="!loading && errorMessage" class="error">
+        <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+      </div>
+
+      <!-- Editable Form -->
+      <div *ngIf="!loading && !errorMessage" class="form-editor">
+
+        <!-- Questions -->
+        <ul class="question-list">
+          <li *ngFor="let question of form.questions; let i = index">
+            <div class="question-item">
+              <div class="question-content">
+                <!-- Question Text -->
+                <input id="questionText{{i}}"
+                       type="text"
+                       [(ngModel)]="question.questionText"
+                       class="question-input"
+                       (blur)="saveQuestionChanges(question)"
+                       placeholder="Enter your question here..." />
+
+                <div class="answer-preview">
+                  <!-- Text Input Type -->
+                  <div *ngIf="isTextType(question)">
+                    <input type="text" placeholder="Text answer preview (not editable)" disabled class="answer-input" />
+                  </div>
+
+                  <!-- Multiple Choice Type -->
+                  <div *ngIf="isMultipleChoice(question)">
+                    <ul class="option-list">
+                      <li *ngFor="let option of question.options; let j = index" class="option-input-wrapper">
+                        <input type="checkbox" disabled />
+                        <input type="text"
+                               [(ngModel)]="option.answerOption"
+                               class="option-input"
+                               (blur)="saveQuestionChanges(question)"
+                               placeholder="Option text" />
+                        <button class="remove-btn" (click)="removeOption(question, j)" aria-label="Remove option">×</button>
+                      </li>
+                    </ul>
+                    <button class="add-btn" (click)="addOption(question)">Add Option</button>
+                  </div>
+
+                  <!-- Dropdown Type -->
+                  <div *ngIf="isDropdown(question)">
+                    <select class="dropdown-preview" disabled>
+                      <option disabled selected>Select an option (preview)</option>
+                      <option *ngFor="let option of question.options" [value]="option.answerOption">
+                        {{ option.answerOption }}
+                      </option>
+                    </select>
+                    <ul class="option-list">
+                      <li *ngFor="let option of question.options; let j = index" class="option-input-wrapper">
+                        <input type="text"
+                               [(ngModel)]="option.answerOption"
+                               class="option-input"
+                               (blur)="saveQuestionChanges(question)"
+                               placeholder="Option text" />
+                        <button class="remove-btn" (click)="removeOption(question, j)" aria-label="Remove option">×</button>
+                      </li>
+                    </ul>
+                    <button class="add-btn" (click)="addOption(question)">Add Option</button>
+                  </div>
+
+                  <!-- Single Choice Type -->
+                  <div *ngIf="isSingleChoice(question)">
+                    <ul class="option-list">
+                      <li *ngFor="let option of question.options; let j = index" class="option-input-wrapper">
+                        <input type="radio" name="singleChoicePreview{{i}}" disabled />
+                        <input type="text"
+                               [(ngModel)]="option.answerOption"
+                               class="option-input"
+                               (blur)="saveQuestionChanges(question)"
+                               placeholder="Option text" />
+                        <button class="remove-btn" (click)="removeOption(question, j)" aria-label="Remove option">×</button>
+                      </li>
+                    </ul>
+                    <button class="add-btn" (click)="addOption(question)">Add Option</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Question Configuration -->
+              <div class="question-config">
+                <label for="questionType{{i}}">Question Type:</label>
+                <select id="questionType{{i}}"
+                        [(ngModel)]="question.typeId"
+                        class="type-select"
+                        (change)="saveQuestionChanges(question)">
+                  <option *ngFor="let type of questionTypes" [value]="type.typeId">
+                    {{ type.type }}
+                  </option>
+                </select>
+
+                <label class="required-checkbox">
+                  <input id="isRequired{{i}}"
+                         type="checkbox"
+                         [(ngModel)]="question.isRequired"
+                         (change)="saveQuestionChanges(question)" />
+                  Required Question
+                </label>
+
+                <!-- Delete Question Button -->
+                <button class="delete-question-button delete-question-btn" (click)="deleteQuestion(question.questionId)">
+                  Delete Question
+                </button>
+              </div>
+
+              <!-- Dependency Configuration -->
+              <div class="dependency-config">
+                <label for="dependencyQuestion{{i}}">Question depends on:</label>
+                <select id="dependencyQuestion{{i}}"
+                        [(ngModel)]="question.dependencyQuestionId"
+                        (change)="onDependencyQuestionChange(question)"
+                        class="dependency-dropdown">
+                  <option [ngValue]="null">None (always show)</option>
+                  <option *ngFor="let q of getEligibleDependencyQuestions(question)" [value]="q.questionId">
+                    {{ q.questionText }}
+                  </option>
+                </select>
+
+                <div *ngIf="question.dependencyQuestionId">
+                  <label for="dependencyAnswer{{i}}">Required answer:</label>
+                  <select id="dependencyAnswer{{i}}"
+                          [(ngModel)]="question.requiredAnswer"
+                          class="dependency-dropdown">
+                    <option *ngFor="let option of getAnswerOptions(question.dependencyQuestionId)" [value]="option.answerOption">
+                      {{ option.answerOption }}
+                    </option>
+                  </select>
+                  <div *ngIf="question.errorMessage" class="error-minor">
+                    <i class="fas fa-exclamation-circle"></i> {{ question.errorMessage }}
+                  </div>
+                </div>
+
+                <button class="standard-button save-dependency-btn"
+                        (click)="saveDependency(question)">
+                  Save Dependency
+                </button>
+
+                <div *ngIf="question.succesMessage" class="succes-minor">
+                  <i class="fas fa-check-circle"></i> {{ question.succesMessage }}
+                </div>
+              </div>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Add Question Button -->
+        <div class="button-container">
+          <button class="standard-button" (click)="addQuestion()">
+            <i class="fas fa-plus-circle"></i> Add New Question
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>

@@ -1,0 +1,472 @@
+<!-- Quintessence Guild Homepage -->
+<!-- Hero Section -->
+<head>
+  <link rel="preload" href="/assets/backgrounds/background-E.webp" as="image" type="image/jpeg">
+
+  <style>
+    .hero-section {
+      min-height: calc(100vh - 76px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-bg-img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.4);
+    }
+
+    .hero-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(82, 15, 115, 0.6) 0%, rgba(21, 0, 51, 0.85) 100%);
+    }
+
+    .hero-content {
+      max-width: 1000px;
+      margin: 0 auto;
+      z-index: 1;
+      position: relative;
+      padding: 2rem;
+    }
+  </style>
+</head>
+
+<section class="hero-section">
+  <img src="/assets/backgrounds/background-E.webp"
+       alt=""
+       class="hero-bg-img"
+       width="1920"
+       height="1080"
+       fetchpriority="high"
+       decoding="async">
+  <div class="hero-overlay"></div>
+
+  <div class="hero-content">
+    <img src="/assets/logo.png" alt="Quintessence Guild Logo" class="hero-logo">
+    <h1 class="guild-name">Quintessence</h1>
+    <p class="guild-tagline">Hardcore European MMO guild—a consolidation of community focus and competitive attitudes, with a sharp emphasis on PvP content.</p>
+
+    <div class="hero-cta">
+      <a href="https://discord.com/invite/qte" target="_blank" class="cta-button cta-primary">
+        <i class="fab fa-discord"></i> Join Our Discord
+      </a>
+      <a href="#join-process" class="cta-button cta-secondary">
+        <i class="fas fa-info-circle"></i> How To Join
+      </a>
+    </div>
+  </div>
+
+  <a href="#join-process" class="scroll-indicator">
+    <i class="fas fa-chevron-down"></i>
+  </a>
+</section>
+
+<!-- Join Process Section -->
+<section class="join-section" id="join-process">
+  <div class="join-container">
+    <div class="section-header">
+      <h2 class="join-section-title">How To Join Quintessence</h2>
+    </div>
+
+    <div class="process-timeline">
+      <div class="timeline-line"></div>
+
+      <div class="timeline-steps">
+        <div class="timeline-step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3 class="step-title">Join Our Discord</h3>
+            <p class="step-description">The first step to becoming a member is by joining our <a href="https://discord.com/invite/qte" target="_blank" class="apply-link">discord</a> server. All our internal systems are linked with Discord and so, its a mandatory requirement.</p>
+            <img src="/assets/join-discord.jpg" alt="Join Discord" class="step-image">
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3 class="step-title">Application Form</h3>
+            <p class="step-description">Click <a routerLink="/apply" class="apply-link">here</a> and fill out the form. We will be notified of the application and an interview text channel will be opened in our discord.</p>
+            <img src="/assets/application-form.jpg" alt="Application Form" class="step-image">
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3 class="step-title">Interview</h3>
+            <p class="step-description">Someone from leadership will reach out to schedule a brief interview. These interviews allow us to get a more personal understanding of who is joining our community.</p>
+            <img src="/assets/interview.jpg" alt="Interview" class="step-image">
+          </div>
+        </div>
+
+        <div class="timeline-step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3 class="step-title">Review</h3>
+            <p class="step-description">Once the interview has been completed, you'll be eligible to join any of our rosters. Which will have their regulations explained within the voice interview.</p>
+            <img src="/assets/review.jpg" alt="Review" class="step-image">
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- About Us Section -->
+<section class="about-section" id="about">
+  <div class="about-container">
+    <div class="about-content">
+      <h2 class="about-title">About Quintessence</h2>
+      <p class="about-text">We are a Hardcore PvX guild, with a focus on PvP. We are plan to play majority of promising MMOs to improve, grow as players, and grow as a guild.</p>
+      <p class="about-text">Core members & leadership have participated in competitive large scale PvP battles within New World and Throne & Liberty with a passion for this type of gameplay. As such, we value & understand the importance of communication and player mindset as core components in MMO's and we strive to perfect the craft of hardcore gaming.</p>
+      <p class="about-text">As we've aimed to do from the start, we have every intention of organising our guild to be recognized as organized, ambitious, and fierce while maintaining a respectful and entertaining community. With each new game and each new member, we're keen on bringing that same energy, effort, and enthusiasm to every MMO we play. </p>
+    </div>
+
+    <div class="about-image">
+      <video #aboutVideo
+             loop
+             muted
+             playsinline
+             preload="auto"
+             class="about-video"
+             width="100%"
+             height="auto">
+        <source src="/assets/about-video.mp4" type="video/mp4">
+        <source src="/assets/about-video.webm" type="video/webm">
+      </video>
+    </div>
+  </div>
+</section>
+
+<!-- What We Offer Section -->
+<section class="offerings-section" id="offerings">
+  <div class="offerings-container">
+    <div class="section-header">
+      <h2 class="offer-section-title">What We Offer</h2>
+    </div>
+
+    <div class="offerings-grid">
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-users-cog"></i>
+        </div>
+        <h3 class="offering-title">Experienced Leadership</h3>
+        <p class="offering-description">Our guild boasts experienced & proficient management including capable shotcallers and competent group leaders who guide our members to success.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-globe"></i>
+        </div>
+        <h3 class="offering-title">Diverse Community</h3>
+        <p class="offering-description">Join our diverse, active, and friendly community filled with talented individuals from all walks of life. We sustain engagement with bi-weekly events and multiplayer experiences.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-server"></i>
+        </div>
+        <h3 class="offering-title">Custom Infrastructure</h3>
+        <p class="offering-description">Our guild runs on a fully custom bot that integrates with RaidHelper, spreadsheets, and this website for seamless management and tracking of all guild activities and member progression.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-book-open"></i>
+        </div>
+        <h3 class="offering-title">Resources & Guides</h3>
+        <p class="offering-description">Access our extensive collection of resources including class guides, roster spreadsheets, and a curated knowledge base to optimize your gaming experience.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-gamepad"></i>
+        </div>
+        <h3 class="offering-title">Game Servers</h3>
+        <p class="offering-description">Enjoy bespoke server hosting for various games including Minecraft, Enshrouded, Valheim, V-Rising, and more during quieter periods between MMO releases.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-video"></i>
+        </div>
+        <h3 class="offering-title">Content Creator Support</h3>
+        <p class="offering-description">Receive support & internal promotion from the Quintessence community if you're a content creator looking to grow your audience.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-crown"></i>
+        </div>
+        <h3 class="offering-title">Leadership Opportunities</h3>
+        <p class="offering-description">Progress through guild ranks & take on a mantle of leadership should you prove willing & efficacious in contributing to our community.</p>
+      </div>
+
+      <div class="offering-card">
+        <div class="offering-icon">
+          <i class="fas fa-key"></i>
+        </div>
+        <h3 class="offering-title">Beta Access</h3>
+        <p class="offering-description">Get invited to multiple Beta & Alpha testing cycles of MMOs prior to release - a benefit of being a recognized MMO guild in the eyes of developers.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Requirements Section -->
+<section class="requirements-section" id="requirements">
+  <div class="requirements-container">
+    <div class="section-header">
+      <h2 class="req-section-title">Membership Requirements</h2>
+    </div>
+
+    <div class="requirements-grid">
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-users"></i>
+        </div>
+        <h3 class="requirement-title">PvP Engagement</h3>
+        <p class="requirement-description">Roster members are expected to maintain high attendance for PvP events. These activities are primarily organized through our Raid-helper system to ensure maximum participation and coordination.</p>
+      </div>
+
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-book"></i>
+        </div>
+        <h3 class="requirement-title">Research & Meta Mastery</h3>
+        <p class="requirement-description">Members must research and master their roles in-game. We expect initiative in incorporating and investigating the current "meta" to ensure our collective success in all gaming endeavors.</p>
+      </div>
+
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-microphone"></i>
+        </div>
+        <h3 class="requirement-title">Voice Communication</h3>
+        <p class="requirement-description">A working microphone and basic English comprehension are required. Members should be comfortable in voice chats as we utilize Mumble and Discord for coordination during gameplay and large-scale battles.</p>
+      </div>
+
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-rocket"></i>
+        </div>
+        <h3 class="requirement-title">Launch Day Commitment</h3>
+        <p class="requirement-description">Members are expected to be available on game release days to participate in level/profession cap rushes. This collective effort gives our guild a competitive advantage from day one.</p>
+      </div>
+
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-handshake"></i>
+        </div>
+        <h3 class="requirement-title">Diplomacy & Community</h3>
+        <p class="requirement-description">Mature conduct is expected when interacting with external communities. Trash talk and drama are frowned upon - we represent Quintessence with pride and professionalism.</p>
+      </div>
+
+      <div class="requirement-card">
+        <div class="requirement-icon">
+          <i class="fas fa-id-card"></i>
+        </div>
+        <h3 class="requirement-title">Age Requirement</h3>
+        <p class="requirement-description">All members must be 18 years of age or older. This requirement ensures a mature community environment and compliance with various game rating systems.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ Section -->
+<section class="faq-section" id="faq">
+  <div class="faq-container">
+    <div class="section-header">
+      <h2 class="faq-section-title">Frequently Asked Questions</h2>
+    </div>
+
+    <div class="faq-list">
+      <!-- Left Column -->
+      <div class="faq-column">
+        <div class="faq-item">
+          <div class="faq-question">
+            Does the guild participate in any other game type? (e.g., competitive FPS, MOBAs, Co-op RPGs/survivals)
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>We actively encourage our members to engage in any type of competitive play in all varieties of games. Developing synergy and companionship can only lead to further success within MMOs. Subsequently, We appreciate our members bringing ideas of multiplayer games to play together as a group in lieu of MMO releases. We have implemented a dedicated server run by management which we configure for specific games such as Valheim, V-rising, Enshrouded, Minecraft & whatever future co-op/multiplayer game the guild may be interested in.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How do I become confirmed as a part of a Quintessence roster?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>
+              The majority of Quintessence members are in Europe and operate within the CET timezone. It is an expectation for every member to be available around the primetime hours of the game so being in a similar timezone (1-4 hours behind/infront) would be advantageous.
+            </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            As the guild is planning to play multiple MMO's, how do we choose our priority?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>The priority MMO will be discussed & polled within our guild in the event that we have multiple releases in the same year. Main roster members do have to play the priority MMO as a part of the requirements of being accepted within the main roster - however, community members & initiates who joined the guild for that game may stay and do not have to switch if they do not want to. Should there be no leadership available for the running of the guild within our previous priority MMO, leadership will attempt to merge with another guild prior to disbanding so our remaining members are still able to have an experience on the game with minimal disruption. </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            What resources do we offer to guild members?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>We have developed various resources to provide a fulfilling & informed experience when hopping on an MMO. Management have spent countless hours creating guides, knowledgebases, spreadsheets, formulas, and more surrounding the MMOs we're anticipating. Not only do we develop resources surrounding MMOs but we also offer server hosting for other games to allow consistent member engagement in lieu of MMO releases. </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            Do we encourage P2W gameplay?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>We do not encourage nor deter our players to dig into their wallet in order to succeed - it is up to the individuals discretion if they wish to spend money in-game. However, we do distinguish between financially supporting a game through a monthly subscription, battle passes or similar & straight up purchasing power. Having to spend £10-20 a month for thousands of potential hours played on an MMO is a great deal to make as the developers do have to eat! The P2W level of a game will be discussed within leadership and if the game we're anticipating has an appaling amount of P2W - we will not be playing it.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How does the guild manage conflict or disputes?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>We are adults with thick skin who can withstand, as well as dish out banter. We expect our members to be able to follow those principles, behave as adults, and resolve whatever dispute they may have with each-other. However, in the case of a conflict between members that begins to poison what we stand for as a community - it warrants a one on one discussion with management. If the situation is unresolvable, due to our drama free policy, the aggressor may be removed from roster, or from the guild depending on the offense's severity.  </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            What are the guild's activity requirements?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>As a hardcore guild, we expect dedication in both conduct and attendance. Staying competitive means mastering your gameplay, keeping up with the meta, and optimizing your build and gear. Attendance is equally crucial, especially for Call to Arms (CTAs), where success often depends on having a strong and reliable presence. In large-scale PvP, numbers can determine the outcome, and inconsistent participation weakens the guild as a whole. Being present during our primetime hours is essential, and if an emergency arises, inform management of your absence. </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="faq-column">
+        <div class="faq-item">
+          <div class="faq-question">
+            How many people are in the "core inner circle" of the guild?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>To give a ballpark number, we're currently have around 20-25 members (all at different positions/ranks within the guild) who are considered a "core" member in the sense that we've played as a group for years & developed niche friendships that have overflowed into IRL. This number is growing exponentially following recruitment efforts & we hope to carry on increasing this until we're at a good number of reliable & dependable members that we can take to any MMO.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            Do we intend on growing to the point of becoming a zerg guild?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>
+              We do not have any intentions of leading an overly large guild as it goes against our values of having synergy & companionship within the guild. We'd prefer to develop friendships with a smaller group of players and essentially "know" every one of our members as opposed to having hundreds or thousands of faces that we don't even remember the names of. We understand that the types of games we're intending on playing do suffer from a clear advantage in zerging - however, we will be offsetting our disadvantage through diplomacy & guild-to-guild relations.
+            </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How do I become confirmed as a part of a Quintessence roster?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>
+              Beyond the application process, after this has been satisfied, there are further stipulations attached to initiates when it comes to confirming you as a part of a Quintessence roster. As we're pre-recruiting for games that haven't yet released, there is a high chance of prospects becoming uninterested or simply joining a different guild for the game – the longer that we have without any release date, the higher the possibility becomes. Due to this, we will be admitting initiates into the roster once we have a release date & a subsequent guild-wide meeting.
+            </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How does your guild function as "Hardcore PvX"?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>We are focused on utilising PvE to optimise our PvP ability - for example, running content/crafting to obtain the best gear/weapon sets to succeed in a PvP environment. Our main goal isn't to speedrun dungeons for a world record but to participate in competitive PvP. </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            What are the guilds goals & ambitions?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>Our goal is to participate within competitive MMO PvP to the best of our ability & develop long lasting relationships with one another ultimately creating a community filled with like-minded friends all a passion for this kind of gameplay. Our ambition is tempered by acknowledging the significance of being at the foot of the mountain - this is not a deterrent, but an understanding that there will always be a bigger fish. However, our success within Throne & Liberty has demonstrated our capability to remain competitive and a name to be respected when it comes to PvP in MMO's.</p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How to become a Main Roster member?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>
+              Main Roster promotions will be conducted based on performance, behaviour and loyalty demonstrated through your time with the guild. Furthermore, you must meet the expectations listed in: ⁠guild-information on our discord.
+            </p>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">
+            How does the loot system work?
+            <i class="fas fa-chevron-down"></i>
+          </div>
+          <div class="faq-answer">
+            <p>The loot system we choose to implement highly depends on the game we're looking to play. Ultimately, we look to implement the most fair system so that players are rewarded for their effort and position within the guild. However, high value items will be distributed via loot council to ensure it goes to members who deserve it and can get the best use out of it. Examples of this include Archboss drops in Throne & Liberty or BiS crafted gear pieces in New World.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Call to Action Section -->
+<section class="cta-section">
+  <div class="cta-container">
+    <h2 class="cta-title">Ready to Join Our Community?</h2>
+    <p class="cta-text">Become part of Quintessence today and experience gaming with a community that values skill, camaraderie, and continuous improvement.</p>
+
+    <a href="https://discord.com/invite/qte" target="_blank" class="cta-button cta-primary-discord">
+      <i class="fab fa-discord"></i> Join Our Discord
+    </a>
+
+    <div class="social-links">
+      <a href="https://www.twitch.tv/quintessenceeu" target="_blank" class="social-link" title="Twitch">
+        <img src="/assets/twitch.svg" class="link-icon" alt="Twitch" />
+      </a>
+      <a href="https://www.youtube.com/@QuintessenceEU" target="_blank" class="social-link" title="YouTube">
+        <img src="/assets/youtube.svg" class="link-icon" alt="YouTube" />
+      </a>
+    </div>
+  </div>
+</section>
+
+<a href="#" class="back-to-top">
+  <i class="fas fa-arrow-up"></i>
+</a>
+
