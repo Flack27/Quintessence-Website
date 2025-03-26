@@ -1,0 +1,169 @@
+name: Build and Deploy Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'QT_API/**'
+      - 'QT_FrontEnd/**'
+      - '.github/workflows/docker-build-website.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'QT_API/**'
+      - 'QT_FrontEnd/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: Docker
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Debug - Show file structure
+      run: |
+        echo "Repository structure:"
+        ls -la
+        echo "QT_API structure:"
+        ls -la QT_API || echo "Directory doesn't exist"
+        echo "QT_FrontEnd structure:"
+        ls -la QT_FrontEnd || echo "Directory doesn't exist"
+        echo "Finding Dockerfiles:"
+        find . -name "Dockerfile" | sort
+        echo "Finding ASP.NET projects:"
+        find . -name "*.csproj" | grep -i "website" || echo "No website projects found"
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to DockerHub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # Create a dynamic API Dockerfile
+    - name: Create API Dockerfile
+      run: |
+        # Find the actual main project and its referenced projects
+        MAIN_PROJ=$(find ./QT_API -name "*Website.csproj" | grep -i "Quintessence" | head -1)
+        MAIN_PROJ_REL=$(echo "$MAIN_PROJ" | sed 's|^\./||')
+        MAIN_DIR=$(dirname "$MAIN_PROJ")
+        MAIN_NAME=$(basename "$MAIN_PROJ" .csproj)
+        
+        echo "Found main project at: $MAIN_PROJ"
+        
+        # Find all referenced projects
+        PROJECT_REFS=""
+        for PROJ in $(find ./QT_API -name "*.csproj" | grep -v "$MAIN_PROJ"); do
+          PROJ_REL=$(echo "$PROJ" | sed 's|^\./||')
+          PROJECT_REFS+="COPY [\"$PROJ_REL\", \"$(dirname "$PROJ_REL")/\"]\n"
+        done
+        
+        # Create API Dockerfile with the correct paths
+        cat > ./QT_API/Dockerfile << EOL
+        FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+        WORKDIR /app
+        EXPOSE 80
+        EXPOSE 443
+
+        FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+        ARG BUILD_CONFIGURATION=Release
+        WORKDIR /src
+
+        # Copy main project file
+        COPY ["$MAIN_PROJ_REL", "$(dirname "$MAIN_PROJ_REL")/"]
+        
+        # Copy referenced project files
+        $(echo -e "$PROJECT_REFS")
+        
+        # Restore packages
+        RUN dotnet restore "$MAIN_PROJ_REL"
+        
+        # Copy everything else and build
+        COPY . .
+        WORKDIR "/src/$(dirname "$MAIN_PROJ_REL")"
+        RUN dotnet build "$MAIN_NAME.csproj" -c \$BUILD_CONFIGURATION -o /app/build
+        
+        # Publish
+        FROM build AS publish
+        ARG BUILD_CONFIGURATION=Release
+        RUN dotnet publish "$MAIN_NAME.csproj" -c \$BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+        
+        # Final image
+        FROM base AS final
+        WORKDIR /app
+        COPY --from=publish /app/publish .
+        ENTRYPOINT ["dotnet", "$MAIN_NAME.dll"]
+        EOL
+        
+        echo "Created API Dockerfile:"
+        cat ./QT_API/Dockerfile
+    
+    # Create a dynamic Frontend Dockerfile
+    - name: Create Frontend Dockerfile
+      run: |
+        # Create Angular Frontend Dockerfile
+        cat > ./QT_FrontEnd/Dockerfile << EOL
+        # Build stage
+        FROM node:18 AS build
+        WORKDIR /app
+
+        # Copy package.json and package-lock.json
+        COPY package*.json ./
+        RUN npm ci
+
+        # Copy the rest of the application
+        COPY . .
+
+        # Build the Angular application
+        RUN npm run build -- --configuration production
+
+        # Production stage with Nginx
+        FROM nginx:alpine
+        COPY --from=build /app/dist/qt-front-end /usr/share/nginx/html
+
+        # Create nginx configuration
+        RUN echo 'server { \\
+            listen 80; \\
+            server_name localhost; \\
+            root /usr/share/nginx/html; \\
+            index index.html; \\
+            location / { \\
+                try_files \$uri \$uri/ /index.html; \\
+            } \\
+            location /api { \\
+                proxy_pass http://api:80; \\
+                proxy_http_version 1.1; \\
+                proxy_set_header Upgrade \$http_upgrade; \\
+                proxy_set_header Connection "upgrade"; \\
+                proxy_set_header Host \$host; \\
+                proxy_cache_bypass \$http_upgrade; \\
+            } \\
+        }' > /etc/nginx/conf.d/default.conf
+
+        EXPOSE 80
+        EOL
+        
+        echo "Created Frontend Dockerfile:"
+        cat ./QT_FrontEnd/Dockerfile
+      
+    - name: Build and push API image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./QT_API
+        file: ./QT_API/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
+    
+    - name: Build and push Frontend image
+      uses: docker/build-push-action@v4
+      with:
+        context: ./QT_FrontEnd
+        file: ./QT_FrontEnd/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:${{ github.sha }}
