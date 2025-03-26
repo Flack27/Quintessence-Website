@@ -1,0 +1,54 @@
+# File path: .github/workflows/docker-build-website.yml
+
+name: Build and Deploy Website
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'QT_API/**'
+      - 'QT_FrontEnd/**'
+      - '.github/workflows/docker-build-website.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'QT_API/**'
+      - 'QT_FrontEnd/**'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    environment: Docker
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Login to DockerHub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v2
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    # Build and push API image
+    - name: Build and push API
+      uses: docker/build-push-action@v4
+      with:
+        context: ./QT_API
+        file: ./QT_API/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
+    
+    # Build and push Frontend image
+    - name: Build and push Frontend
+      uses: docker/build-push-action@v4
+      with:
+        context: ./QT_FrontEnd
+        file: ./QT_FrontEnd/Dockerfile
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:${{ github.sha }}
