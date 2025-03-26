@@ -40,47 +40,60 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
     
-    # Create a more resilient Frontend Dockerfile
-    - name: Create Frontend Dockerfile
-      run: |
-        cat > QT_FrontEnd/Dockerfile << EOL
-        # Build stage
-        FROM node:18 AS build
-        WORKDIR /app
-
-        # Copy everything
-        COPY . .
-        
-        # Find and navigate to directory with package.json
-        RUN find . -name "package.json" -not -path "*/node_modules/*" > package_files.txt && \\
-            if [ -s package_files.txt ]; then \\
-              PACKAGE_DIR=\$(dirname \$(head -1 package_files.txt)) && \\
-              echo "Found package.json in \$PACKAGE_DIR" && \\
-              cd \$PACKAGE_DIR; \\
-            else \\
-              echo "No package.json found!"; \\
-              exit 1; \\
-            fi
-        
-        # Verify we're in the right directory
-        RUN pwd && ls -la
-        
-        # Install dependencies (more resilient approaches)
-        RUN npm config set registry https://registry.npmjs.org/
-        RUN npm cache clean --force
-        
-        # Try npm ci first, fall back to npm install if it fails
-        RUN npm ci || npm install
-        
-        # Build the application
-        RUN npm run build || echo "Build command failed, checking for custom build script" && \\
-            if [ -f "package.json" ]; then \\
-              CUSTOM_BUILD=\$(grep -o '"build:.*"' package.json | head -1 | cut -d'"' -f2) && \\
-              if [ ! -z "\$CUSTOM_BUILD" ]; then \\
-                echo "Running custom build script: \$CUSTOM_BUILD" && \\
-                npm run \$CUSTOM_BUILD; \\
-              fi \\
-            fi
+- name: Create Frontend Dockerfile
+  run: |
+    cat > QT_FrontEnd/Dockerfile << EOL
+    # Build stage
+    FROM node:18 AS build
+    WORKDIR /app
+    
+    # Debug info before starting
+    RUN node --version && npm --version
+    
+    # Copy everything
+    COPY . .
+    
+    # Find and navigate to directory with package.json
+    RUN find . -name "package.json" -not -path "*/node_modules/*" > package_files.txt && \\
+        if [ -s package_files.txt ]; then \\
+          PACKAGE_DIR=\$(dirname \$(head -1 package_files.txt)) && \\
+          echo "Found package.json in \$PACKAGE_DIR" && \\
+          cd \$PACKAGE_DIR; \\
+        else \\
+          echo "No package.json found!"; \\
+          exit 1; \\
+        fi
+    
+    # Verify we're in the right directory
+    RUN pwd && ls -la
+    
+    # Show package.json content for debugging
+    RUN cat package.json
+    
+    # Install dependencies with better error handling
+    RUN npm config set registry https://registry.npmjs.org/
+    RUN npm cache clean --force
+    
+    # Try with increased network timeout and more logging
+    RUN npm config set loglevel verbose && \\
+        npm config set fetch-timeout 300000 && \\
+        npm config set fetch-retry-mintimeout 20000 && \\
+        npm config set fetch-retry-maxtimeout 120000
+    
+    # Install with fallback options
+    RUN npm install --no-audit --no-fund || \\
+        npm install --legacy-peer-deps || \\
+        npm install --force
+    
+    # Build the application
+    RUN npm run build || echo "Build command failed, checking for custom build script" && \\
+        if [ -f "package.json" ]; then \\
+          CUSTOM_BUILD=\$(grep -o '"build:.*"' package.json | head -1 | cut -d'"' -f2) && \\
+          if [ ! -z "\$CUSTOM_BUILD" ]; then \\
+            echo "Running custom build script: \$CUSTOM_BUILD" && \\
+            npm run \$CUSTOM_BUILD; \\
+          fi \\
+        fi
         
         # Find the build output directory
         RUN find . -type d -path "*/dist/*" > dist_dirs.txt && \\
