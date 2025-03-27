@@ -24,9 +24,4 @@ RUN if [ "$BYPASS_BUDGET" = "true" ] ; then \
 # Build the Angular application
 RUN npm run build -- --configuration production
 
-# Production stage with Nginx
-FROM nginx:alpine
-COPY --from=build /app/dist/qt-front-end /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
 EXPOSE 80
