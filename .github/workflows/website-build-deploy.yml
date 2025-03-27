@@ -1,15 +1,10 @@
-name: Build and Deploy Website
+name: Build and Push Docker Images
 
 on:
   push:
     branches: [ main ]
-    paths:
-      - 'QT_FrontEnd/**'
   pull_request:
     branches: [ main ]
-    paths:
-      - 'QT_FrontEnd/**'
-  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -17,133 +12,38 @@ jobs:
     environment: Docker
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-    
-    - name: Debug - Show Frontend directory structure
-      run: |
-        echo "QT_FrontEnd directory structure:"
-        ls -la QT_FrontEnd
-        echo "Package.json info:"
-        cat QT_FrontEnd/package.json || echo "package.json not found in root"
-        find QT_FrontEnd -name "package.json" -type f -exec echo "Found package.json:" {} \; -exec cat {} \;
-        echo "Node modules check:"
-        find QT_FrontEnd -name "node_modules" -type d
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    
-    - name: Login to DockerHub
-      if: github.event_name != 'pull_request'
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-    
-    # Create a more resilient Frontend Dockerfile
-# Create Frontend Dockerfile with improved npm handling
-    - name: Create Frontend Dockerfile
-      run: |
-        cat > QT_FrontEnd/Dockerfile << EOL
-        # Build stage
-        FROM node:18 AS build
-        WORKDIR /app
-        
-        # Debug info before starting
-        RUN node --version && npm --version
-        
-        # Copy everything
-        COPY . .
-        
-        # Find and navigate to directory with package.json
-        RUN find . -name "package.json" -not -path "*/node_modules/*" > package_files.txt && \\
-            if [ -s package_files.txt ]; then \\
-              PACKAGE_DIR=\$(dirname \$(head -1 package_files.txt)) && \\
-              echo "Found package.json in \$PACKAGE_DIR" && \\
-              cd \$PACKAGE_DIR; \\
-            else \\
-              echo "No package.json found!"; \\
-              exit 1; \\
-            fi
-        
-        # Verify we're in the right directory
-        RUN pwd && ls -la
-        
-        # Show package.json content for debugging
-        RUN cat package.json
-        
-        # Install dependencies with better error handling
-        RUN npm config set registry https://registry.npmjs.org/
-        RUN npm cache clean --force
-        
-        # Try with increased network timeout and more logging
-        RUN npm config set loglevel verbose && \\
-            npm config set fetch-timeout 300000 && \\
-            npm config set fetch-retry-mintimeout 20000 && \\
-            npm config set fetch-retry-maxtimeout 120000
-        
-        # Install with fallback options
-        RUN npm install --no-audit --no-fund || \\
-            npm install --legacy-peer-deps || \\
-            npm install --force
-        
-        # Build the application
-        RUN npm run build || echo "Build command failed, checking for custom build script" && \\
-            if [ -f "package.json" ]; then \\
-              CUSTOM_BUILD=\$(grep -o '"build:.*"' package.json | head -1 | cut -d'"' -f2) && \\
-              if [ ! -z "\$CUSTOM_BUILD" ]; then \\
-                echo "Running custom build script: \$CUSTOM_BUILD" && \\
-                npm run \$CUSTOM_BUILD; \\
-              fi \\
-            fi
-            
-            # Find the build output directory
-            RUN find . -type d -path "*/dist/*" > dist_dirs.txt && \\
-                if [ -s dist_dirs.txt ]; then \\
-                  DIST_DIR=\$(head -1 dist_dirs.txt) && \\
-                  echo "Found dist directory: \$DIST_DIR"; \\
-                else \\
-                  echo "No dist directory found after build!"; \\
-                  ls -la; \\
-                  exit 1; \\
-                fi
-        # Production stage with Nginx
-        FROM nginx:alpine
-        
-        # Copy build output (dynamically find the correct path)
-        COPY --from=build /app/dist/ /usr/share/nginx/html/
-        
-        # Create nginx configuration
-        RUN echo 'server { \\
-            listen 80; \\
-            server_name localhost; \\
-            root /usr/share/nginx/html; \\
-            index index.html; \\
-            location / { \\
-                try_files \$uri \$uri/ /index.html; \\
-            } \\
-            location /api { \\
-                proxy_pass http://api:80; \\
-                proxy_http_version 1.1; \\
-                proxy_set_header Upgrade \$http_upgrade; \\
-                proxy_set_header Connection "upgrade"; \\
-                proxy_set_header Host \$host; \\
-                proxy_cache_bypass \$http_upgrade; \\
-            } \\
-        }' > /etc/nginx/conf.d/default.conf
-        # Verify the content
-        RUN ls -la /usr/share/nginx/html || echo "HTML directory not found!"
-        
-        EXPOSE 80
-        EOL
-        
-        echo "Created Frontend Dockerfile:"
-        cat QT_FrontEnd/Dockerfile
-    
-    - name: Build and push Frontend image
-      uses: docker/build-push-action@v4
-      with:
-        context: ./QT_FrontEnd
-        file: ./QT_FrontEnd/Dockerfile
-        push: ${{ github.event_name != 'pull_request' }}
-        tags: ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest, ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:${{ github.sha }}
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push API image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./QT_API/Quintessence Website
+          file: ./QT_API/Quintessence Website/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:latest
+          cache-to: type=inline
+      
+      - name: Build and push Frontend image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./QT_FrontEnd/QT_FrontEnd
+          file: ./QT_FrontEnd/QT_FrontEnd/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:latest
+          cache-to: type=inline
