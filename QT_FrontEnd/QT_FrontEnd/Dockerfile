@@ -30,7 +30,7 @@ FROM nginx:alpine
 RUN mkdir -p /etc/nginx/ssl
 
 # Copy the built Angular app
-COPY --from=build /app/dist/qt-front-end /usr/share/nginx/html
+COPY --from=build /app/dist/qt-front-end/browser /usr/share/nginx/html
 
 # Add custom Nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
