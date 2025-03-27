@@ -41,6 +41,8 @@ jobs:
         with:
           context: ./QT_FrontEnd/QT_FrontEnd
           file: ./QT_FrontEnd/QT_FrontEnd/Dockerfile
+          build-args: |
+            BYPASS_BUDGET=true
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest
