@@ -31,9 +31,9 @@ jobs:
           file: ./QT_API/Quintessence Website/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/quintessence-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
           cache-to: type=inline
       
       - name: Build and push Frontend image
@@ -43,7 +43,7 @@ jobs:
           file: ./QT_FrontEnd/QT_FrontEnd/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/quintessence-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest
           cache-to: type=inline
