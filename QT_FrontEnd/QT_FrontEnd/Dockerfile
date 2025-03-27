@@ -5,7 +5,7 @@ WORKDIR /app
 ARG BYPASS_BUDGET=false
 # Copy package.json and package-lock.json
 COPY package.json ./
-RUN npm ci
+RUN npm install
 # Copy the rest of the application
 COPY . .
 RUN if [ "$BYPASS_BUDGET" = "true" ] ; then \
