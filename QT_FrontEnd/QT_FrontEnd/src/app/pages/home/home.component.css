@@ -344,12 +344,14 @@
 }
 
 .step-image {
-  width: 100%;
-  height: 120px;
-  object-fit: cover;
   border-radius: var(--border-radius-sm);
   margin-top: auto;
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+  object-fit: cover;
 }
+
 /* About Us Section */
 .about-section {
   padding: var(--spacing-xl) 0;
@@ -784,7 +786,7 @@
 .social-links {
   display: flex;
   justify-content: center;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-md);
   margin-top: var(--spacing-xl);
 }
 
@@ -810,8 +812,8 @@
 /* Back to Top Button */
 .back-to-top {
   position: fixed;
-  bottom: 30px;
-  right: 30px;
+  bottom: 20px;
+  right: 20px;
   width: 50px;
   height: 50px;
   background: linear-gradient(135deg, var(--primary-medium), var(--secondary-pink));
@@ -839,8 +841,11 @@
     box-shadow: var(--shadow-lg), var(--glow);
   }
 
-/* Responsive Adjustments */
 @media (max-width: 1024px) {
+  html {
+    font-size: 95%;
+  }
+
   .guild-name {
     font-size: 3rem;
   }
@@ -872,23 +877,46 @@
   .offerings-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
-}
 
-
-/* Responsive adjustments for requirements section */
-@media (max-width: 1024px) {
   .requirements-grid {
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   }
 }
 
-@media (max-width: 480px) {
-  .requirements-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 768px) {
+  html {
+    font-size: 90%;
+  }
+
+  /* Hero Section Improvements */
+  .hero-section {
+    min-height: 100vh;
+  }
+
+  .hero-logo {
+    max-width: min(300px, 80%);
+    height: auto;
+  }
+
+  .hero-content {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .guild-name {
+    word-wrap: break-word;
+    hyphens: auto;
+  }
+
+  /* Improved hero CTA buttons for mobile */
+  .cta-button {
+    min-width: auto;
+    width: 100%;
+    max-width: 320px;
+    box-sizing: border-box;
+  }
+
+  /* Timeline improvements */
   .timeline-line {
     display: none;
   }
@@ -898,16 +926,24 @@
     gap: 30px;
   }
 
-  .guild-tagline {
-    margin-bottom: var(--spacing-md);
-  }
-
   .timeline-step {
     width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
   }
 
+  .step-content {
+    height: auto;
+  }
+
+  /* About section improvements */
   .about-container {
     flex-direction: column;
+  }
+
+  .about-content,
+  .about-image {
+    flex: 1 1 100%;
   }
 
   .about-image {
@@ -915,6 +951,31 @@
     margin-bottom: var(--spacing-md);
   }
 
+  /* Title hover effects for narrow screens */
+  .faq-section-title::after,
+  .join-section-title::after,
+  .req-section-title::after,
+  .offer-section-title::after,
+  .about-title::after {
+    width: 80px !important;
+  }
+
+  /* FAQ improvements */
+  .faq-list {
+    flex-direction: column;
+  }
+
+  .faq-column {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .faq-question {
+    font-size: 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
+  }
+
+  /* Title sizes */
   .cta-title {
     font-size: 2rem;
   }
@@ -923,51 +984,122 @@
     font-size: 1rem;
   }
 
-  .faq-list {
-    flex-direction: column;
+  /* Animation adjustments */
+  .scroll-indicator {
+    bottom: 10px;
   }
 
-  .faq-column {
-    width: 100%;
+  /* Accordion improvements */
+  .faq-answer.active {
+    max-height: 500px;
   }
 
-  .join-section:hover .join-section-title::after {
-    width: 100px;
-  }
-
-  .about-section:hover .about-title::after {
-    width: 80px;
-  }
-
-  .requirements-section:hover .req-section-title::after {
-    width: 100px;
-  }
-
-  .offerings-section:hover .offer-section-title::after {
-    width: 100px;
-  }
-
-  .faq-section:hover .faq-section-title::after {
-    width: 100px;
+  /* Mobile touch improvements */
+  .faq-question,
+  .cta-button,
+  .social-link,
+  .back-to-top {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
   }
 }
 
 @media (max-width: 480px) {
+  html {
+    font-size: 85%;
+  }
+
+  /* Better hero section handling at small widths */
+  .hero-section {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+
+  .hero-content {
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   .guild-name {
-    font-size: 2.5rem;
+    font-size: clamp(1.8rem, 8vw, 2.5rem);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .guild-tagline {
+    font-size: clamp(0.9rem, 4vw, 1.3rem);
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 var(--spacing-xs);
+  }
+
+  .hero-cta {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .join-section-title,
+  .about-title,
+  .offer-section-title,
+  .req-section-title,
+  .faq-section-title {
+    font-size: clamp(1.5rem, 7vw, 2.5rem);
+  }
+
+  /* Grid improvements */
+  .offerings-grid,
+  .requirements-grid {
+    grid-template-columns: 1fr;
   }
 
   .section-title {
     font-size: 2rem;
   }
 
-  .offerings-grid {
-    grid-template-columns: 1fr;
-  }
-
   .social-links {
     flex-wrap: wrap;
   }
+
+  .scroll-indicator {
+    display: none;
+  }
 }
 
+/* Extra small device fixes */
+@media (max-width: 420px) {
+  /* Ultra small screen fixes */
+  .hero-section {
+    padding: var(--spacing-sm) var(--spacing-xs);
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .cta-button {
+    font-size: 0.9rem;
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+
+  .hero-logo {
+    max-width: 70%;
+  }
+}
+
+
+/* Height-based adjustments for very short screens */
+@media (max-height: 600px) {
+  .hero-section {
+    min-height: auto;
+    padding: var(--spacing-lg) 0;
+  }
+
+  .hero-logo {
+    max-width: 200px;
+    margin-bottom: var(--spacing-md);
+  }
+
+  .guild-tagline {
+    margin-bottom: var(--spacing-md);
+  }
+}
 
