@@ -89,6 +89,7 @@ builder.Services.AddAuthentication(options =>
     options.ClientSecret = clientSecret ?? throw(new Exception("Client secret not found"));
     options.Scope.Add("identify");
     options.SaveTokens = true;
+    options.CallbackPath = "/api/accounts/auth-callback";
 
     options.Events.OnCreatingTicket = async context =>
     {

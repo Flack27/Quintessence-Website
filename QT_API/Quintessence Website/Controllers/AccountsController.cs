@@ -74,5 +74,11 @@ namespace Quintessence_Website.Controllers
 
             return Ok(new { isAuthenticated = false });
         }
+
+        [HttpGet("auth-callback")]
+        public IActionResult AuthCallback()
+        {
+            return Ok();
+        }
     }
 }
