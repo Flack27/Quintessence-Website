@@ -29,13 +29,12 @@ body {
   max-width: 1200px;
   margin: 20px;
   padding: var(--spacing-lg);
-  background: var(--card-gradient);
+  background: rgba(11, 9, 22, 0.8);
   border: 2px solid var(--primary-medium);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-md);
   color: white;
   transition: all var(--transition-medium);
-
 }
 
   .form-container:hover {

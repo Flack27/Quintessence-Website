@@ -137,7 +137,13 @@ namespace QuintessenceWebsiteBLL.Container
             try
             {
                 using var client = new HttpClient();
-                var webhookUrl = $"http://localhost:5000/webhook/?userId={userId}&submissionId={submissionId}";
+                string webhookHost = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Production"
+                    ? "qutie-bot" 
+                    : "localhost";
+
+                var webhookUrl = $"http://{webhookHost}:5000/webhook/?userId={userId}&submissionId={submissionId}";
+                Console.WriteLine($"Calling webhook URL: {webhookUrl}");
+
                 var response = await client.GetAsync(webhookUrl);
 
                 if (response.IsSuccessStatusCode)
