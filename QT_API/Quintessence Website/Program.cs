@@ -11,9 +11,17 @@ using AspNet.Security.OAuth.Discord;
 using System;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
+using Microsoft.AspNetCore.HttpOverrides;
 using Quintessence_Website.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var environment = builder.Environment;
 bool isDevelopment = environment.IsDevelopment();
@@ -193,6 +201,8 @@ builder.Services.AddEndpointsApiExplorer();
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 app.UseCors(policy =>
     policy.WithOrigins(frontendUrl)
           .AllowCredentials()
@@ -218,11 +228,3 @@ else
 
 app.Run();
 
-//Development Checklist
-//The key items to check are:
-
-//URLs(frontend and backend).
-//Redirect and CORS settings.
-//Cookie and security configurations.
-//Logging and debugging cleanup.
-//Sensitive data management.
