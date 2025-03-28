@@ -23,19 +23,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
-      - name: Build and push API image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./QT_API
-          file: ./QT_API/Quintessence Website/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
-          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
-          cache-to: type=inline
-      
+          
       - name: Build and push Frontend image
         uses: docker/build-push-action@v4
         with:
@@ -49,3 +37,17 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:${{ github.sha }}
           cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/qt-frontend:latest
           cache-to: type=inline
+          
+      - name: Build and push API image
+        uses: docker/build-push-action@v4
+        with:
+          context: ./QT_API
+          file: ./QT_API/Quintessence Website/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/qt-api:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/qt-api:latest
+          cache-to: type=inline
+      
+
