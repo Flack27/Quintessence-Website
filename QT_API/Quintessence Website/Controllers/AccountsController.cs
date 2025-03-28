@@ -14,16 +14,24 @@ namespace Quintessence_Website.Controllers
     public class AccountsController : ControllerBase
     {
         private readonly IUserDAL _userDal;
+        private readonly IWebHostEnvironment _environment;
 
-        public AccountsController(IUserDAL userDal)
+        public AccountsController(
+            IUserDAL userDal,
+            IWebHostEnvironment environment)
         {
             _userDal = userDal;
+            _environment = environment;
         }
 
         [HttpGet("login/{redirect}")]
         public IActionResult Login(string redirect)
         {
-            return Challenge(new AuthenticationProperties { RedirectUri = $"https://localhost:4200/{redirect}" }, "Discord");
+            string baseUrl = _environment.IsDevelopment()
+                ? "https://localhost:4200"
+                : "https://quintessence-eu.com";
+
+            return Challenge(new AuthenticationProperties { RedirectUri = $"{baseUrl}/{redirect}" }, "Discord");
         }
 
         [HttpPost("logout")]
