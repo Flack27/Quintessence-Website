@@ -30,7 +30,7 @@ body {
   max-width: 800px;
   margin: 20px auto;
   padding: var(--spacing-lg);
-  background: var(--card-gradient);
+  background: rgba(11, 9, 22, 0.8);
   border: 2px solid var(--primary-medium);
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-md);
