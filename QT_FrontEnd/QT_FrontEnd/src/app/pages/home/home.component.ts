@@ -1,6 +1,8 @@
-import { Component, ViewChild, ElementRef, AfterViewInit, OnDestroy, NgZone } from '@angular/core';
+import { Component, ViewChild, ElementRef, AfterViewInit, OnDestroy, NgZone, Renderer2 } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
+import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 @Component({
   selector: 'app-home',
@@ -16,13 +18,12 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
 
   constructor(
     private router: Router,
-    private ngZone: NgZone
+    private ngZone: NgZone,
+    private el: ElementRef,
+    private renderer: Renderer2
   ) {
-    // Track if the page was loaded via navigation or refresh
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe(() => {
-      // Set a flag indicating this was a navigation, not a refresh
+      filter(event => event instanceof NavigationEnd)).subscribe(() => {
       sessionStorage.setItem('wasNavigation', 'true');
     });
   }
@@ -35,6 +36,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     this.setupVideoObserver();
     this.handleVisibilityChange();
     this.setupUserInteractionTracking();
+    this.setupAnimationListeners();
 
     // Check if this was a refresh or navigation
     const wasNavigation = sessionStorage.getItem('wasNavigation') === 'true';
@@ -115,6 +117,46 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
       rect.right <= (window.innerWidth || document.documentElement.clientWidth)
     );
+  }
+
+  private setupAnimationListeners(): void {
+    const heroLogo = this.el.nativeElement.querySelector('.hero-logo');
+    const scrollIndicator = this.el.nativeElement.querySelector('.scroll-indicator');
+
+    if (heroLogo) {
+      heroLogo.addEventListener('animationend', (event: AnimationEvent) => {
+        // Use includes instead of exact match to handle Angular's name transformations
+        if (event.animationName.includes('fadeInUp')) {
+          console.log('Logo animation completed:', event.animationName);
+          this.renderer.addClass(heroLogo, 'loaded');
+        }
+      });
+    }
+
+    if (scrollIndicator) {
+      scrollIndicator.addEventListener('animationend', (event: AnimationEvent) => {
+        // Use includes instead of exact match to handle Angular's name transformations
+        if (event.animationName.includes('fadeInUpArrow')) {
+          console.log('Arrow animation completed:', event.animationName);
+          this.renderer.addClass(scrollIndicator, 'loaded');
+        }
+      });
+    }
+
+    // Backup approach with timeouts - in case the event listeners fail
+    setTimeout(() => {
+      if (heroLogo && !heroLogo.classList.contains('loaded')) {
+        console.log('Adding loaded class to logo via timeout fallback');
+        this.renderer.addClass(heroLogo, 'loaded');
+      }
+    }, 2000); // Ensure this is longer than fadeInUp duration + delay
+
+    setTimeout(() => {
+      if (scrollIndicator && !scrollIndicator.classList.contains('loaded')) {
+        console.log('Adding loaded class to scroll indicator via timeout fallback');
+        this.renderer.addClass(scrollIndicator, 'loaded');
+      }
+    }, 3000); // Ensure this is longer than fadeInUpArrow duration + delay
   }
 
   private setupVideoObserver() {
