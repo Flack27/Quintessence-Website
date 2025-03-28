@@ -33,7 +33,7 @@ string clientSecret = builder.Configuration["Discord:ClientSecret"] ?? throw (ne
 
 string frontendUrl = isDevelopment
     ? "https://localhost:4200"
-    : "https://your-production-domain.com";
+    : "https://quintessence-eu.com";
 
 long adminId = 1152617541190041600;
 long rosterId = 1137817925638684802;
