@@ -406,6 +406,15 @@
   object-fit: cover;
 }
 
+.step-content video.step-image {
+  border-radius: var(--border-radius-sm);
+  margin-top: auto;
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+  object-fit: cover;
+}
+
 /* About Us Section */
 .about-section {
   padding: var(--spacing-xl) 0;

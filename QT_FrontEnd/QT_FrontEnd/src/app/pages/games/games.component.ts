@@ -361,10 +361,10 @@ export class GamesComponent implements OnInit, AfterViewInit {
       imageModal.className = 'fullscreen-modal';
       imageModal.style.position = 'fixed'; // Ensure it stays fixed
       imageModal.innerHTML = `
-        <div class="modal-content fullscreen-content">
-          <img src="" alt="" id="fullscreen-image" class="fullscreen-image">
-        </div>
-      `;
+      <div class="modal-content fullscreen-content">
+        <img src="" alt="" id="fullscreen-image" class="fullscreen-image">
+      </div>
+    `;
       document.body.appendChild(imageModal);
 
       // Add close event listener - completely remove the modal
@@ -386,14 +386,40 @@ export class GamesComponent implements OnInit, AfterViewInit {
     // Set image source and alt
     const fullscreenImage = document.getElementById('fullscreen-image') as HTMLImageElement;
     if (fullscreenImage) {
-      fullscreenImage.src = src;
-      fullscreenImage.alt = alt;
+      // Create a temporary image to get natural dimensions
+      const tempImg = new Image();
+      tempImg.onload = () => {
+        const imgWidth = tempImg.width;
+        const imgHeight = tempImg.height;
+        const aspectRatio = imgWidth / imgHeight;
+
+        const content = imageModal?.querySelector('.fullscreen-content') as HTMLElement;
+        if (content) {
+          // Adjust max-width based on aspect ratio
+          if (aspectRatio <= 1) {
+            // Square or portrait image - use smaller width
+            content.style.maxWidth = '40%';
+          } else if (aspectRatio <= 1.5) {
+            // Moderate landscape - medium width
+            content.style.maxWidth = '55%';
+          } else {
+            // Wide landscape - use original width
+            content.style.maxWidth = '70%';
+          }
+        }
+
+        // Set the actual image src after calculating dimensions
+        fullscreenImage.src = src;
+        fullscreenImage.alt = alt;
+      };
+
+      // Start loading the image to get dimensions
+      tempImg.src = src;
     }
 
     // Open modal
     imageModal.classList.add('open');
   }
-
   /**
    * Close the image modal and clean up
    */

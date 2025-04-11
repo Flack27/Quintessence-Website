@@ -1,4 +1,4 @@
-import { Component, ViewChild, ElementRef, AfterViewInit, OnDestroy, NgZone, Renderer2 } from '@angular/core';
+import { Component, ViewChild, ElementRef, AfterViewInit, OnDestroy, NgZone, Renderer2, QueryList, ViewChildren, HostListener } from '@angular/core';
 import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { BrowserModule } from '@angular/platform-browser';
@@ -10,8 +10,11 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
   styleUrls: ['./home.component.scss']
 })
 export class HomeComponent implements AfterViewInit, OnDestroy {
-  @ViewChild('aboutVideo') videoElement!: ElementRef<HTMLVideoElement>;
-  private observer: IntersectionObserver | null = null;
+  @ViewChild('aboutVideo') aboutVideoElement!: ElementRef<HTMLVideoElement>;
+  @ViewChildren('joinProcessVideo') joinProcessVideos!: QueryList<ElementRef<HTMLVideoElement>>;
+
+  private aboutVideoObserver: IntersectionObserver | null = null;
+  private joinVideoObservers: IntersectionObserver[] = [];
   private userInteracted = false;
   private refreshAttempts = 0;
   private maxRefreshAttempts = 3;
@@ -24,8 +27,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   ) {
     this.router.events.pipe(
       filter(event => event instanceof NavigationEnd)).subscribe(() => {
-      sessionStorage.setItem('wasNavigation', 'true');
-    });
+        sessionStorage.setItem('wasNavigation', 'true');
+      });
   }
 
   ngAfterViewInit() {
@@ -33,7 +36,8 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     this.initSmoothScrolling();
     this.initBackToTopButton();
 
-    this.setupVideoObserver();
+    this.setupAboutVideoObserver();
+    this.setupJoinProcessVideoObservers();
     this.handleVisibilityChange();
     this.setupUserInteractionTracking();
     this.setupAnimationListeners();
@@ -42,7 +46,7 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     const wasNavigation = sessionStorage.getItem('wasNavigation') === 'true';
 
     if (!wasNavigation) {
-      // This was likely a page refresh - try periodically to play the video
+      // This was likely a page refresh - try periodically to play the videos
       this.attemptPlayOnRefresh();
     }
 
@@ -51,10 +55,15 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   }
 
   ngOnDestroy() {
-    // Clean up the observer when the component is destroyed
-    if (this.observer) {
-      this.observer.disconnect();
+    // Clean up the observers when the component is destroyed
+    if (this.aboutVideoObserver) {
+      this.aboutVideoObserver.disconnect();
     }
+
+    this.joinVideoObservers.forEach(observer => {
+      observer.disconnect();
+    });
+
     document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     // Remove interaction listeners
     document.removeEventListener('click', this.markUserInteraction);
@@ -76,10 +85,19 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   private markUserInteraction() {
     this.userInteracted = true;
 
-    // Once we know the user has interacted, try playing the video if it's visible
-    if (this.isVideoInViewport() && this.videoElement?.nativeElement?.paused) {
-      this.playVideo();
+    // Once we know the user has interacted, try playing all videos that are visible
+    if (this.isVideoInViewport(this.aboutVideoElement?.nativeElement) &&
+      this.aboutVideoElement?.nativeElement?.paused) {
+      this.playVideo(this.aboutVideoElement?.nativeElement);
     }
+
+    // Check and play join process videos if visible
+    this.joinProcessVideos.forEach(videoRef => {
+      if (this.isVideoInViewport(videoRef.nativeElement) &&
+        videoRef.nativeElement?.paused) {
+        this.playVideo(videoRef.nativeElement);
+      }
+    });
   }
 
   private attemptPlayOnRefresh() {
@@ -91,23 +109,36 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     // Use setTimeout to attempt playback after a short delay
     setTimeout(() => {
       this.ngZone.run(() => {
-        if (this.isVideoInViewport() && this.videoElement?.nativeElement?.paused) {
-          console.log(`Attempt ${this.refreshAttempts}: Trying to autoplay video after refresh`);
-          this.playVideo();
-
-          // If still paused, try again with a slightly longer delay
-          setTimeout(() => {
-            if (this.videoElement?.nativeElement?.paused) {
-              this.attemptPlayOnRefresh();
-            }
-          }, 500);
+        // Try to play about video if visible
+        if (this.isVideoInViewport(this.aboutVideoElement?.nativeElement) &&
+          this.aboutVideoElement?.nativeElement?.paused) {
+          console.log(`Attempt ${this.refreshAttempts}: Trying to autoplay about video after refresh`);
+          this.playVideo(this.aboutVideoElement?.nativeElement);
         }
+
+        // Try to play all join process videos if visible
+        this.joinProcessVideos.forEach((videoRef, index) => {
+          if (this.isVideoInViewport(videoRef.nativeElement) &&
+            videoRef.nativeElement?.paused) {
+            console.log(`Attempt ${this.refreshAttempts}: Trying to autoplay join process video ${index + 1} after refresh`);
+            this.playVideo(videoRef.nativeElement);
+          }
+        });
+
+        // If videos are still paused, try again with a slightly longer delay
+        setTimeout(() => {
+          const aboutStillPaused = this.aboutVideoElement?.nativeElement?.paused;
+          const joinVideosPaused = this.joinProcessVideos.some(ref => ref.nativeElement?.paused);
+
+          if ((aboutStillPaused || joinVideosPaused) && this.refreshAttempts < this.maxRefreshAttempts) {
+            this.attemptPlayOnRefresh();
+          }
+        }, 500);
       });
     }, 500 * this.refreshAttempts); // Increasing delay with each attempt
   }
 
-  private isVideoInViewport(): boolean {
-    const video = this.videoElement?.nativeElement;
+  private isVideoInViewport(video: HTMLVideoElement | undefined): boolean {
     if (!video) return false;
 
     const rect = video.getBoundingClientRect();
@@ -159,41 +190,79 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     }, 3000); // Ensure this is longer than fadeInUpArrow duration + delay
   }
 
-  private setupVideoObserver() {
+  private setupAboutVideoObserver() {
     const options = {
       threshold: 0.2 // 20% of the element must be visible
     };
 
-    this.observer = new IntersectionObserver((entries) => {
+    this.aboutVideoObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
         if (entry.isIntersecting) {
-          this.playVideo();
+          this.playVideo(entry.target as HTMLVideoElement);
         } else {
-          this.pauseVideo();
+          this.pauseVideo(entry.target as HTMLVideoElement);
         }
       });
     }, options);
 
-    // Start observing the video element
-    if (this.videoElement?.nativeElement) {
-      this.observer.observe(this.videoElement.nativeElement);
+    // Start observing the about video element
+    if (this.aboutVideoElement?.nativeElement) {
+      this.aboutVideoObserver.observe(this.aboutVideoElement.nativeElement);
     }
+  }
+
+  private setupJoinProcessVideoObservers() {
+    // Wait for the ViewChildren to be initialized
+    setTimeout(() => {
+      this.joinProcessVideos.forEach((videoRef, index) => {
+        const options = {
+          threshold: 0.2 // 20% of the element must be visible
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              this.playVideo(entry.target as HTMLVideoElement);
+            } else {
+              this.pauseVideo(entry.target as HTMLVideoElement);
+            }
+          });
+        }, options);
+
+        if (videoRef.nativeElement) {
+          observer.observe(videoRef.nativeElement);
+          this.joinVideoObservers.push(observer);
+        }
+      });
+    }, 200); // Small delay to ensure DOM is ready
   }
 
   private handleVisibilityChange = () => {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        if (this.isVideoInViewport()) {
-          this.playVideo();
+        // Check and play about video if visible
+        if (this.isVideoInViewport(this.aboutVideoElement?.nativeElement)) {
+          this.playVideo(this.aboutVideoElement?.nativeElement);
         }
+
+        // Check and play join process videos if visible
+        this.joinProcessVideos.forEach(videoRef => {
+          if (this.isVideoInViewport(videoRef.nativeElement)) {
+            this.playVideo(videoRef.nativeElement);
+          }
+        });
       } else {
-        this.pauseVideo();
+        // Pause all videos when tab is not visible
+        this.pauseVideo(this.aboutVideoElement?.nativeElement);
+
+        this.joinProcessVideos.forEach(videoRef => {
+          this.pauseVideo(videoRef.nativeElement);
+        });
       }
     });
   }
 
-  private playVideo() {
-    const video = this.videoElement?.nativeElement;
+  private playVideo(video: HTMLVideoElement | undefined) {
     if (video) {
       // Add muted attribute explicitly - browsers are more likely to autoplay muted videos
       video.muted = true;
@@ -209,13 +278,11 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  private pauseVideo() {
-    const video = this.videoElement?.nativeElement;
+  private pauseVideo(video: HTMLVideoElement | undefined) {
     if (video) {
       video.pause();
     }
   }
-
 
   private initFaqAccordion(): void {
     const faqQuestions = document.querySelectorAll('.faq-question');
