@@ -717,15 +717,20 @@ body::after {
 .fullscreen-content {
   position: relative;
   max-width: 70%;
-  max-height: 90%;
+  max-height: 90vh;
   animation: modalOpen 0.3s forwards;
   background: transparent;
   border: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .fullscreen-image {
   max-width: 100%;
   max-height: 90vh;
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: var(--border-radius-md);
   box-shadow: var(--shadow-lg);

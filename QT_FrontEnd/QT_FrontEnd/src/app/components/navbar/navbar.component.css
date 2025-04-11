@@ -228,9 +228,23 @@ nav ul {
     color: var(--secondary-blue);
   }
 
-/* Responsive styles */
 
-/* Responsive styles with bidirectional animations */
+/* Active link styling */
+nav ul li a.active {
+  color: var(--secondary-blue);
+}
+
+  nav ul li a.active::after {
+    width: 100%;
+  }
+
+/* Keep active style for dropdown items */
+.dropdown li a.active {
+  color: var(--secondary-blue) !important;
+  background-color: rgba(82, 15, 115, 0.3);
+}
+
+/* Responsive styles */
 @media (max-width: 1100px) {
   .user-info {
     display: none;
@@ -336,4 +350,11 @@ nav ul {
   .user-info:hover .dropdown {
     position: relative;
   }
+
+  nav ul.mobile-open li a.active {
+    color: var(--secondary-blue);
+    background-color: rgba(82, 15, 115, 0.4); /* Subtle background for active item in mobile menu */
+  }
 }
+
+
