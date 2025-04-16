@@ -178,7 +178,8 @@ export class ApplyComponent implements OnInit {
             const answers: any[] = [];
             answers.push({
               FormId: this.form.formId,
-              UserId: this.user.claims.id
+              UserId: this.user.claims.id,
+              SubmissionId: this.submissionId
             });
             this.http.put('api/userform/save-and-submit', answers, { withCredentials: true }).subscribe({
               next: () => {
