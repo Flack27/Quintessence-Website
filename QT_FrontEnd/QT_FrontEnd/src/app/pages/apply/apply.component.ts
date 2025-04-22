@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NgForm } from '@angular/forms';
@@ -40,6 +40,26 @@ export class ApplyComponent implements OnInit {
     });
 
     this.fetchForm();
+  }
+
+
+  autoExpand(event: any): void {
+    const textarea = event.target;
+
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  }
+
+  ngAfterViewInit() {
+    setTimeout(() => {
+      const textareas = document.querySelectorAll('.auto-expand-textarea');
+      textareas.forEach((element) => {
+        // Add proper type casting
+        const textarea = element as HTMLTextAreaElement;
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      });
+    }, 0);
   }
 
   fetchForm(): void {

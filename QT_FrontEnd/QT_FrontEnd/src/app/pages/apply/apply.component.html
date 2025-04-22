@@ -67,14 +67,14 @@
               <div class="answer-input-wrapper">
                 <!-- Text Input -->
                 <div *ngIf="isTextType(question)">
-                  <input id="question{{ i }}"
-                         type="text"
-                         [(ngModel)]="question.answer.answer"
-                         name="question{{ i }}"
-                         #questionInput="ngModel"
-                         class="answer-input"
-                         [required]="question.isRequired"
-                         placeholder="Type your answer here" />
+                  <textarea id="question{{ i }}"
+                            class="answer-input auto-expand-textarea"
+                            [(ngModel)]="question.answer.answer"
+                            name="question{{ i }}"
+                            #questionInput="ngModel"
+                            [required]="question.isRequired"
+                            (input)="autoExpand($event)"
+                            rows="1"></textarea>
                   <div *ngIf="questionInput.invalid && questionInput.touched">
                     <small class="error-message">This field is required.</small>
                   </div>

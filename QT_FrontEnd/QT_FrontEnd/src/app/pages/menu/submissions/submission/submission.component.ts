@@ -39,6 +39,18 @@ export class SubmissionComponent implements OnInit {
     }
   }
 
+  initializeTextareaHeights() {
+    setTimeout(() => {
+      const textareas = document.querySelectorAll('.auto-expand-textarea');
+      textareas.forEach((element) => {
+        // Add proper type casting
+        const textarea = element as HTMLTextAreaElement;
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      });
+    }, 0);
+  }
+
   fetchForm(submissionId: string): void {
     this.http.get(`api/menu/FormSubmissions/get/${submissionId}`, { withCredentials: true }).subscribe({
       next: (submission: any) => {
@@ -50,6 +62,10 @@ export class SubmissionComponent implements OnInit {
         this.fetchUserDetails(submission.userId);
 
         this.fetchQuestions(submission.formId, submissionId, submission.userId);
+
+        setTimeout(() => {
+          this.initializeTextareaHeights();
+        }, 0);
       },
       error: () => {
         this.errorMessage = 'Failed to load the form. Please try again later.';
