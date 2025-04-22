@@ -60,12 +60,12 @@
               <div class="answer-input-wrapper">
                 <!-- Text Input -->
                 <div *ngIf="isTextType(question)">
-                  <input id="question{{ i }}"
-                         type="text"
-                         [(ngModel)]="question.answer.answer"
-                         name="question{{ i }}"
-                         class="answer-input"
-                         [disabled]="true" />
+                  <textarea id="question{{ i }}"
+                            class="answer-input auto-expand-textarea"
+                            [(ngModel)]="question.answer.answer"
+                            name="question{{ i }}"
+                            [disabled]="true"
+                            rows="1"></textarea>
                 </div>
 
                 <!-- Multiple Choice -->

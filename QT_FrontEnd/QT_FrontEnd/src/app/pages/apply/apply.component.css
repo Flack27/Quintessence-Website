@@ -178,7 +178,7 @@ h1 {
 .answer-input,
 .dropdown-input {
   width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-sm);
   box-sizing: border-box;
   margin-top: var(--spacing-xs);
   font-size: 1rem;
@@ -461,6 +461,42 @@ option {
     color: var(--secondary-pink);
     text-decoration: underline;
   }
+
+
+.auto-expand-textarea {
+  min-height: 38px; 
+  resize: none; 
+  overflow-y: hidden; 
+  transition: height 0.1s ease;
+  line-height: 1.5;
+  padding-top: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.answer-input.auto-expand-textarea {
+  background-color: rgba(11, 9, 22, 0.6);
+  border: 2px solid var(--primary-medium);
+  border-radius: var(--border-radius-md);
+  color: white;
+  font-size: 1rem;
+  transition: all var(--transition-medium);
+}
+
+  .answer-input.auto-expand-textarea:focus {
+    border-color: var(--secondary-blue);
+    box-shadow: 0 0 8px rgba(99, 193, 255, 0.5);
+    outline: none;
+  }
+
+  .answer-input.auto-expand-textarea:disabled {
+    background-color: rgba(11, 9, 22, 0.8);
+    border: 2px solid rgba(82, 15, 115, 0.5);
+    opacity: 0.9;
+    cursor: not-allowed;
+  }
+
 
 /* Popup Buttons */
 .button {

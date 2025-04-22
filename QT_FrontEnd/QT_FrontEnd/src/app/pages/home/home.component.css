@@ -834,9 +834,15 @@
   color: white;
 }
 
+.footer-cta {
+  display: flex;
+  justify-content: center;
+}
+
 .cta-primary-discord {
   background: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
   box-shadow: 0 5px 15px rgba(99, 193, 255, 0.4);
+  width: 100%;
 }
 
 .cta-text {
@@ -995,6 +1001,7 @@
     min-width: 0;
   }
 
+
   .step-content {
     height: auto;
   }
@@ -1010,8 +1017,7 @@
   }
 
   .about-image {
-    order: -1;
-    margin-bottom: var(--spacing-md);
+    display: none;
   }
 
   /* Title hover effects for narrow screens */
