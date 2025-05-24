@@ -384,7 +384,7 @@ export class MenuComponent implements OnInit, AfterViewInit {
           tooltipSuffix = 'hours';
           break;
         case 'events':
-          label = 'Server Evet Signups';
+          label = 'Server Event Signups';
           tooltipSuffix = 'signups';
           break;
         case 'forms':

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subject, debounceTime } from 'rxjs';
@@ -8,7 +8,7 @@ import { Subject, debounceTime } from 'rxjs';
   templateUrl: './submission.component.html',
   styleUrls: ['./submission.component.css']
 })
-export class SubmissionComponent implements OnInit {
+export class SubmissionComponent implements OnInit, AfterViewInit {
   submission: any = null;
   form: any = { title: '', description: '', questions: [] };
   loading: boolean = true;
@@ -19,7 +19,12 @@ export class SubmissionComponent implements OnInit {
   notesStatus: string = '';
   private descriptionUpdate = new Subject<string>();
 
-  constructor(private route: ActivatedRoute, private http: HttpClient, private router: Router) {
+  constructor(
+    private route: ActivatedRoute,
+    private http: HttpClient,
+    private router: Router,
+    private cdr: ChangeDetectorRef
+  ) {
     // Setup debounce for description updates
     this.descriptionUpdate.pipe(
       debounceTime(1000) // Wait for 1 second after the user stops typing
@@ -39,16 +44,25 @@ export class SubmissionComponent implements OnInit {
     }
   }
 
-  initializeTextareaHeights() {
+  ngAfterViewInit(): void {
+    // This will be called after the initial view initialization
+    // We'll call initializeTextareaHeights after data is loaded
+  }
+
+  initializeTextareaHeights(): void {
+    // Use a longer timeout to ensure DOM is fully updated
     setTimeout(() => {
       const textareas = document.querySelectorAll('.auto-expand-textarea');
       textareas.forEach((element) => {
-        // Add proper type casting
         const textarea = element as HTMLTextAreaElement;
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
+        if (textarea && textarea.value) {
+          // Reset height to auto first
+          textarea.style.height = 'auto';
+          // Set height based on scroll height
+          textarea.style.height = Math.max(textarea.scrollHeight, 38) + 'px';
+        }
       });
-    }, 0);
+    }, 100); // Increased timeout
   }
 
   fetchForm(submissionId: string): void {
@@ -62,10 +76,6 @@ export class SubmissionComponent implements OnInit {
         this.fetchUserDetails(submission.userId);
 
         this.fetchQuestions(submission.formId, submissionId, submission.userId);
-
-        setTimeout(() => {
-          this.initializeTextareaHeights();
-        }, 0);
       },
       error: () => {
         this.errorMessage = 'Failed to load the form. Please try again later.';
@@ -130,6 +140,10 @@ export class SubmissionComponent implements OnInit {
         });
         this.form.questions = [...this.form.questions, ...addedQuestions];
         this.loading = false;
+
+        // Force change detection and then initialize textarea heights
+        this.cdr.detectChanges();
+        this.initializeTextareaHeights();
       },
       error: () => {
         this.errorMessage = 'Failed to load dependent questions. Please try again later.';
