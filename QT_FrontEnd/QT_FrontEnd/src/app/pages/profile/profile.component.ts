@@ -8,7 +8,6 @@ interface Role {
   roleName: string;
 }
 
-
 interface User {
   userId: number;
   userName: string;
@@ -22,13 +21,11 @@ interface User {
   description: string;
 }
 
-
 @Component({
   selector: 'app-profile',
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css'
 })
-
 
 export class ProfileComponent implements OnInit {
   userAuth: any = null;
@@ -45,6 +42,9 @@ export class ProfileComponent implements OnInit {
   savingLinks = false;
   saveSuccess = false;
 
+  // New properties for validation errors
+  validationErrors: string[] = [];
+  showValidationErrors = false;
 
   rolePriority: string[] = ['Monarchs', 'Advisors', 'Auxiliary', 'Guild Bot', 'Main Roster'];
 
@@ -65,7 +65,6 @@ export class ProfileComponent implements OnInit {
       }
     });
   }
-
 
   loadUserProfile(userId: number): void {
     this.loading = true;
@@ -93,6 +92,8 @@ export class ProfileComponent implements OnInit {
     if (this.savingLinks) return;
 
     this.savingLinks = true;
+    // Clear previous validation errors
+    this.clearValidationErrors();
 
     this.http.put('api/user/save-links', this.userLinks).subscribe({
       next: () => {
@@ -114,10 +115,44 @@ export class ProfileComponent implements OnInit {
       },
       error: (error) => {
         console.error('Error saving links:', error);
-        this.errorMessage = 'Failed to save links. Please try again.';
         this.savingLinks = false;
+
+        // Handle validation errors specifically
+        if (error.status === 400 && error.error && Array.isArray(error.error)) {
+          this.validationErrors = error.error;
+          this.showValidationErrors = true;
+
+          // Auto-hide validation errors after 5 seconds
+          setTimeout(() => {
+            this.clearValidationErrors();
+          }, 5000);
+        } else if (error.status === 400 && error.error) {
+          // Single error message
+          this.validationErrors = [error.error.message || 'Invalid input provided.'];
+          this.showValidationErrors = true;
+
+          setTimeout(() => {
+            this.clearValidationErrors();
+          }, 5000);
+        } else {
+          // Generic server error - use the page-level error for serious issues
+          this.errorMessage = 'Failed to save links. Please try again later.';
+        }
       }
     });
+  }
+
+  clearValidationErrors(): void {
+    this.validationErrors = [];
+    this.showValidationErrors = false;
+  }
+
+  // Clear validation errors when user starts typing
+  onInputChange(): void {
+    if (this.showValidationErrors) {
+      this.clearValidationErrors();
+    }
+    this.saveSuccess = false;
   }
 
   ensureHttpPrefix(url: string): void {

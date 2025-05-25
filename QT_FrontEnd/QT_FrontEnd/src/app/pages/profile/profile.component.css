@@ -227,8 +227,6 @@ body::after {
   border-color: var(--secondary-blue);
 }
 
-
-
 /* Form styling */
 .form-group {
   margin-bottom: var(--spacing-md);
@@ -295,6 +293,81 @@ body::after {
     opacity: 0.6;
     cursor: not-allowed;
   }
+
+
+/* Validation Errors Styling - Add this to your existing CSS */
+
+.validation-errors {
+  position: absolute;
+  top: 3%;
+  left: 0;
+  right: 0;
+  border-color: #ff6b7a;
+  background: rgba(220, 53, 69, 0.2);
+  border: 2px solid #dc3545;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  margin: 0;
+  z-index: 10;
+  backdrop-filter: blur(5px);
+  box-shadow: var(--shadow-lg);
+  animation: slideInFromTop 0.3s ease-out;
+}
+
+.validation-error-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: var(--spacing-sm);
+}
+
+  .validation-error-header i {
+    color: #ffffff;
+    font-size: 1rem;
+  }
+
+.validation-error-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.validation-error-item {
+  color: #ffffff;
+  font-size: 0.9rem;
+  padding: var(--spacing-xs) 0;
+  border-left: 3px solid #ffffff;
+  padding-left: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 0 var(--border-radius-sm) var(--border-radius-sm) 0;
+}
+
+  .validation-error-item:last-child {
+    margin-bottom: 0;
+  }
+
+/* Slide-in animation */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Subtle error state for inputs that have validation errors */
+.profile-input.error {
+  border-color: #dc3545;
+  box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+}
 
 /* Success and saving indicators */
 .saving-indicator,

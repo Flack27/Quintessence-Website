@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { NgForm } from '@angular/forms';
@@ -20,7 +20,7 @@ export class ApplyComponent implements OnInit {
   submissionId: any = null;
   isSubmitting = false;
 
-  constructor(private authService: AuthService, private router: Router, private http: HttpClient) { }
+  constructor(private authService: AuthService, private router: Router, private http: HttpClient, private cdr: ChangeDetectorRef) { }
 
   ngOnInit(): void {
     this.authService.refreshUserInfo();
@@ -42,7 +42,6 @@ export class ApplyComponent implements OnInit {
     this.fetchForm();
   }
 
-
   autoExpand(event: any): void {
     const textarea = event.target;
 
@@ -50,16 +49,20 @@ export class ApplyComponent implements OnInit {
     textarea.style.height = textarea.scrollHeight + 'px';
   }
 
-  ngAfterViewInit() {
+  initializeTextareaHeights(): void {
+    // Use a longer timeout to ensure DOM is fully updated
     setTimeout(() => {
       const textareas = document.querySelectorAll('.auto-expand-textarea');
       textareas.forEach((element) => {
-        // Add proper type casting
         const textarea = element as HTMLTextAreaElement;
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
+        if (textarea && textarea.value) {
+          // Reset height to auto first
+          textarea.style.height = 'auto';
+          // Set height based on scroll height
+          textarea.style.height = Math.max(textarea.scrollHeight, 38) + 'px';
+        }
       });
-    }, 0);
+    }, 100); // Increased timeout
   }
 
   fetchForm(): void {
@@ -80,9 +83,13 @@ export class ApplyComponent implements OnInit {
                     q.answer = q.answer[0];
                   }
                 }
+                // Initialize validation state
+                this.initializeQuestionValidation(q);
                 return q;
               });
               this.loading = false;
+              this.cdr.detectChanges();
+              this.initializeTextareaHeights();
             },
             error: () => {
               this.errorMessage = 'Failed to load questions. Please try again later.';
@@ -99,6 +106,17 @@ export class ApplyComponent implements OnInit {
         this.loading = false;
       }
     });
+  }
+
+  // Initialize validation state for each question
+  initializeQuestionValidation(question: any): void {
+    if (this.isMultipleChoice(question)) {
+      question.valid = this.isOptionSelected(question);
+      question.touched = false;
+    } else if (this.isSingleChoice(question) || this.isDropdown(question)) {
+      question.valid = this.isSelectionSelected(question);
+      question.touched = false;
+    }
   }
 
   isTextType(question: any): boolean {
@@ -122,7 +140,19 @@ export class ApplyComponent implements OnInit {
   }
 
   isSelectionSelected(question: any): boolean {
-    return !!question.answer;
+    return !!question.answer.answer;
+  }
+
+  // Called when multiple choice options change
+  onMultipleChoiceChange(question: any): void {
+    question.touched = true;
+    this.validateMultipleChoice(question);
+  }
+
+  // Called when single choice/dropdown changes
+  onSingleChoiceChange(question: any): void {
+    question.touched = true;
+    this.validateSingleChoice(question);
   }
 
   validateMultipleChoice(question: any): void {
@@ -133,14 +163,43 @@ export class ApplyComponent implements OnInit {
     question.valid = this.isSelectionSelected(question);
   }
 
-  submitForm(applicationForm: NgForm): void {
+  // Validate all custom questions
+  validateCustomQuestions(): boolean {
+    let allValid = true;
 
+    this.form.questions.forEach((question: any) => {
+      question.touched = true; // Mark as touched for error display
+
+      if (question.isRequired) {
+        if (this.isMultipleChoice(question)) {
+          this.validateMultipleChoice(question);
+          if (!question.valid) {
+            allValid = false;
+          }
+        } else if (this.isSingleChoice(question) || this.isDropdown(question)) {
+          this.validateSingleChoice(question);
+          if (!question.valid) {
+            allValid = false;
+          }
+        }
+      }
+    });
+
+    return allValid;
+  }
+
+  submitForm(applicationForm: NgForm): void {
+    // Mark all Angular form controls as touched
     Object.keys(applicationForm.controls).forEach((field) => {
       const control = applicationForm.controls[field];
       control.markAsTouched({ onlySelf: true });
     });
 
-    if (applicationForm.invalid) {
+    // Validate custom questions
+    const customQuestionsValid = this.validateCustomQuestions();
+
+    // Check both Angular form validation and custom validation
+    if (applicationForm.invalid || !customQuestionsValid) {
       this.errorMessage = 'Please fill out all required fields.';
       return;
     }
@@ -189,11 +248,16 @@ export class ApplyComponent implements OnInit {
                   q.answer = q.answer[0] || null;
                 }
               }
+              // Initialize validation for dependent questions
+              this.initializeQuestionValidation(q);
               return q;
             });
             this.firstForm = false;
             this.isSubmitting = false;
             this.errorMessage = '';
+            this.cdr.detectChanges();
+            this.initializeTextareaHeights();
+
           } else {
             const answers: any[] = [];
             answers.push({
@@ -216,6 +280,7 @@ export class ApplyComponent implements OnInit {
         },
         error: () => {
           this.errorMessage = 'Failed to load dependent questions. Please try again later.';
+          this.isSubmitting = false;
         },
       });
     } else {
@@ -224,13 +289,17 @@ export class ApplyComponent implements OnInit {
   }
 
   submitDependentQuestions(applicationForm: NgForm): void {
-
+    // Mark all Angular form controls as touched
     Object.keys(applicationForm.controls).forEach((field) => {
       const control = applicationForm.controls[field];
       control.markAsTouched({ onlySelf: true });
     });
 
-    if (applicationForm.invalid) {
+    // Validate custom questions
+    const customQuestionsValid = this.validateCustomQuestions();
+
+    // Check both Angular form validation and custom validation
+    if (applicationForm.invalid || !customQuestionsValid) {
       this.errorMessage = 'Please fill out all required fields.';
       return;
     }

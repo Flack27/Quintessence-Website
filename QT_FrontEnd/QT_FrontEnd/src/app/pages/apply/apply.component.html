@@ -88,12 +88,12 @@
                              id="option{{ i }}{{ j }}"
                              [(ngModel)]="option.selected"
                              name="option{{ i }}{{ j }}"
-                             (change)="validateMultipleChoice(question)"
+                             (change)="onMultipleChoiceChange(question)"
                              [checked]="option.selected" />
                       <label for="option{{ i }}{{ j }}">{{ option.answerOption }}</label>
                     </li>
                   </ul>
-                  <div *ngIf="!isOptionSelected(question) && question.isRequired && applicationForm.submitted">
+                  <div *ngIf="question.isRequired && question.touched && !question.valid" class="error-message">
                     <small class="error-message">Please select at least one option.</small>
                   </div>
                 </div>
@@ -111,7 +111,7 @@
                       {{ option.answerOption }}
                     </option>
                   </select>
-                  <div *ngIf="dropdownInput.invalid && dropdownInput.touched">
+                  <div *ngIf="question.isRequired && question.touched && !question.valid" class="error-message">
                     <small class="error-message">Please select an option.</small>
                   </div>
                 </div>
@@ -126,11 +126,11 @@
                              name="question{{ i }}"
                              [value]="option.answerOption"
                              [required]="question.isRequired"
-                             (change)="validateSingleChoice(question)" />
+                             (change)="onSingleChoiceChange(question)" />
                       <label for="option{{ i }}{{ j }}">{{ option.answerOption }}</label>
                     </li>
                   </ul>
-                  <div *ngIf="!isSelectionSelected(question) && question.isRequired && applicationForm.submitted">
+                  <div *ngIf="question.isRequired && question.touched && !question.valid" class="error-message">
                     <small class="error-message">Please select an option.</small>
                   </div>
                 </div>
