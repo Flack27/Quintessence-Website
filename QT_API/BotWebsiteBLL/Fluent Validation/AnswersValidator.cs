@@ -6,9 +6,6 @@ namespace QuintessenceWebsiteBLL.CORE
     {
         public AnswersValidator()
         {
-            RuleFor(answer => answer.Answer)
-                .MaximumLength(255).WithMessage("Answer cannot exceed 255 characters.");
-
             RuleFor(answer => answer.FormId)
                 .NotNull().WithMessage("Form id is required.");
 
