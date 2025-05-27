@@ -125,13 +125,15 @@
             </h3>
           </div>
           <div class="admin-notes-content">
-            <textarea id="adminNotes"
-                      class="admin-notes-textarea"
-                      [(ngModel)]="userDescription"
+            <textarea #descriptionTextarea
                       name="adminNotes"
-                      placeholder="Add your notes about this applicant here. Notes are saved automatically."
-                      (input)="onDescriptionChange()"
-                      [disabled]="savingDescription"></textarea>
+                      [(ngModel)]="userDescription"
+                      (input)="onAdminNotesInput()"
+                      (focus)="onDescriptionFocus()"
+                      (blur)="onDescriptionBlur()"
+                      class="admin-notes-textarea auto-expand-admin-notes"
+                      placeholder="Add your notes about this applicant here. Notes are saved automatically.">
+            </textarea>
           </div>
         </div>
 

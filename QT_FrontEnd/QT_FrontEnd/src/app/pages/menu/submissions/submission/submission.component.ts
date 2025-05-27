@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, AfterViewInit, ChangeDetectorRef, ViewChild, ElementRef } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { Subject, debounceTime } from 'rxjs';
@@ -9,6 +9,8 @@ import { Subject, debounceTime } from 'rxjs';
   styleUrls: ['./submission.component.css']
 })
 export class SubmissionComponent implements OnInit, AfterViewInit {
+  @ViewChild('descriptionTextarea', { static: false }) descriptionTextarea!: ElementRef<HTMLTextAreaElement>;
+
   submission: any = null;
   form: any = { title: '', description: '', questions: [] };
   loading: boolean = true;
@@ -18,6 +20,7 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
   savingDescription: boolean = false;
   notesStatus: string = '';
   private descriptionUpdate = new Subject<string>();
+  private shouldMaintainFocus = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -62,7 +65,34 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
           textarea.style.height = Math.max(textarea.scrollHeight, 38) + 'px';
         }
       });
+
+      // Also initialize the admin notes textarea
+      this.initializeAdminNotesHeight();
     }, 100); // Increased timeout
+  }
+
+  initializeAdminNotesHeight(): void {
+    if (this.descriptionTextarea && this.descriptionTextarea.nativeElement) {
+      const textarea = this.descriptionTextarea.nativeElement;
+      textarea.style.height = 'auto';
+      const minHeight = 150; // Match the CSS min-height
+      textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px';
+    }
+  }
+
+  // New method to handle admin notes textarea auto-expand on input
+  onAdminNotesInput(): void {
+    this.autoExpandAdminNotes();
+    this.onDescriptionChange(); // Keep the existing save functionality
+  }
+
+  autoExpandAdminNotes(): void {
+    if (this.descriptionTextarea && this.descriptionTextarea.nativeElement) {
+      const textarea = this.descriptionTextarea.nativeElement;
+      textarea.style.height = 'auto';
+      const minHeight = 150; // Match the CSS min-height
+      textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px';
+    }
   }
 
   fetchForm(submissionId: string): void {
@@ -89,6 +119,10 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
       next: (userData: any) => {
         if (userData && userData.description) {
           this.userDescription = userData.description;
+          // Initialize the height after setting the value
+          setTimeout(() => {
+            this.initializeAdminNotesHeight();
+          }, 50);
         }
       },
       error: (error) => {
@@ -154,7 +188,16 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
 
   onDescriptionChange(): void {
     this.notesStatus = 'Saving...';
+    this.shouldMaintainFocus = true; // Flag to maintain focus
     this.descriptionUpdate.next(this.userDescription);
+  }
+
+  onDescriptionFocus(): void {
+    this.shouldMaintainFocus = true;
+  }
+
+  onDescriptionBlur(): void {
+    this.shouldMaintainFocus = false;
   }
 
   saveDescription(): void {
@@ -163,6 +206,15 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
     }
 
     this.savingDescription = true;
+
+    // Store cursor position and focus state
+    const activeElement = document.activeElement;
+    const isDescriptionFocused = this.descriptionTextarea?.nativeElement === activeElement;
+    let cursorPosition = 0;
+
+    if (isDescriptionFocused) {
+      cursorPosition = this.descriptionTextarea.nativeElement.selectionStart || 0;
+    }
 
     const userData = {
       userId: this.submission.userId,
@@ -176,11 +228,28 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
           this.notesStatus = '';
         }, 3000);
         this.savingDescription = false;
+
+        // Restore focus and cursor position if needed
+        if (this.shouldMaintainFocus && this.descriptionTextarea) {
+          // Use setTimeout to ensure DOM updates are complete
+          setTimeout(() => {
+            this.descriptionTextarea.nativeElement.focus();
+            this.descriptionTextarea.nativeElement.setSelectionRange(cursorPosition, cursorPosition);
+          }, 0);
+        }
       },
       error: (error) => {
         this.notesStatus = 'Failed to save';
         console.error('Error saving user description:', error);
         this.savingDescription = false;
+
+        // Still try to restore focus on error
+        if (this.shouldMaintainFocus && this.descriptionTextarea) {
+          setTimeout(() => {
+            this.descriptionTextarea.nativeElement.focus();
+            this.descriptionTextarea.nativeElement.setSelectionRange(cursorPosition, cursorPosition);
+          }, 0);
+        }
       }
     });
   }
