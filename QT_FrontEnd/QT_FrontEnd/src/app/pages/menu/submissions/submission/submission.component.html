@@ -128,10 +128,10 @@
             <textarea #descriptionTextarea
                       name="adminNotes"
                       [(ngModel)]="userDescription"
-                      (input)="onDescriptionChange()"
+                      (input)="onAdminNotesInput()"
                       (focus)="onDescriptionFocus()"
                       (blur)="onDescriptionBlur()"
-                      class="admin-notes-textarea"
+                      class="admin-notes-textarea auto-expand-admin-notes"
                       placeholder="Add your notes about this applicant here. Notes are saved automatically.">
             </textarea>
           </div>

@@ -65,7 +65,34 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
           textarea.style.height = Math.max(textarea.scrollHeight, 38) + 'px';
         }
       });
+
+      // Also initialize the admin notes textarea
+      this.initializeAdminNotesHeight();
     }, 100); // Increased timeout
+  }
+
+  initializeAdminNotesHeight(): void {
+    if (this.descriptionTextarea && this.descriptionTextarea.nativeElement) {
+      const textarea = this.descriptionTextarea.nativeElement;
+      textarea.style.height = 'auto';
+      const minHeight = 150; // Match the CSS min-height
+      textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px';
+    }
+  }
+
+  // New method to handle admin notes textarea auto-expand on input
+  onAdminNotesInput(): void {
+    this.autoExpandAdminNotes();
+    this.onDescriptionChange(); // Keep the existing save functionality
+  }
+
+  autoExpandAdminNotes(): void {
+    if (this.descriptionTextarea && this.descriptionTextarea.nativeElement) {
+      const textarea = this.descriptionTextarea.nativeElement;
+      textarea.style.height = 'auto';
+      const minHeight = 150; // Match the CSS min-height
+      textarea.style.height = Math.max(textarea.scrollHeight, minHeight) + 'px';
+    }
   }
 
   fetchForm(submissionId: string): void {
@@ -92,6 +119,10 @@ export class SubmissionComponent implements OnInit, AfterViewInit {
       next: (userData: any) => {
         if (userData && userData.description) {
           this.userDescription = userData.description;
+          // Initialize the height after setting the value
+          setTimeout(() => {
+            this.initializeAdminNotesHeight();
+          }, 50);
         }
       },
       error: (error) => {
