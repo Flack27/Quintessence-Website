@@ -112,7 +112,7 @@ public class MenuController : ControllerBase
         [FromQuery] string startDate = null,
         [FromQuery] string endDate = null)
     {
-        var (start, end) = GetDateRange(timeRange, startDate, endDate);
+        var (start, end) = GetDateRange(timeRange, startDate, endDate, "events");
 
         var data = await _events.GetServerEventStats(start, end);
 
@@ -235,7 +235,7 @@ public class MenuController : ControllerBase
         return (baseStats.messageCount, baseStats.voiceTime, eventsCount, submissions);
     }
 
-    private (DateTime start, DateTime end) GetDateRange(string timeRange, string startDateStr, string endDateStr)
+    private (DateTime start, DateTime end) GetDateRange(string timeRange, string startDateStr, string endDateStr, string graphType = null)
     {
         DateTime end = DateTime.UtcNow.Date;
         DateTime start;
@@ -257,10 +257,15 @@ public class MenuController : ControllerBase
             case "month":
                 start = new DateTime(end.Year, end.Month, 1);
                 break;
-            case "alltime":  // Changed from "3months"
-                             // For alltime, we set a very old date as the start
-                             // The database query will naturally limit this to the first record
-                start = new DateTime(2000, 1, 1);
+            case "alltime":
+                if (graphType?.ToLower() == "events")
+                {
+                    start = new DateTime(2024, 3, 1);
+                }
+                else
+                {
+                    start = new DateTime(2025, 3, 1);
+                }
                 break;
             case "year":
                 start = new DateTime(end.Year, 1, 1);
