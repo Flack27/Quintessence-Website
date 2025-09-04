@@ -83,19 +83,33 @@ namespace QuintessenceWebsiteDAL.DAL
         {
             try
             {
-                // Group form submissions by date and count them
-                var data = await _context.FormSubmission
+                var actualData = await _context.FormSubmission
                     .Where(s => s.SubmitDate >= startDate && s.SubmitDate <= endDate)
                     .GroupBy(s => s.SubmitDate.Date)
                     .OrderBy(g => g.Key)
                     .Select(g => new
                     {
-                        date = g.Key.ToString("yyyy-MM-dd"),
+                        date = g.Key,
                         submissions = g.Count()
                     })
                     .ToListAsync();
 
-                return data.Cast<dynamic>().ToList();
+                return GraphDataHelper.FillMissingDates(
+                    actualData,
+                    startDate,
+                    endDate,
+                    item => item.date,
+                    item => new
+                    {
+                        date = item.date.ToString("yyyy-MM-dd"),
+                        submissions = item.submissions
+                    },
+                    date => new
+                    {
+                        date = date.ToString("yyyy-MM-dd"),
+                        submissions = 0
+                    }
+                );
             }
             catch (Exception ex)
             {

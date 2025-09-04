@@ -48,26 +48,38 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
-        // New methods for server-wide stats
-
         public async Task<List<dynamic>> GetServerEventsData(DateTime startDate, DateTime endDate)
         {
             try
             {
-                // Group signups by event date and count them
-                var data = await _context.EventSignups
-                    .Include(s => s.Event) // Include the Event to access its Date
+                var actualData = await _context.EventSignups
+                    .Include(s => s.Event)
                     .Where(s => s.Event.Date >= startDate && s.Event.Date <= endDate)
-                    .GroupBy(s => s.Event.Date.Date) // Group by the event date
+                    .GroupBy(s => s.Event.Date.Date)
                     .OrderBy(g => g.Key)
                     .Select(g => new
                     {
-                        date = g.Key.ToString("yyyy-MM-dd"),
-                        events = g.Count() // Count signups per date
+                        date = g.Key,
+                        events = g.Count()
                     })
                     .ToListAsync();
 
-                return data.Cast<dynamic>().ToList();
+                return GraphDataHelper.FillMissingDates(
+                    actualData,
+                    startDate,
+                    endDate,
+                    item => item.date,
+                    item => new
+                    {
+                        date = item.date.ToString("yyyy-MM-dd"),
+                        events = item.events
+                    },
+                    date => new
+                    {
+                        date = date.ToString("yyyy-MM-dd"),
+                        events = 0
+                    }
+                );
             }
             catch (Exception ex)
             {
