@@ -109,23 +109,40 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
-        // New method for server-wide message activity
         public async Task<List<dynamic>> GetServerMessageActivityData(DateTime startDate, DateTime endDate)
         {
             try
             {
-                var data = await _context.UserMessageActivitySummary
+                var actualData = await _context.UserMessageActivitySummary
                     .Where(a => a.Date >= startDate && a.Date <= endDate)
                     .GroupBy(a => a.Date)
                     .OrderBy(g => g.Key)
                     .Select(g => new
                     {
-                        date = g.Key.ToString("yyyy-MM-dd"),
+                        date = g.Key,
                         messageCount = g.Sum(a => a.MessageCount),
                         xpEarned = g.Sum(a => a.XpEarned)
                     })
                     .ToListAsync();
-                return data.Cast<dynamic>().ToList();
+
+                return GraphDataHelper.FillMissingDates(
+                    actualData,
+                    startDate,
+                    endDate,
+                    item => item.date,
+                    item => new
+                    {
+                        date = item.date.ToString("yyyy-MM-dd"),
+                        messageCount = item.messageCount,
+                        xpEarned = item.xpEarned
+                    },
+                    date => new
+                    {
+                        date = date.ToString("yyyy-MM-dd"),
+                        messageCount = 0,
+                        xpEarned = 0
+                    }
+                );
             }
             catch (Exception ex)
             {
@@ -139,7 +156,6 @@ namespace QuintessenceWebsiteDAL.DAL
         {
             try
             {
-                // Get actual data
                 var actualData = await _context.UserVoiceActivitySummary
                     .Where(a => a.Date >= startDate && a.Date <= endDate)
                     .GroupBy(a => a.Date)
@@ -152,20 +168,24 @@ namespace QuintessenceWebsiteDAL.DAL
                     })
                     .ToListAsync();
 
-                // Generate all dates in range
-                var allDates = new List<dynamic>();
-                for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
-                {
-                    var existingData = actualData.FirstOrDefault(d => d.date.Date == date);
-                    allDates.Add(new
+                return GraphDataHelper.FillMissingDates(
+                    actualData,
+                    startDate,
+                    endDate,
+                    item => item.date,
+                    item => new
+                    {
+                        date = item.date.ToString("yyyy-MM-dd"),
+                        voiceHours = item.voiceHours,
+                        xpEarned = item.xpEarned
+                    },
+                    date => new
                     {
                         date = date.ToString("yyyy-MM-dd"),
-                        voiceHours = existingData?.voiceHours ?? 0.0,
-                        xpEarned = existingData?.xpEarned ?? 0
-                    });
-                }
-
-                return allDates;
+                        voiceHours = 0.0,
+                        xpEarned = 0
+                    }
+                );
             }
             catch (Exception ex)
             {
