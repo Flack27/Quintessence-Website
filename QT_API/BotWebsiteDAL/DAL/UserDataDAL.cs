@@ -59,22 +59,78 @@ namespace QuintessenceWebsiteDAL.DAL
 
         public async Task<List<dynamic>> GetMessageActivityData(List<long> userIds, DateTime startDate, DateTime endDate)
         {
-            // Existing implementation
             try
             {
-                var data = await _context.UserMessageActivitySummary
+                // Get actual data grouped by user
+                var actualData = await _context.UserMessageActivitySummary
                     .Where(a => userIds.Contains(a.UserId) && a.Date >= startDate && a.Date <= endDate)
                     .OrderBy(a => a.UserId)
                     .ThenBy(a => a.Date)
                     .Select(a => new
                     {
-                        userId = a.UserId.ToString(),
-                        date = a.Date.ToString("yyyy-MM-dd"),
+                        userId = a.UserId,
+                        date = a.Date,
                         messageCount = a.MessageCount,
                         xpEarned = a.XpEarned
                     })
                     .ToListAsync();
-                return data.Cast<dynamic>().ToList();
+
+                // Group by user for processing
+                var userDataGroups = actualData.GroupBy(d => d.userId);
+                var result = new List<dynamic>();
+
+                // Fill missing dates for each user
+                foreach (var userId in userIds)
+                {
+                    var userGroup = userDataGroups.FirstOrDefault(g => g.Key == userId);
+
+                    if (userGroup != null)
+                    {
+                        var userDataList = userGroup.ToList();
+                        var userDataDict = userDataList.ToDictionary(d => d.date.Date);
+
+                        // Generate all dates for this user
+                        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                        {
+                            if (userDataDict.TryGetValue(date, out var existingData))
+                            {
+                                result.Add(new
+                                {
+                                    userId = existingData.userId.ToString(),
+                                    date = date.ToString("yyyy-MM-dd"),
+                                    messageCount = existingData.messageCount,
+                                    xpEarned = existingData.xpEarned
+                                });
+                            }
+                            else
+                            {
+                                result.Add(new
+                                {
+                                    userId = userId.ToString(),
+                                    date = date.ToString("yyyy-MM-dd"),
+                                    messageCount = 0,
+                                    xpEarned = 0
+                                });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // User has no data, create zeros for all dates
+                        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                        {
+                            result.Add(new
+                            {
+                                userId = userId.ToString(),
+                                date = date.ToString("yyyy-MM-dd"),
+                                messageCount = 0,
+                                xpEarned = 0
+                            });
+                        }
+                    }
+                }
+
+                return result.Cast<dynamic>().ToList();
             }
             catch (Exception ex)
             {
@@ -85,22 +141,79 @@ namespace QuintessenceWebsiteDAL.DAL
 
         public async Task<List<dynamic>> GetVoiceActivityData(List<long> userIds, DateTime startDate, DateTime endDate)
         {
-            // Existing implementation
             try
             {
-                var data = await _context.UserVoiceActivitySummary
+                // Get actual data grouped by user
+                var actualData = await _context.UserVoiceActivitySummary
                     .Where(a => userIds.Contains(a.UserId) && a.Date >= startDate && a.Date <= endDate)
                     .OrderBy(a => a.UserId)
                     .ThenBy(a => a.Date)
                     .Select(a => new
                     {
-                        userId = a.UserId.ToString(),
-                        date = a.Date.ToString("yyyy-MM-dd"),
+                        userId = a.UserId,
+                        date = a.Date,
                         voiceHours = Math.Round((double)a.VoiceMinutes / 60, 2),
                         xpEarned = a.XpEarned
                     })
                     .ToListAsync();
-                return data.Cast<dynamic>().ToList();
+
+                // Group by user for processing
+                var userDataGroups = actualData.GroupBy(d => d.userId);
+                var result = new List<dynamic>();
+
+                // Fill missing dates for each user
+                foreach (var userId in userIds)
+                {
+                    var userGroup = userDataGroups.FirstOrDefault(g => g.Key == userId);
+
+                    // Fix: Handle the null case differently
+                    if (userGroup != null)
+                    {
+                        var userDataList = userGroup.ToList();
+                        var userDataDict = userDataList.ToDictionary(d => d.date.Date);
+
+                        // Generate all dates for this user
+                        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                        {
+                            if (userDataDict.TryGetValue(date, out var existingData))
+                            {
+                                result.Add(new
+                                {
+                                    userId = existingData.userId.ToString(),
+                                    date = date.ToString("yyyy-MM-dd"),
+                                    voiceHours = existingData.voiceHours,
+                                    xpEarned = existingData.xpEarned
+                                });
+                            }
+                            else
+                            {
+                                result.Add(new
+                                {
+                                    userId = userId.ToString(),
+                                    date = date.ToString("yyyy-MM-dd"),
+                                    voiceHours = 0.0,
+                                    xpEarned = 0
+                                });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // User has no data, create zeros for all dates
+                        for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                        {
+                            result.Add(new
+                            {
+                                userId = userId.ToString(),
+                                date = date.ToString("yyyy-MM-dd"),
+                                voiceHours = 0.0,
+                                xpEarned = 0
+                            });
+                        }
+                    }
+                }
+
+                return result.Cast<dynamic>().ToList();
             }
             catch (Exception ex)
             {
