@@ -134,23 +134,38 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
-        // New method for server-wide voice activity
+
         public async Task<List<dynamic>> GetServerVoiceActivityData(DateTime startDate, DateTime endDate)
         {
             try
             {
-                var data = await _context.UserVoiceActivitySummary
+                // Get actual data
+                var actualData = await _context.UserVoiceActivitySummary
                     .Where(a => a.Date >= startDate && a.Date <= endDate)
                     .GroupBy(a => a.Date)
                     .OrderBy(g => g.Key)
                     .Select(g => new
                     {
-                        date = g.Key.ToString("yyyy-MM-dd"),
+                        date = g.Key,
                         voiceHours = Math.Round((double)g.Sum(a => a.VoiceMinutes) / 60, 2),
                         xpEarned = g.Sum(a => a.XpEarned)
                     })
                     .ToListAsync();
-                return data.Cast<dynamic>().ToList();
+
+                // Generate all dates in range
+                var allDates = new List<dynamic>();
+                for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                {
+                    var existingData = actualData.FirstOrDefault(d => d.date.Date == date);
+                    allDates.Add(new
+                    {
+                        date = date.ToString("yyyy-MM-dd"),
+                        voiceHours = existingData?.voiceHours ?? 0.0,
+                        xpEarned = existingData?.xpEarned ?? 0
+                    });
+                }
+
+                return allDates;
             }
             catch (Exception ex)
             {
