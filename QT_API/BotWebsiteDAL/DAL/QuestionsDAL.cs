@@ -36,6 +36,46 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
+        public async Task<bool> WillRequiredDependentQuestionsApply(long formId, long userId)
+        {
+            try
+            {
+                // Get user's current answers
+                var userAnswers = await _context.Answers
+                    .Where(a => a.UserId == userId)
+                    .GroupBy(a => a.QuestionId)
+                    .ToDictionaryAsync(g => g.Key, g => g.Select(a => a.Answer).ToList());
+
+                // Get all dependent questions that are REQUIRED
+                var requiredDependentQuestions = await _context.Questions
+                    .Where(q => q.FormId == formId
+                        && q.QuestionDependency != null
+                        && q.IsRequired == true)  // Only required ones matter
+                    .Include(q => q.QuestionDependency)
+                    .ToListAsync();
+
+                // Check if ANY required dependent question will be triggered
+                foreach (var question in requiredDependentQuestions)
+                {
+                    var dependency = question.QuestionDependency;
+
+                    if (userAnswers.ContainsKey(dependency.DependsOnQuestionId)
+                        && userAnswers[dependency.DependsOnQuestionId].Contains(dependency.RequiredAnswer))
+                    {
+                        // This required question WILL be triggered
+                        return true;
+                    }
+                }
+
+                // No required dependent questions will be triggered
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"WillRequiredDependentQuestionsApply: {ex.Message}");
+                return false; // Safe default: don't auto-submit on error
+            }
+        }
 
         public async Task<List<QuestionsDTO>> GetSubmissionQuestions(long id, long submissionId, long userId)
         {

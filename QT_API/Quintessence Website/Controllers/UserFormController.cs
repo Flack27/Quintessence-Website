@@ -103,7 +103,11 @@ namespace Quintessence_Website.Controllers
             var userId = answers.FirstOrDefault()?.UserId ?? 0;
             var formId = answers.FirstOrDefault()?.FormId ?? 0;
 
+            // Get dependent questions that NOW apply
             var questions = await _quests.GetDependentQuestions(formId, userId);
+
+            // NEW: Check if any REQUIRED dependent questions will apply
+            var willRequiredQuestionsApply = await _quests.WillRequiredDependentQuestionsApply(formId, userId);
 
             if (questions == null)
             {
@@ -111,6 +115,8 @@ namespace Quintessence_Website.Controllers
             }
 
             Response.Headers.Append("submissionId", submissionId.ToString());
+            Response.Headers.Append("willRequiredQuestionsApply", willRequiredQuestionsApply.ToString());
+
             return Ok(questions);
         }
 

@@ -11,6 +11,7 @@ namespace QuintessenceWebsiteInterface.INTERFACE
     public interface IQuestionsDAL
     {
         public Task<List<QuestionsDTO>?> GetQuestions(long id);
+        public Task<bool> WillRequiredDependentQuestionsApply(long formId, long userId);
         public Task<List<QuestionsDTO>?> GetSubmissionQuestions(long id, long submissionId, long userId);
         public Task<List<QuestionsDTO>?> GetSubmissionDependentQuestions(long formId, long submissionId, long userId);
         public Task<List<QuestionsDTO>?> GetQuestionsWithAnswers(long id, long userId);

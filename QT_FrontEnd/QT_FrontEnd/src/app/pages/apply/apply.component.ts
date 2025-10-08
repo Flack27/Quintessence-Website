@@ -232,60 +232,80 @@ export class ApplyComponent implements OnInit {
     });
 
     if (this.firstForm) {
-      this.http.put('api/userform/save', initialAnswers, { withCredentials: true, observe: 'response' }).subscribe({
+      this.http.put('api/userform/save', initialAnswers, {
+        withCredentials: true,
+        observe: 'response'
+      }).subscribe({
         next: (response: HttpResponse<any>) => {
           const dependentQuestions = response.body;
           this.submissionId = response.headers.get('submissionId');
-          if (dependentQuestions && dependentQuestions.length > 0) {
-            this.form.questions = dependentQuestions.map((q: any) => {
-              if (q.answer && q.answer.length > 0) {
-                if (this.isMultipleChoice(q)) {
-                  q.options = q.options.map((o: any) => ({
-                    ...o,
-                    selected: q.answer.some((a: any) => a.answer === o.answerOption),
-                  }));
-                } else {
-                  q.answer = q.answer[0] || null;
-                }
-              }
-              // Initialize validation for dependent questions
-              this.initializeQuestionValidation(q);
-              return q;
-            });
-            this.firstForm = false;
-            this.isSubmitting = false;
-            this.errorMessage = '';
-            this.cdr.detectChanges();
-            this.initializeTextareaHeights();
+          const willRequiredQuestionsApply = response.headers.get('willRequiredQuestionsApply')?.toLowerCase() === 'true';
 
+          // SMART DECISION:
+          if (willRequiredQuestionsApply) {
+            // Required dependent questions WILL be triggered
+            // Must show step 2 for user to answer them
+            this.showDependentQuestionsStep(dependentQuestions);
           } else {
-            const answers: any[] = [];
-            answers.push({
-              FormId: this.form.formId,
-              UserId: this.user.claims.id,
-              SubmissionId: this.submissionId
-            });
-            this.http.put('api/userform/save-and-submit', answers, { withCredentials: true }).subscribe({
-              next: () => {
-                this.errorMessage = '';
-                this.router.navigate(['apply/thank-you']); // Redirect to a success page
-                this.isSubmitting = false;
-              },
-              error: () => {
-                this.errorMessage = 'Failed to submit dependent questions. Please try again.';
-                this.isSubmitting = false;
-              },
-            });
+            // No required dependent questions will be triggered
+            // Safe to auto-submit - user friendly!
+            this.autoSubmit();
           }
         },
         error: () => {
-          this.errorMessage = 'Failed to load dependent questions. Please try again later.';
+          this.errorMessage = 'Failed to process form. Please try again.';
           this.isSubmitting = false;
         },
       });
     } else {
+      // SECOND FORM SUBMISSION (dependent questions step)
       this.submitDependentQuestions(applicationForm);
     }
+  }
+
+  private showDependentQuestionsStep(dependentQuestions: any[]): void {
+    this.form.questions = dependentQuestions.map((q: any) => {
+      if (q.answer && q.answer.length > 0) {
+        if (this.isMultipleChoice(q)) {
+          q.options = q.options.map((o: any) => ({
+            ...o,
+            selected: q.answer.some((a: any) => a.answer === o.answerOption),
+          }));
+        } else {
+          q.answer = q.answer[0] || null;
+        }
+      }
+      this.initializeQuestionValidation(q);
+      return q;
+    });
+    this.firstForm = false;
+    this.isSubmitting = false;
+    this.errorMessage = '';
+    this.cdr.detectChanges();
+    this.initializeTextareaHeights();
+  }
+
+
+  private autoSubmit(): void {
+    const answers: any[] = [{
+      FormId: this.form.formId,
+      UserId: this.user.claims.id,
+      SubmissionId: this.submissionId
+    }];
+
+    this.http.put('api/userform/save-and-submit', answers, {
+      withCredentials: true
+    }).subscribe({
+      next: () => {
+        this.errorMessage = '';
+        this.router.navigate(['apply/thank-you']);
+        this.isSubmitting = false;
+      },
+      error: () => {
+        this.errorMessage = 'Failed to submit form. Please try again.';
+        this.isSubmitting = false;
+      },
+    });
   }
 
   submitDependentQuestions(applicationForm: NgForm): void {
