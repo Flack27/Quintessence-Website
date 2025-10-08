@@ -36,6 +36,12 @@ namespace QuintessenceWebsiteBLL.CONTAINERS
             return questions;
         }
 
+        public async Task<bool> WillRequiredDependentQuestionsApply(long formId, long userId)
+        {
+            return await _questionsDal.WillRequiredDependentQuestionsApply(formId, userId);
+        }
+
+
         public async Task<List<Questions>?> GetSubmissionQuestions(long formId, long submissionId, long userId)
         {
             List<Questions> questions = new List<Questions>();
