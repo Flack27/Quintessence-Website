@@ -10,13 +10,11 @@ namespace QuintessenceWebsiteInterface.DTO
         [Key]
         public long SubmissionId { get; set; }
         public long UserId { get; set; }
+        public UsersDTO? User { get; set; }
         public long FormId { get; set; }
-
-        public DateTime SubmitDate { get; set; } = DateTime.UtcNow;
-
+        public FormDTO? Form { get; set; }
+        public DateTime SubmitDate { get; set; } = DateTime.Now;
         public bool? Approved { get; set; }
-
-        public UsersDTO User { get; set; }
-        public FormDTO Form { get; set; }
+        public bool IsComplete { get; set; } = false;
     }
 }

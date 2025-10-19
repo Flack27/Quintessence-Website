@@ -32,6 +32,28 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
+        public async Task<bool> MarkSubmissionComplete(long submissionId)
+        {
+            try
+            {
+                var submission = await _context.FormSubmission.FindAsync(submissionId);
+                if (submission == null)
+                {
+                    Console.WriteLine($"MarkSubmissionComplete: Submission {submissionId} not found");
+                    return false;
+                }
+
+                submission.IsComplete = true;
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("MarkSubmissionComplete: " + ex.Message);
+                return false;
+            }
+        }
+
         public async Task<bool> SaveAnswers(List<AnswersDTO> answers)
         {
             try

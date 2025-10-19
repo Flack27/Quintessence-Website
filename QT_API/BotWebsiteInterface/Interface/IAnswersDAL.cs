@@ -11,5 +11,6 @@ namespace QuintessenceWebsiteInterface.INTERFACE
     {
         public Task<long?> Submit(FormSubmissionDTO formSubmission);
         public Task<bool> SaveAnswers(List<AnswersDTO> answers);
+        public Task<bool> MarkSubmissionComplete(long submissionId);  
     }
 }
