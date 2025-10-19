@@ -23,7 +23,11 @@ namespace QuintessenceWebsiteDAL.DAL
         {
             try
             {
-                return await _context.FormSubmission.Include(u => u.User).Include(f => f.Form).ToListAsync();
+                return await _context.FormSubmission
+                    .Where(s => s.IsComplete == true)
+                    .Include(u => u.User)
+                    .Include(f => f.Form)
+                    .ToListAsync();
             }
             catch (Exception ex)
             {

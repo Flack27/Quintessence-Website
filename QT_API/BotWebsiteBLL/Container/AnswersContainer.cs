@@ -36,14 +36,15 @@ namespace QuintessenceWebsiteBLL.Container
                 return (new ValidationResult(validationErrors), null);
             }
 
-            //formsubmission
             var userId = answers.FirstOrDefault()?.UserId ?? 0;
             var formId = answers.FirstOrDefault()?.FormId ?? 0;
 
+            // Create FormSubmission but mark it as INCOMPLETE
             var formSubmission = new FormSubmissionDTO
             {
                 UserId = userId,
-                FormId = formId
+                FormId = formId,
+                IsComplete = false  // NOT complete yet - user hasn't finished dependent questions
             };
 
             var submissionId = await _answersDAL.Submit(formSubmission);
@@ -80,16 +81,26 @@ namespace QuintessenceWebsiteBLL.Container
             var validator = new AnswersValidator();
             var validationErrors = new List<ValidationFailure>();
 
+            // Handle auto-submit case (no dependent questions needed)
             if (answers.Count == 1 && answers.FirstOrDefault()?.Answer == null)
             {
                 var firstUserId = answers.FirstOrDefault()?.UserId ?? 0;
                 var firstSubmissionId = answers.FirstOrDefault()?.SubmissionId ?? 0;
 
-                await CallWebhookAsync(firstUserId, firstSubmissionId);
+                // Mark the submission as COMPLETE
+                var markComplete = await _answersDAL.MarkSubmissionComplete(firstSubmissionId);
 
-                return new ValidationResult();         
+                if (!markComplete)
+                {
+                    validationErrors.Add(new ValidationFailure("DAL", "Failed to mark submission as complete."));
+                    return new ValidationResult(validationErrors);
+                }
+
+                await CallWebhookAsync(firstUserId, firstSubmissionId);
+                return new ValidationResult();
             }
 
+            // Validate dependent question answers
             foreach (var answer in answers)
             {
                 var results = validator.Validate(answer);
@@ -104,6 +115,7 @@ namespace QuintessenceWebsiteBLL.Container
                 return new ValidationResult(validationErrors);
             }
 
+            // Save dependent question answers
             var answersDTO = answers.Select(a => new AnswersDTO
             {
                 AnswerId = a.AnswerId,
@@ -120,17 +132,24 @@ namespace QuintessenceWebsiteBLL.Container
                 validationErrors.Add(new ValidationFailure("DAL", "Failed to update the database."));
                 Console.WriteLine("Property DAL failed validation. Error was: Failed to update the database.");
                 return new ValidationResult(validationErrors);
-
             }
 
             var userId = answers.FirstOrDefault()?.UserId ?? 0;
             var submissionId = answers.FirstOrDefault()?.SubmissionId ?? 0;
 
+            // NOW mark the submission as COMPLETE
+            var markCompleteResult = await _answersDAL.MarkSubmissionComplete(submissionId);
+
+            if (!markCompleteResult)
+            {
+                validationErrors.Add(new ValidationFailure("DAL", "Failed to mark submission as complete."));
+                return new ValidationResult(validationErrors);
+            }
+
             await CallWebhookAsync(userId, submissionId);
 
             return new ValidationResult();
         }
-
 
         private async Task CallWebhookAsync(long userId, long submissionId)
         {
