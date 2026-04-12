@@ -74,19 +74,6 @@ namespace Quintessence_Website.Controllers
             return Ok(questions);
         }
 
-        [HttpGet("dependent-questions/{formId}/{userId}", Name = "GetDependentQuestions")]
-        public async Task<ActionResult<Questions>> GetDependentQuestions(long formId, long userId)
-        {
-            var questions = await _quests.GetDependentQuestions(formId, userId);
-
-            if (questions == null)
-            {
-                return NotFound("Dependent questions not found");
-            }
-
-            return Ok(questions);
-        }
-
 
         [HttpPut("save", Name = "SaveAnswers")]
         public async Task<ActionResult> SaveAnswers([FromBody] List<Answers> answers)
@@ -103,11 +90,8 @@ namespace Quintessence_Website.Controllers
             var userId = answers.FirstOrDefault()?.UserId ?? 0;
             var formId = answers.FirstOrDefault()?.FormId ?? 0;
 
-            // Get dependent questions that NOW apply
-            var questions = await _quests.GetDependentQuestions(formId, userId);
-
-            // NEW: Check if any REQUIRED dependent questions will apply
-            var willRequiredQuestionsApply = await _quests.WillRequiredDependentQuestionsApply(formId, userId);
+            var questions = await _quests.GetDependentQuestions(formId, userId, submissionId.Value);
+            var willRequiredQuestionsApply = await _quests.WillRequiredDependentQuestionsApply(formId, userId, submissionId.Value);
 
             if (questions == null)
             {
