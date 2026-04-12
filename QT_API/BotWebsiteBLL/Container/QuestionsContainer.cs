@@ -36,9 +36,9 @@ namespace QuintessenceWebsiteBLL.CONTAINERS
             return questions;
         }
 
-        public async Task<bool> WillRequiredDependentQuestionsApply(long formId, long userId)
+        public async Task<bool> WillRequiredDependentQuestionsApply(long formId, long userId, long submissionId)
         {
-            return await _questionsDal.WillRequiredDependentQuestionsApply(formId, userId);
+            return await _questionsDal.WillRequiredDependentQuestionsApply(formId, userId, submissionId);
         }
 
 
@@ -87,10 +87,10 @@ namespace QuintessenceWebsiteBLL.CONTAINERS
             return questions;
         }
 
-        public async Task<List<Questions>?> GetDependentQuestions(long formId, long userId)
+        public async Task<List<Questions>?> GetDependentQuestions(long formId, long userId, long submissionId)
         {
             List<Questions> questions = new List<Questions>();
-            List<QuestionsDTO> questionsDtos = await _questionsDal.GetDependentQuestions(formId, userId);
+            List<QuestionsDTO> questionsDtos = await _questionsDal.GetDependentQuestions(formId, userId, submissionId);
 
             if (questionsDtos == null) { return null; }
 
