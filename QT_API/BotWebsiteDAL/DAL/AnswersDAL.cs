@@ -58,11 +58,7 @@ namespace QuintessenceWebsiteDAL.DAL
         {
             try
             {
-                foreach (var answer in answers)
-                {
-                    await _context.Answers.AddAsync(answer);
-                }
-
+                await _context.Answers.AddRangeAsync(answers);
                 await _context.SaveChangesAsync();
                 return true;
             }
