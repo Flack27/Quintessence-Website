@@ -53,7 +53,7 @@ namespace QuintessenceWebsiteDAL.DAL
         {
             try
             {
-                return await _context.FormSubmission.CountAsync();
+                return await _context.FormSubmission.CountAsync(s => s.IsComplete);
             }
             catch (Exception ex)
             {
@@ -82,13 +82,12 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
-        // New method for server-wide form submissions data
         public async Task<List<dynamic>> GetServerFormSubmissionsData(DateTime startDate, DateTime endDate)
         {
             try
             {
                 var actualData = await _context.FormSubmission
-                    .Where(s => s.SubmitDate >= startDate && s.SubmitDate <= endDate)
+                    .Where(s => s.SubmitDate >= startDate && s.SubmitDate <= endDate && s.IsComplete)
                     .GroupBy(s => s.SubmitDate.Date)
                     .OrderBy(g => g.Key)
                     .Select(g => new
@@ -122,13 +121,12 @@ namespace QuintessenceWebsiteDAL.DAL
             }
         }
 
-        // New method for getting submissions count in a period
         public async Task<int> GetSubmissionsCountForPeriod(DateTime startDate, DateTime endDate)
         {
             try
             {
                 return await _context.FormSubmission
-                    .CountAsync(s => s.SubmitDate >= startDate && s.SubmitDate <= endDate);
+                    .CountAsync(s => s.SubmitDate >= startDate && s.SubmitDate <= endDate && s.IsComplete);
             }
             catch (Exception ex)
             {
