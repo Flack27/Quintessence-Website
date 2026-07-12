@@ -29,4 +29,10 @@ RUN dotnet publish "./Quintessence Website.csproj" -c $BUILD_CONFIGURATION -o /a
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# The app writes its JSON data store (App_Data) and uploaded images (uploads) at
+# runtime, but runs as non-root ($APP_UID). Create those dirs owned by that user so
+# named volumes mounted here inherit writable ownership.
+USER root
+RUN mkdir -p /app/App_Data /app/uploads/games && chown -R $APP_UID:$APP_UID /app/App_Data /app/uploads
+USER $APP_UID
 ENTRYPOINT ["dotnet", "Quintessence Website.dll"]
