@@ -1,5 +1,6 @@
 import { Component, OnInit, HostListener } from '@angular/core';
 import { AuthService } from '../../services/auth.service';
+import { QUTIE_APPLY_URL } from '../../qutie.config';
 
 @Component({
   selector: 'app-navbar',
@@ -10,6 +11,9 @@ export class NavComponent implements OnInit {
   isDropdownVisible = false;
   isMobileMenuOpen = false;
   user: any = null;
+
+  // Apply lives on Qutie - the navbar links straight there (no intermediate page).
+  readonly applyUrl = QUTIE_APPLY_URL;
 
   constructor(public authService: AuthService) { }
 

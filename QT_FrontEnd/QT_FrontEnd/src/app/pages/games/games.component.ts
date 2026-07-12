@@ -1,28 +1,23 @@
-import { Component, OnInit, AfterViewInit, ViewEncapsulation } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
+import { CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
+import { AuthService } from '../../services/auth.service';
+import {
+  GameService, AdminGame, PublicGame, GameDetails, GameAchievement, GameGalleryItem, TimelineEntry
+} from '../../services/game.service';
+import { QutieService, QutieGame, QutieEvent } from '../../services/qutie.service';
 
-interface Achievement {
-  icon: string;
-  title: string;
-  description: string;
+/** One month column of the events graph. */
+interface GraphMonth {
+  label: string;
+  x: number; y: number; w: number; h: number;
+  count: number;
 }
 
-
-interface GalleryItem {
-  type: 'image' | 'video';
-  src: string;
-  alt: string;
-  youtubeId?: string;
-}
-
-interface GameDetails {
-  id: string;
-  title: string;
-  image: string;
-  period: string;
-  players: string;
-  description: string;
-  achievements: Achievement[];
-  gallery: GalleryItem[];
+/** One clickable VOD dot on the events graph. */
+interface GraphDot {
+  cx: number; cy: number;
+  event: QutieEvent;
 }
 
 @Component({
@@ -31,497 +26,496 @@ interface GameDetails {
   styleUrl: './games.component.css',
   encapsulation: ViewEncapsulation.None
 })
+export class GamesComponent implements OnInit {
 
-export class GamesComponent implements OnInit, AfterViewInit {
+  games: AdminGame[] = [];
+  timeline: TimelineEntry[] = [];
+  activeTab: 'upcoming' | 'prior' = 'upcoming';
 
-  // Game details database
-  gameDetails: { [key: string]: GameDetails } = {
-    'template': {
-      id: '',
-      title: '',
-      image: '',
-      period: '',
-      players: '',
-      description: `
-        <p></p>
-      `,
-      achievements: [
-        {
-          icon: 'fa-flag',
-          title: 'Territory Lords',
-          description: 'Controlled Everfall for over 6 months continuously'
-        },
-        {
-          icon: 'fa-shield-alt',
-          title: 'Unbreakable',
-          description: 'Successfully defended our territory in 15 consecutive wars'
-        },
-        {
-          icon: 'fa-coins',
-          title: 'Economic Power',
-          description: 'Generated over 10 million gold in territory revenue'
-        },
-        {
-          icon: 'fa-users',
-          title: 'Community Builder',
-          description: 'Grew to become the largest active guild on the server'
-        }
-      ],
-      gallery: [
-        { type: 'image', src: '/assets/games/new-world-gallery-1.jpg', alt: 'Territory control celebration' },
-        { type: 'image', src: '/assets/games/new-world-gallery-2.jpg', alt: 'Guild war formation' },
-        { type: 'image', src: '/assets/games/new-world-gallery-3.jpg', alt: 'Invasion defense' },
-        { type: 'image', src: '/assets/games/new-world-gallery-4.jpg', alt: 'Guild meeting in Everfall' },
-        { type: 'video', src: '/assets/games/thumbnails/new-world-war.jpg', alt: 'New World War Highlights', youtubeId: 'dQw4w9WgXcQ' }
-      ]
-    },
-    'throne-and-liberty': {
-      id: 'throne-and-liberty',
-      title: 'Throne and Liberty',
-      image: '/assets/games/TL/Throne_and_Liberty_Banner.png',
-      period: '2024-2025',
-      players: '100+',
-      description: `
-        <p>Through our knowledge, optimized builds, and collective experience, we stayed ahead of the curve during the game's early stages. We are proud to have achieved multiple siege victories, dominated the top 15 kill rankings, and secured rank 1 in both activity and the guild leaderboard for an extended period in Throne and Liberty. </p>
+  isAdmin = false;
 
-        <p>Furthermore, Quintessence had the privilege of attending & ultimately winning the Amazon games' "Siege the Day" live Twitch event in front of thousands of people. During our time within Throne & Liberty, we've also gained invaluable leadership and management experience, which we are looking forward to implementing in our next priority MMO. </p>
-      `,
-      achievements: [
-        {
-          icon: 'fa-crown',
-          title: 'Siege the Day',
-          description: 'Winners of the AGS "Siege the Day" event'
-        },
-        {
-          icon: 'fa-skull',
-          title: 'Top kill ranking',
-          description: 'dominated the top 15 kill rankings'
-        },
-        {
-          icon: 'fa-medal',
-          title: 'Rank 1 guild',
-          description: 'Rank 1 guild leaderboard for an extended period of time'
-        }
-      ],
-      gallery: [
-        { type: 'image', src: '/assets/games/TL/Throne_and_Liberty_Kills.png', alt: 'Kill ranking' },
-        { type: 'image', src: '/assets/games/TL/Throne_and_Liberty_GuildRank.png', alt: 'Guild ranking' },
-        { type: 'image', src: '/assets/games/TL/Throne_and_Liberty_Siege.png', alt: 'Siege ranking' },
-        { type: 'image', src: '/assets/games/TL/Throne_and_Liberty_Attendance.png', alt: 'Attendance Sheet' },
-        { type: 'image', src: '/assets/games/TL/Throne_and_Liberty_Roster.png', alt: 'Roster Sheet' },
-        { type: 'video', src: '/assets/games/TL/Throne_and_Liberty_Thumbnail.jpg', alt: 'Throne and Liberty - Siege the Day', youtubeId: 'z03gNmZfAnI' }
-      ]
-    }
-  };
+  // ----- Details popup -----
+  details: GameDetails | null = null;
+  detailsLoading = false;
+  qutieEvents: QutieEvent[] | null = null;   // null = section hidden (not pulled / unavailable)
 
-  constructor() { }
+  // Events graph geometry (computed from qutieEvents)
+  graphMonths: GraphMonth[] = [];
+  graphDots: GraphDot[] = [];
+  graphW = 0;
+  readonly graphH = 200;
+  graphGridLines: { y: number; label: number }[] = [];
+
+  // ----- Video / image overlays -----
+  video: { youtubeId: string; title: string; subtitle: string } | null = null;
+  videoSrc: SafeResourceUrl | null = null;   // set once per video so the iframe doesn't reload every CD cycle
+  fullscreenImage: { src: string; alt: string } | null = null;
+
+  // ----- Admin: game editor overlay -----
+  editorOpen = false;
+  editorGame: AdminGame | null = null;   // working copy; gameId 0 = new game
+  editorSaving = false;
+  qutieGames: QutieGame[] | null = null; // null = Qutie API unavailable -> manual id input
+
+  // ----- Admin: inline forms -----
+  readonly achievementIcons = [
+    'fa-crown', 'fa-skull', 'fa-medal', 'fa-trophy', 'fa-shield-alt', 'fa-flag',
+    'fa-coins', 'fa-users', 'fa-fire', 'fa-star', 'fa-chess-rook', 'fa-bolt'
+  ];
+  newAchievement = { icon: 'fa-medal', title: '', description: '' };
+  newGallery: { itemType: 'image' | 'video'; youtubeUrl: string; caption: string; file: File | null } =
+    { itemType: 'image', youtubeUrl: '', caption: '', file: null };
+  galleryUploading = false;
+  newTimelineEntry = { period: '', title: '', description: '' };
+  showTimelineForm = false;
+
+  statusMessage = '';
+  errorMessage = '';
+
+  constructor(
+    private gameService: GameService,
+    private qutieService: QutieService,
+    private authService: AuthService,
+    private sanitizer: DomSanitizer
+  ) { }
 
   ngOnInit(): void {
-    // Initialize component
-  }
+    this.authService.isAdmin$.subscribe(isAdmin => {
+      const was = this.isAdmin;
+      this.isAdmin = isAdmin === true;
+      if (this.isAdmin && !was) {
+        this.loadGames();
+        this.qutieService.getGames().subscribe(games => this.qutieGames = games);
+      }
+    });
 
-  ngAfterViewInit(): void {
-    // Set up tab functionality
-    this.setupTabs();
-    // Set up timeline animation
-    this.setupTimelineAnimation();
-    // Set up modal close on outside click
-    this.setupModalCloseOnOutsideClick();
-  }
-
-  /**
-   * Set up tab switching functionality with timeline animation support
-   */
-  setupTabs(): void {
-    const tabButtons = document.querySelectorAll('.tab-button');
-
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Remove active class from all buttons
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-
-        // Add active class to clicked button
-        button.classList.add('active');
-
-        // Get tab to show
-        const tabToShow = button.getAttribute('data-tab');
-        if (!tabToShow) return;
-
-        // Hide all tab content
-        document.querySelectorAll('.tab-content').forEach(tab => {
-          tab.setAttribute('style', 'display: none');
-        });
-
-        // Show selected tab
-        const tabElement = document.getElementById(`${tabToShow}-tab`);
-        if (tabElement) {
-          tabElement.setAttribute('style', 'display: block');
-
-          // When switching to "prior" tab, we'll reset the visibility classes
-          // so entries can animate when scrolled into view
-          if (tabToShow === 'prior') {
-            // Small delay to ensure DOM is updated
-            setTimeout(() => {
-              // Reset all timeline entries to not be visible
-              document.querySelectorAll('.timeline-entry').forEach(entry => {
-                entry.classList.remove('visible');
-              });
-
-              // Now we'll only animate those that are already in the viewport
-              this.handleTimelineAnimation();
-            }, 50);
-          }
-        }
-      });
+    this.loadGames();
+    this.gameService.getTimeline().subscribe({
+      next: entries => this.timeline = entries,
+      error: () => { /* timeline simply stays empty */ }
     });
   }
 
-  /**
-   * Handle timeline animation by checking which elements are in viewport
-   */
-  handleTimelineAnimation(): void {
-    const timelineEntries = document.querySelectorAll('.timeline-entry');
-    const priorTabVisible = document.getElementById('prior-tab')?.style.display !== 'none';
+  loadGames(): void {
+    const source$ = this.isAdmin ? this.gameService.getAdminGames() : this.gameService.getPublicGames();
+    source$.subscribe({
+      next: games => {
+        // The public payload lacks players/fullStory - only the admin editor needs them.
+        this.games = games.map(g => ({ players: null, fullStory: null, ...g } as AdminGame));
+      },
+      error: () => { /* card sections simply stay empty */ }
+    });
+  }
 
-    // Only proceed if the prior tab is visible
-    if (!priorTabVisible) return;
+  get activeGames(): AdminGame[] {
+    return this.games.filter(g => g.status !== 'Previous' && (!!g.imageUrl || this.isAdmin));
+  }
 
-    timelineEntries.forEach(entry => {
-      if (this.isInViewport(entry)) {
-        entry.classList.add('visible');
+  get archivedGames(): AdminGame[] {
+    return this.games.filter(g => g.status === 'Previous' && (!!g.imageUrl || this.isAdmin));
+  }
+
+  setTab(tab: 'upcoming' | 'prior'): void {
+    this.activeTab = tab;
+  }
+
+  openSite(game: PublicGame, event: Event): void {
+    event.stopPropagation();
+    if (game.siteUrl) {
+      window.open(game.siteUrl, '_blank');
+    }
+  }
+
+  /** Drag-reorder active games (admin); archived keep their relative order at the end. */
+  onGameDrop(event: CdkDragDrop<AdminGame[]>): void {
+    if (event.previousIndex === event.currentIndex) return;
+
+    const active = this.activeGames;
+    moveItemInArray(active, event.previousIndex, event.currentIndex);
+    this.games = [...active, ...this.archivedGames];
+
+    this.gameService.reorderGames(this.games.map(g => g.gameId.toString())).subscribe({
+      next: () => { this.errorMessage = ''; },
+      error: () => this.errorMessage = 'Failed to save game order.'
+    });
+  }
+
+  // ==================== Details popup (prior games) ====================
+
+  openDetails(game: PublicGame): void {
+    if (game.status !== 'Previous') return;
+
+    this.details = null;
+    this.detailsLoading = true;
+    this.qutieEvents = null;
+    this.graphMonths = [];
+    this.graphDots = [];
+    document.body.style.overflow = 'hidden';
+
+    this.gameService.getGameDetails(game.gameId).subscribe({
+      next: details => {
+        this.details = details;
+        this.detailsLoading = false;
+        if (details.pullFromQutie && details.qutieGameId) {
+          this.qutieService.getGameEvents(details.qutieGameId).subscribe(events => {
+            if (events && events.length > 0) {
+              this.qutieEvents = events;
+              this.buildGraph(events);
+            }
+          });
+        }
+      },
+      error: () => {
+        this.detailsLoading = false;
+        document.body.style.overflow = '';
       }
     });
   }
 
-  /**
-   * Check if element is in viewport
-   * @param element Element to check
-   * @returns boolean indicating if element is in viewport
-   */
-  isInViewport(element: Element): boolean {
-    const rect = element.getBoundingClientRect();
-    return (
-      rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.75 &&
-      rect.bottom >= 0
-    );
+  closeDetails(): void {
+    this.details = null;
+    this.detailsLoading = false;
+    document.body.style.overflow = '';
   }
 
-  /**
-   * Set up timeline animation for scrolling
-   */
-  setupTimelineAnimation(): void {
-    // Handle scroll event
-    window.addEventListener('scroll', () => {
-      this.handleTimelineAnimation();
-    });
-
-    // We're not automatically triggering the animation on page load anymore
-    // This way elements will only animate when they come into view during scrolling
-    // or when the "prior" tab is clicked
+  /** How many events have at least one VOD. */
+  get vodCount(): number {
+    return (this.qutieEvents ?? []).filter(e => e.vodCount > 0).length;
   }
 
-  /**
-   * Set up functionality to close modal when clicking outside content
-   */
-  setupModalCloseOnOutsideClick(): void {
-    const modal = document.getElementById('game-details-modal');
+  /** Buckets events into calendar months and lays out bars + VOD dots. */
+  private buildGraph(events: QutieEvent[]): void {
+    const padL = 34, padR = 14, padT = 12, padB = 30, slot = 84;
+    const ih = this.graphH - padT - padB;
 
-    if (modal) {
-      modal.addEventListener('click', (event) => {
-        // Check if the click was directly on the modal background (not on its children)
-        if (event.target === modal) {
-          this.closeGameDetails();
-        }
+    const sorted = [...events].sort((a, b) => a.startAt.localeCompare(b.startAt));
+    const first = new Date(sorted[0].startAt);
+    const last = new Date(sorted[sorted.length - 1].startAt);
+
+    const months: { key: string; label: string; count: number }[] = [];
+    const cursor = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1));
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    while (cursor <= end && months.length < 60) {
+      const key = `${cursor.getUTCFullYear()}-${cursor.getUTCMonth()}`;
+      months.push({ key, label: `${names[cursor.getUTCMonth()]} ${cursor.getUTCFullYear() % 100}`, count: 0 });
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    }
+    const index = new Map(months.map((m, i) => [m.key, i]));
+    for (const e of sorted) {
+      const d = new Date(e.startAt);
+      const i = index.get(`${d.getUTCFullYear()}-${d.getUTCMonth()}`);
+      if (i !== undefined) months[i].count++;
+    }
+
+    const max = Math.max(4, ...months.map(m => m.count));
+    this.graphW = padL + padR + months.length * slot;
+    const y = (v: number) => padT + ih - (v / max) * ih;
+
+    this.graphGridLines = [0, Math.round(max / 2), max].map(v => ({ y: y(v), label: v }));
+
+    this.graphMonths = months.map((m, i) => ({
+      label: m.label,
+      x: padL + i * slot + slot * 0.18,
+      y: y(m.count),
+      w: slot * 0.64,
+      h: ih + padT - y(m.count),
+      count: m.count
+    }));
+
+    this.graphDots = sorted
+      .filter(e => e.vodCount > 0)
+      .map(e => {
+        const d = new Date(e.startAt);
+        const i = index.get(`${d.getUTCFullYear()}-${d.getUTCMonth()}`) ?? 0;
+        const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+        const frac = (d.getUTCDate() - 0.5) / daysInMonth;
+        return { cx: padL + i * slot + slot * frac, cy: y(months[i].count) - 10, event: e };
       });
+  }
+
+  private showVideo(youtubeId: string, title: string, subtitle: string): void {
+    this.video = { youtubeId, title, subtitle };
+    this.videoSrc = this.sanitizer.bypassSecurityTrustResourceUrl(
+      `https://www.youtube.com/embed/${youtubeId}?autoplay=1`);
+  }
+
+  /** Fetch the event's VODs and open the first (YouTube overlay, else a new tab). */
+  openEventVideo(dot: GraphDot): void {
+    const e = dot.event;
+    const date = new Date(e.startAt);
+    const subtitle = `${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${e.signupCount} signed up`;
+    this.qutieService.getEventVods(e.eventId).subscribe(vods => {
+      if (!vods || vods.length === 0) return;
+      const id = this.youtubeId(vods[0].url);
+      if (id) {
+        this.showVideo(id, e.title, subtitle);
+      } else {
+        window.open(vods[0].url, '_blank'); // non-YouTube VOD (Twitch etc.) opens in a new tab
+      }
+    });
+  }
+
+  dotTooltip(dot: GraphDot): string {
+    const e = dot.event;
+    const date = new Date(e.startAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${e.title}\n${date} · ${e.vodCount} video${e.vodCount === 1 ? '' : 's'} · click to watch`;
+  }
+
+  /** Accepts youtu.be/ID, watch?v=ID, /embed/ID or a raw id. */
+  youtubeId(url: string | null): string | null {
+    if (!url) return null;
+    const match = url.match(/(?:youtu\.be\/|v=|\/embed\/|\/shorts\/)([\w-]{6,})/);
+    if (match) return match[1];
+    return /^[\w-]{6,}$/.test(url) ? url : null;
+  }
+
+  // ==================== Gallery + video overlays ====================
+
+  openGalleryItem(item: GameGalleryItem): void {
+    if (item.itemType === 'video' && item.youtubeId) {
+      this.showVideo(item.youtubeId, item.caption ?? this.details?.gameName ?? '', '');
+    } else if (item.imageUrl) {
+      this.fullscreenImage = { src: item.imageUrl, alt: item.caption ?? '' };
     }
   }
 
-  /**
-   * Open external link in new tab
-   * @param url URL to open
-   */
-  openExternalLink(url: string): void {
-    window.open(url, '_blank');
+  galleryThumb(item: GameGalleryItem): string | null {
+    if (item.imageUrl) return item.imageUrl;
+    if (item.itemType === 'video' && item.youtubeId) {
+      return `https://i.ytimg.com/vi/${item.youtubeId}/hqdefault.jpg`;
+    }
+    return null;
   }
 
-  /**
-   * Open game details modal
-   * @param gameId ID of the game to display
-   */
-  viewGameDetails(gameId: string): void {
-    const game = this.gameDetails[gameId];
+  closeVideo(): void { this.video = null; this.videoSrc = null; }
+  closeImage(): void { this.fullscreenImage = null; }
+
+  // ==================== Admin: game editor ====================
+
+  openEditor(game: AdminGame | null, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.isAdmin) return;
+
+    this.editorGame = game
+      ? { ...game }
+      : {
+          gameId: 0, gameName: '', imageUrl: null, bannerUrl: null, description: null,
+          status: this.activeTab === 'prior' ? 'Previous' : 'Upcoming',
+          siteUrl: null, period: null, players: null, fullStory: null,
+          qutieGameId: null, pullFromQutie: false
+        };
+    this.editorOpen = true;
+    this.statusMessage = '';
+    this.errorMessage = '';
+  }
+
+  closeEditor(): void {
+    this.editorOpen = false;
+    this.editorGame = null;
+  }
+
+  saveEditor(): void {
+    const game = this.editorGame;
     if (!game) return;
-
-    // Set modal content
-    const modalImage = document.getElementById('modal-image') as HTMLImageElement;
-    const modalTitle = document.getElementById('modal-title');
-    const gamePeriod = document.getElementById('game-period');
-    const gamePlayers = document.getElementById('game-players');
-    const gameDescription = document.getElementById('game-description-full');
-    const achievementsGrid = document.getElementById('achievements-grid');
-    const galleryGrid = document.getElementById('gallery-grid');
-    const modal = document.getElementById('game-details-modal');
-
-    // Safety checks
-    if (!modalImage || !modalTitle || !gamePeriod ||
-      !gamePlayers || !gameDescription || !achievementsGrid || !galleryGrid || !modal) {
-      console.error('One or more DOM elements not found');
+    if (!game.gameName.trim()) {
+      this.errorMessage = 'Game name is required.';
       return;
     }
 
-    // Set image attributes
-    modalImage.src = game.image;
-    modalImage.alt = game.title;
-
-    // Set text content
-    modalTitle.textContent = game.title;
-    gamePeriod.textContent = game.period;
-    gamePlayers.textContent = game.players;
-
-    // Set HTML content
-    gameDescription.innerHTML = game.description;
-
-    // Clear and populate achievements grid
-    achievementsGrid.innerHTML = '';
-
-    game.achievements.forEach(achievement => {
-      const achievementEl = document.createElement('div');
-      achievementEl.className = 'achievement-card';
-      achievementEl.innerHTML = `
-      <div class="achievement-wrap">
-        <div class="achievement-medal">
-          <i class="fas ${achievement.icon}"></i>
-        </div>
-        <div class="achievement-title">${achievement.title}</div>
-                </div>
-        <div class="achievement-description">${achievement.description}</div>
-      `;
-      achievementsGrid.appendChild(achievementEl);
-    });
-
-    // Clear and populate gallery
-    galleryGrid.innerHTML = '';
-
-    game.gallery.forEach(item => {
-      const galleryItem = document.createElement('div');
-      galleryItem.className = 'gallery-item';
-
-      if (item.type === 'image') {
-        galleryItem.innerHTML = `
-          <img src="${item.src}" alt="${item.alt}" class="gallery-image">
-          <div class="gallery-overlay">
-            <i class="fas fa-search-plus"></i>
-          </div>
-        `;
-        galleryItem.addEventListener('click', () => this.openImageModal(item.src, item.alt));
-      } else if (item.type === 'video' && item.youtubeId) {
-        galleryItem.innerHTML = `
-          <div class="video-thumbnail">
-            <img src="${item.src}" alt="${item.alt}" class="gallery-image">
-            <div class="play-button">
-              <i class="fas fa-play"></i>
-            </div>
-          </div>
-          <div class="gallery-overlay">
-            <i class="fab fa-youtube"></i>
-          </div>
-        `;
-        galleryItem.addEventListener('click', () => this.openVideoModal(item.youtubeId as string, item.alt));
+    this.editorSaving = true;
+    const finish = (ok: boolean, msg: string) => {
+      this.editorSaving = false;
+      if (ok) {
+        this.statusMessage = msg;
+        this.errorMessage = '';
+        this.closeEditor();
+        this.loadGames();
+      } else {
+        this.errorMessage = msg;
       }
+    };
 
-      galleryGrid.appendChild(galleryItem);
-    });
-
-    // Show modal
-    modal.classList.add('open');
-  }
-
-  /**
-   * Close game details modal
-   */
-  closeGameDetails(): void {
-    const modal = document.getElementById('game-details-modal');
-    if (modal) {
-      modal.classList.remove('open');
+    if (game.gameId === 0) {
+      this.gameService.createGame(game.gameName.trim()).subscribe({
+        next: created => {
+          const full = { ...game, gameId: created.gameId };
+          this.gameService.updateGame(full).subscribe({
+            next: () => finish(true, `Game "${game.gameName}" created. Open it again to upload its images.`),
+            error: () => finish(false, 'Game created but saving its details failed - edit it again.')
+          });
+        },
+        error: () => finish(false, 'Failed to create game.')
+      });
+    } else {
+      this.gameService.updateGame(game).subscribe({
+        next: () => finish(true, 'Game saved.'),
+        error: () => finish(false, 'Failed to save game.')
+      });
     }
   }
 
-  /**
- * Open image modal to show larger version of an image
- * @param src Image source
- * @param alt Image alt text
- */
-  openImageModal(src: string, alt: string): void {
-    // Create modal if it doesn't exist
-    let imageModal = document.getElementById('image-modal');
+  deleteEditorGame(): void {
+    const game = this.editorGame;
+    if (!game || game.gameId === 0) return;
+    if (!confirm(`⚠️ DELETE "${game.gameName}"?\n\nThis permanently removes the game, its achievements and gallery. Use the Previous status instead if you want to keep it.`)) {
+      return;
+    }
 
-    if (!imageModal) {
-      imageModal = document.createElement('div');
-      imageModal.id = 'image-modal';
-      imageModal.className = 'fullscreen-modal';
-      imageModal.style.position = 'fixed'; // Ensure it stays fixed
-      imageModal.innerHTML = `
-      <div class="modal-content fullscreen-content">
-        <img src="" alt="" id="fullscreen-image" class="fullscreen-image">
-      </div>
-    `;
-      document.body.appendChild(imageModal);
+    this.gameService.deleteGame(game.gameId).subscribe({
+      next: () => {
+        this.statusMessage = `Game "${game.gameName}" deleted.`;
+        this.closeEditor();
+        this.loadGames();
+      },
+      error: () => this.errorMessage = 'Failed to delete game.'
+    });
+  }
 
-      // Add close event listener - completely remove the modal
-      const closeButton = document.getElementById('image-modal-close');
-      if (closeButton) {
-        closeButton.addEventListener('click', () => {
-          this.closeImageModal();
-        });
+  uploadImage(event: Event, type: 'card' | 'banner'): void {
+    const game = this.editorGame;
+    if (!game || game.gameId === 0) return;
+
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    this.gameService.uploadGameImage(game.gameId, type, file).subscribe({
+      next: result => {
+        if (type === 'card') game.imageUrl = result.url;
+        else game.bannerUrl = result.url;
+        this.loadGames();
+        input.value = '';
+      },
+      error: () => {
+        this.errorMessage = 'Upload failed. Only jpg, png and webp up to 8 MB are allowed.';
+        input.value = '';
       }
+    });
+  }
 
-      // Close on click outside image
-      imageModal.addEventListener('click', (event) => {
-        if (event.target === imageModal) {
-          this.closeImageModal();
+  // ==================== Admin: achievements ====================
+
+  addAchievement(): void {
+    if (!this.details) return;
+    const { icon, title, description } = this.newAchievement;
+    if (!title.trim()) {
+      this.errorMessage = 'Achievement title is required.';
+      return;
+    }
+
+    this.gameService.addAchievement(this.details.gameId, icon, title.trim(), description.trim() || null).subscribe({
+      next: achievement => {
+        this.details!.achievements.push(achievement);
+        this.newAchievement = { icon: 'fa-medal', title: '', description: '' };
+        this.errorMessage = '';
+      },
+      error: () => this.errorMessage = 'Failed to add achievement.'
+    });
+  }
+
+  deleteAchievement(achievement: GameAchievement): void {
+    if (!this.details) return;
+    if (!confirm(`Remove achievement "${achievement.title}"?`)) return;
+
+    this.gameService.deleteAchievement(this.details.gameId, achievement.achievementId).subscribe({
+      next: () => {
+        this.details!.achievements = this.details!.achievements.filter(a => a.achievementId !== achievement.achievementId);
+      },
+      error: () => this.errorMessage = 'Failed to remove achievement.'
+    });
+  }
+
+  // ==================== Admin: gallery ====================
+
+  onGalleryFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.newGallery.file = input.files?.[0] ?? null;
+  }
+
+  addGalleryItem(): void {
+    const details = this.details;
+    if (!details) return;
+
+    if (this.newGallery.itemType === 'video') {
+      const id = this.youtubeId(this.newGallery.youtubeUrl);
+      if (!id) {
+        this.errorMessage = 'Enter a valid YouTube link.';
+        return;
+      }
+      this.gameService.addGalleryItem(details.gameId, {
+        itemType: 'video', youtubeId: id, caption: this.newGallery.caption.trim() || null
+      }).subscribe({
+        next: item => this.finishGalleryAdd(item),
+        error: () => this.errorMessage = 'Failed to add the video.'
+      });
+    } else {
+      if (!this.newGallery.file) {
+        this.errorMessage = 'Pick an image to upload.';
+        return;
+      }
+      this.galleryUploading = true;
+      this.gameService.uploadGalleryImage(details.gameId, this.newGallery.file).subscribe({
+        next: ({ url }) => {
+          this.gameService.addGalleryItem(details.gameId, {
+            itemType: 'image', imageUrl: url, caption: this.newGallery.caption.trim() || null
+          }).subscribe({
+            next: item => { this.galleryUploading = false; this.finishGalleryAdd(item); },
+            error: () => { this.galleryUploading = false; this.errorMessage = 'Upload succeeded but saving the item failed.'; }
+          });
+        },
+        error: () => {
+          this.galleryUploading = false;
+          this.errorMessage = 'Upload failed. Only jpg, png and webp up to 8 MB are allowed.';
         }
       });
     }
-
-    // Set image source and alt
-    const fullscreenImage = document.getElementById('fullscreen-image') as HTMLImageElement;
-    if (fullscreenImage) {
-      // Create a temporary image to get natural dimensions
-      const tempImg = new Image();
-      tempImg.onload = () => {
-        const imgWidth = tempImg.width;
-        const imgHeight = tempImg.height;
-        const aspectRatio = imgWidth / imgHeight;
-
-        const content = imageModal?.querySelector('.fullscreen-content') as HTMLElement;
-        if (content) {
-          // Adjust max-width based on aspect ratio
-          if (aspectRatio <= 1) {
-            // Square or portrait image - use smaller width
-            content.style.maxWidth = '40%';
-          } else if (aspectRatio <= 1.5) {
-            // Moderate landscape - medium width
-            content.style.maxWidth = '55%';
-          } else {
-            // Wide landscape - use original width
-            content.style.maxWidth = '70%';
-          }
-        }
-
-        // Set the actual image src after calculating dimensions
-        fullscreenImage.src = src;
-        fullscreenImage.alt = alt;
-      };
-
-      // Start loading the image to get dimensions
-      tempImg.src = src;
-    }
-
-    // Open modal
-    imageModal.classList.add('open');
-  }
-  /**
-   * Close the image modal and clean up
-   */
-  closeImageModal(): void {
-    const imageModal = document.getElementById('image-modal');
-    if (imageModal) {
-      // First remove the open class (for animation)
-      imageModal.classList.remove('open');
-
-      // Clean up - remove src attribute from image
-      const fullscreenImage = document.getElementById('fullscreen-image') as HTMLImageElement;
-      if (fullscreenImage) {
-        fullscreenImage.src = '';
-        fullscreenImage.alt = '';
-      }
-
-      // Remove the modal from DOM after animation completes
-      setTimeout(() => {
-        if (imageModal.parentNode) {
-          imageModal.parentNode.removeChild(imageModal);
-        }
-      }, 300); // Match transition time from CSS
-    }
   }
 
-  /**
-   * Open video modal to play YouTube video
-   * @param youtubeId YouTube video ID
-   * @param title Video title
-   */
-  openVideoModal(youtubeId: string, title: string): void {
-    // Create modal if it doesn't exist
-    let videoModal = document.getElementById('video-modal');
-
-    if (!videoModal) {
-      videoModal = document.createElement('div');
-      videoModal.id = 'video-modal';
-      videoModal.className = 'fullscreen-modal';
-      videoModal.style.position = 'fixed'; // Ensure it stays fixed
-      videoModal.innerHTML = `
-        <div class="modal-content video-content">
-          <div class="video-container">
-            <iframe id="youtube-iframe" src="" frameborder="0" allowfullscreen></iframe>
-          </div>
-          <h3 id="video-title" class="video-title"></h3>
-        </div>
-      `;
-      document.body.appendChild(videoModal);
-
-      // Add close event listener
-      const closeButton = document.getElementById('video-modal-close');
-      if (closeButton) {
-        closeButton.addEventListener('click', () => {
-          this.closeVideoModal();
-        });
-      }
-
-      // Add click outside to close
-      videoModal.addEventListener('click', (event) => {
-        if (event.target === videoModal) {
-          this.closeVideoModal();
-        }
-      });
-    }
-
-    // Set video source and title
-    const videoIframe = document.getElementById('youtube-iframe') as HTMLIFrameElement;
-    const videoTitleEl = document.getElementById('video-title');
-
-    if (videoIframe) {
-      videoIframe.src = `https://www.youtube.com/embed/${youtubeId}?autoplay=1`;
-    }
-
-    if (videoTitleEl) {
-      videoTitleEl.textContent = title;
-    }
-
-    // Open modal
-    videoModal.classList.add('open');
+  private finishGalleryAdd(item: GameGalleryItem): void {
+    this.details!.gallery.push(item);
+    this.newGallery = { itemType: 'image', youtubeUrl: '', caption: '', file: null };
+    this.errorMessage = '';
   }
 
-  /**
-   * Close the video modal and clean up
-   */
-  closeVideoModal(): void {
-    const videoModal = document.getElementById('video-modal');
-    if (videoModal) {
-      // First remove the open class (for animation)
-      videoModal.classList.remove('open');
+  deleteGalleryItem(item: GameGalleryItem): void {
+    if (!this.details) return;
+    if (!confirm('Remove this gallery item?')) return;
 
-      // Stop video playback
-      const iframe = document.getElementById('youtube-iframe') as HTMLIFrameElement;
-      if (iframe && iframe.src) {
-        iframe.src = '';
-      }
+    this.gameService.deleteGalleryItem(this.details.gameId, item.itemId).subscribe({
+      next: () => {
+        this.details!.gallery = this.details!.gallery.filter(i => i.itemId !== item.itemId);
+      },
+      error: () => this.errorMessage = 'Failed to remove the gallery item.'
+    });
+  }
 
-      // Remove the modal from DOM after animation completes
-      setTimeout(() => {
-        if (videoModal.parentNode) {
-          videoModal.parentNode.removeChild(videoModal);
-        }
-      }, 300); // Match transition time from CSS
+  // ==================== Admin: guild timeline ====================
+
+  addTimelineEntry(): void {
+    const { period, title, description } = this.newTimelineEntry;
+    if (!period.trim() || !title.trim()) {
+      this.errorMessage = 'Timeline entries need a period and a title.';
+      return;
     }
+
+    this.gameService.addTimelineEntry(period.trim(), title.trim(), description.trim() || null).subscribe({
+      next: entry => {
+        this.timeline.push(entry);
+        this.newTimelineEntry = { period: '', title: '', description: '' };
+        this.showTimelineForm = false;
+        this.errorMessage = '';
+      },
+      error: () => this.errorMessage = 'Failed to add the timeline entry.'
+    });
+  }
+
+  deleteTimelineEntry(entry: TimelineEntry): void {
+    if (!confirm(`Remove timeline entry "${entry.title}"?`)) return;
+
+    this.gameService.deleteTimelineEntry(entry.entryId).subscribe({
+      next: () => this.timeline = this.timeline.filter(e => e.entryId !== entry.entryId),
+      error: () => this.errorMessage = 'Failed to remove the timeline entry.'
+    });
   }
 }

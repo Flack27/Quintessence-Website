@@ -3,6 +3,7 @@ import { Router, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { BrowserModule } from '@angular/platform-browser';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { QUTIE_APPLY_URL } from '../../qutie.config';
 
 @Component({
   selector: 'app-home',
@@ -10,6 +11,9 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
   styleUrls: ['./home.component.scss']
 })
 export class HomeComponent implements AfterViewInit, OnDestroy {
+  // Apply lives on Qutie - link straight there.
+  readonly applyUrl = QUTIE_APPLY_URL;
+
   @ViewChild('aboutVideo') aboutVideoElement!: ElementRef<HTMLVideoElement>;
   @ViewChildren('joinProcessVideo') joinProcessVideos!: QueryList<ElementRef<HTMLVideoElement>>;
 

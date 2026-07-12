@@ -1,314 +1,431 @@
-/* ==== DESIGN SYSTEM VARIABLES ==== */
+/* ============================================================================
+   QUINTESSENCE — GLOBAL STYLES  (drop-in replacement for src/styles.css)
+   ----------------------------------------------------------------------------
+   Phase 1 of the restyle: tokens + ONE unified component layer.
+   Strategy: style the EXISTING class names used in templates (and GROUP the
+   per-page variants under shared rules) so unification happens here with
+   almost no template edits — which means no risk to [ngClass]/[class.x]
+   bindings, ids, or *ngIf/*ngFor. Per-page work is then mostly DELETING the
+   one-off rules these replace (see HANDOFF README, "Per-page migration").
+
+   HARD CONSTRAINTS (unchanged): never touch .ts, event bindings, element ids,
+   *ngIf/*ngFor, or [(ngModel)]. Keep all class names referenced by bindings.
+   Tables with sticky headers/cols MUST keep border-collapse: separate.
+   ============================================================================ */
+
+/* ====================== DESIGN TOKENS ====================== */
 :root {
-  /* Primary Colors */
-  --primary-dark: #150033; /* Dark purple background */
-  --primary-medium: #520f73; /* Medium purple for accents */
-  --primary-light: #9645c4; /* Light purple for highlights */
-  /* Secondary Colors */
-  --secondary-blue: #63c1ff; /* Bright blue from logo */
-  --secondary-pink: #eb2f8a; /* Vibrant pink from buttons */
-  --secondary-teal: #10cacd; /* Complementary teal accent */
-  /* Background Gradients */
+  /* Primary purples (existing) */
+  --primary-dark: #150033;
+  --primary-medium: #520f73;
+  --primary-light: #9645c4;
+  /* Secondary accents (existing) */
+  --secondary-blue: #63c1ff;
+  --secondary-pink: #eb2f8a;
+  --secondary-teal: #10cacd;
+
+  /* Gradients (existing + named) */
   --bg-gradient: linear-gradient(135deg, #150033 0%, #250855 100%);
   --card-gradient: linear-gradient(180deg, rgba(82, 15, 115, 0.3) 0%, rgba(11, 9, 22, 0.6) 100%);
-  /* UI Elements */
+  --accent-gradient: linear-gradient(90deg, var(--secondary-blue), var(--secondary-pink));
+  --accent-gradient-tri: linear-gradient(90deg, var(--secondary-blue), var(--primary-medium), var(--secondary-pink));
+  --btn-gradient: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
+  --btn-gradient-hover: linear-gradient(90deg, var(--secondary-pink), var(--primary-medium));
+
+  /* Radii (existing) */
   --border-radius-sm: 5px;
   --border-radius-md: 10px;
   --border-radius-lg: 20px;
   --border-radius-circle: 50%;
-  /* Spacing */
+
+  /* Spacing (existing) */
   --spacing-xs: 5px;
   --spacing-sm: 10px;
   --spacing-md: 20px;
   --spacing-lg: 30px;
   --spacing-xl: 50px;
-  /* Shadows */
+
+  /* Shadows / glow (existing) */
   --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
   --glow: 0 0 15px rgba(99, 193, 255, 0.5);
-  /* Animation */
+  --glow-soft: 0 0 10px rgba(99, 193, 255, 0.3);
+
+  /* Motion (existing) */
   --transition-fast: 0.2s ease;
   --transition-medium: 0.3s ease;
   --transition-slow: 0.5s ease;
 
+  /* ---- NEW semantic tokens (extend, don't replace) ---- */
+  --surface-panel: rgba(11, 9, 22, 0.8);     /* page cards / editor sections */
+  --surface-panel-2: rgba(43, 11, 74, 0.4);  /* admin panels */
+  --surface-inset: rgba(11, 9, 22, 0.6);     /* inputs, wells */
+  --surface-table-head: #2b0b4a;
+  --surface-row-alt: rgba(82, 15, 115, 0.12);   /* zebra stripe */
+  --surface-row-hover: rgba(150, 69, 196, 0.16);
+  --border-soft: rgba(150, 69, 196, 0.30);
+  --border-hairline: rgba(150, 69, 196, 0.15);
+  --text-body: #e8e0f5;
+  --text-muted: #b8a8d5;
+  --text-faint: #b3a3d1;
+  --text-disabled: #6b5a8a;
+  --status-success: #2ed573;
+  --status-danger: #ff3860;
+  --status-danger-deep: #dc3545;
+  --status-warning: #f5b942;
+  --navbar-height: 76px;
 
   --container-padding-mobile: 1rem;
 }
 
-
+/* ====================== BASE (existing, kept) ====================== */
 html, body {
-  margin: 0;
-  padding: 0;
-  width: 100%;
-  min-height: calc(100vh - 76px);
+  margin: 0; padding: 0; width: 100%;
+  min-height: calc(100vh - var(--navbar-height));
   font-family: 'Poppins', Arial, sans-serif;
   background: var(--bg-gradient);
   color: #fff;
   box-sizing: border-box;
   line-height: 1.6;
-  scroll-padding-top: 76px;
+  scroll-padding-top: var(--navbar-height);
 }
-
-*, *:before, *:after {
-  box-sizing: inherit;
-}
+*, *:before, *:after { box-sizing: inherit; }
 
 .container {
-  display: flex;
-  flex-direction: column;
-  max-width: 1200px;
-  margin: 0 auto;
+  display: flex; flex-direction: column;
+  max-width: 1200px; margin: 0 auto;
   padding: var(--spacing-md);
-  min-height: calc(100vh - 200px); /* Account for header/footer */
+  min-height: calc(100vh - 200px);
 }
 
-/* ==== TYPOGRAPHY ==== */
-h1, h2, h3, h4, h5, h6 {
-  margin-top: 0;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-}
-
+/* Typography (existing) */
+h1, h2, h3, h4, h5, h6 { margin-top: 0; font-weight: 700; letter-spacing: 0.5px; }
 h1 {
-  font-size: 2.5rem;
-  margin-bottom: var(--spacing-xs);
-  background: linear-gradient(90deg, var(--secondary-blue), var(--secondary-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  font-size: 2.5rem; margin-bottom: var(--spacing-xs);
+  background: var(--accent-gradient);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   text-align: center;
 }
+/* One universal accent width for every page title - decorative underlines look
+   best at a constant width, not scaled to the title length. The old -lg/-xl
+   variants are kept as classes but collapse to the same width. */
+.title-line { height: 3px; background: var(--accent-gradient-tri); width: 225px; margin: var(--spacing-sm) auto var(--spacing-xl); border-radius: var(--border-radius-sm); }
+.title-line-lg,
+.title-line-xl { width: 225px; }
 
-.title-line {
-  height: 3px;
-  background: linear-gradient(90deg, var(--secondary-blue), var(--primary-medium), var(--secondary-pink));
-  width: 225px;
-  margin: var(--spacing-sm) auto var(--spacing-xl);
-  border-radius: var(--border-radius-sm);
+/* When an intro paragraph follows the page header, the full 50px gap is too
+   much - tighten it. Display pages without an intro keep the airy spacing. */
+header:has(+ .page-intro) .title-line,
+.page-header:has(+ .page-intro) .title-line {
+  margin-bottom: var(--spacing-md);
 }
-
-.title-line-lg {
-    width: 350px;
+header:has(+ .page-intro),
+.page-header:has(+ .page-intro) {
+  margin-bottom: 0;
 }
+.title { font-size: 3rem; font-weight: 800; display: flex; align-items: center; flex-wrap: wrap; justify-content: center; }
+.title h1 { font-size: 3rem; font-weight: 800; }
+header, .page-header { margin-bottom: var(--spacing-lg); }
+textarea { font-family: "Poppins", Arial, sans-serif; }
 
-.title-line-xl {
-  width: 500px;
-}
+/* Helper text (existing) */
+.field-hint { display: block; margin-top: 4px; font-size: 0.8rem; line-height: 1.35; font-weight: 400; color: var(--text-faint); }
+.page-intro { margin: 0 auto 1.5rem; max-width: 760px; text-align: center; font-size: 0.9rem; line-height: 1.45; color: var(--text-faint); }
 
-.title {
-  font-size: 3rem;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-}
+/* Scrollbar (existing) */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--surface-inset); }
+::-webkit-scrollbar-thumb { background-color: var(--primary-medium); border-radius: var(--border-radius-lg); transition: background-color var(--transition-medium); }
+::-webkit-scrollbar-thumb:hover { background-color: var(--secondary-blue); }
 
-  .title h1 {
-    font-size: 3rem;
-    font-weight: 800;
-  }
+/* Pagination (existing) */
+.pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: var(--spacing-lg); gap: var(--spacing-sm); }
+.pagination-controls button { background-color: var(--primary-medium); color: #fff; border: none; padding: var(--spacing-xs) var(--spacing-md); border-radius: var(--border-radius-sm); cursor: pointer; transition: all var(--transition-medium); font-size: 14px; font-weight: 600; }
+.pagination-controls button:hover { background-color: var(--secondary-blue); transform: translateY(-2px); }
+.pagination-controls button:disabled { background-color: rgba(82, 15, 115, 0.3); cursor: not-allowed; transform: none; }
 
-header {
-  margin-bottom: var(--spacing-lg)
-}
+/* Spin keyframe (existing) */
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.page-header {
-  margin-bottom: var(--spacing-lg)
-}
 
-textarea {
-  font-family: "Poppins", Arial, sans-serif;
-}
+/* ============================================================================
+   1. BUTTON HIERARCHY  (primary / secondary / small / icon / danger / upload)
+   Defined on the EXISTING class names so templates need no edits.
+   DELETE the per-page redefinitions of these classes (see HANDOFF).
+   ============================================================================ */
 
-/* ==== BUTTONS ==== */
-.standard-button {
-  display: block;
+/* PRIMARY — .standard-button and .save-button collapse to one look */
+.standard-button,
+.save-button {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-sm);
   padding: var(--spacing-sm) var(--spacing-md);
-  font-size: 1rem;
-  font-weight: 600;
-  background: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
-  color: #fff;
-  border: none;
-  border-radius: var(--border-radius-lg);
-  cursor: pointer;
-  text-align: center;
-  transition: all var(--transition-medium);
-  overflow: hidden;
-  text-decoration: none;
-  box-shadow: var(--shadow-sm);
-  letter-spacing: 0.5px;
+  font-family: 'Poppins', Arial, sans-serif; font-size: 1rem; font-weight: 600; letter-spacing: 0.5px;
+  line-height: 1; text-align: center; text-decoration: none;
+  color: #fff; border: none; border-radius: var(--border-radius-lg);
+  background: var(--btn-gradient);
+  box-shadow: var(--shadow-sm); cursor: pointer; overflow: hidden;
+  transition: transform var(--transition-medium), box-shadow var(--transition-medium);
 }
+.standard-button::before,
+.save-button::before {
+  content: ''; position: absolute; inset: 0;
+  background: var(--btn-gradient-hover);
+  opacity: 0; z-index: 0; transition: opacity var(--transition-medium);
+}
+.standard-button > *, .save-button > * { position: relative; z-index: 1; }
+.standard-button:hover, .save-button:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.standard-button:hover::before, .save-button:hover::before { opacity: 1; }
+.standard-button:active, .save-button:active { transform: translateY(-1px); }
+.standard-button:disabled, .save-button:disabled,
+.standard-button[disabled], .save-button[disabled] { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); }
+.standard-button:disabled::before, .save-button:disabled::before { opacity: 0; }
 
-  .standard-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, var(--secondary-pink), var(--primary-medium));
-    z-index: -1;
-    opacity: 0;
-    transition: opacity var(--transition-medium);
-  }
+/* SECONDARY — .small-button and .upload-button: solid purple, lighten on hover */
+.small-button,
+.upload-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--spacing-xs);
+  background: var(--primary-medium); color: #fff;
+  border: none; border-radius: var(--border-radius-md);
+  padding: 8px 14px; font-family: 'Poppins', Arial, sans-serif; font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
+}
+.small-button:hover, .upload-button:hover:not(.disabled) { background: var(--primary-light); transform: translateY(-2px); }
+.small-button:disabled, .upload-button.disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-  .standard-button:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--shadow-md);
-  }
+/* DANGER modifier (shared) */
+.small-button.danger {
+  background: rgba(255, 56, 96, 0.12); border: 1px solid var(--status-danger); color: var(--status-danger);
+}
+.small-button.danger:hover { background: var(--status-danger); color: #fff; }
 
-    .standard-button:hover::before {
-      opacity: 1;
-    }
+/* ICON button — square, subtle; .delete/.danger turns red */
+.icon-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0;
+  background: rgba(82, 15, 115, 0.35); color: var(--text-body);
+  border: 1px solid var(--border-soft); border-radius: var(--border-radius-md);
+  cursor: pointer; font-size: 0.95rem;
+  transition: all var(--transition-fast);
+}
+.icon-button:hover:not(:disabled) { border-color: var(--secondary-blue); color: var(--secondary-blue); background: var(--surface-row-hover); }
+.icon-button:disabled { opacity: 0.4; cursor: not-allowed; }
+.icon-button.delete, .icon-button.danger { color: var(--status-danger); }
+.icon-button.delete:hover, .icon-button.danger:hover { background: var(--status-danger); color: #fff; border-color: var(--status-danger); }
 
-  .standard-button:active {
-    transform: translateY(-1px);
-  }
-
+/* Circular REMOVE button (existing global, kept) */
 .remove-btn {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid #ff3860;
-  color: #ff3860;
-  cursor: pointer;
-  width: 32px;
-  height: 32px;
-  font-size: 18px;
-  border-radius: var(--border-radius-circle);
+  background-color: rgba(255, 255, 255, 0.1); border: 1px solid var(--status-danger); color: var(--status-danger);
+  cursor: pointer; width: 32px; height: 32px; font-size: 18px; border-radius: var(--border-radius-circle);
   transition: all var(--transition-medium);
 }
+.remove-btn:hover { background-color: var(--status-danger); color: #fff; transform: rotate(90deg); }
+.remove-btn:focus { outline: 2px solid var(--status-danger); outline-offset: 2px; }
 
-  .remove-btn:hover {
-    background-color: #ff3860;
-    color: #fff;
-    transform: rotate(90deg);
-  }
 
-  .remove-btn:focus {
-    outline: 2px solid #ff3860;
-    outline-offset: 2px;
-  }
-
-/* ==== SEARCH BAR ==== */
-.search-container {
-  margin: var(--spacing-md) 0;
-  text-align: center;
-}
-
-.search-bar {
-  width: 60%;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-radius: var(--border-radius-lg);
+/* ============================================================================
+   2. INPUTS  — ONE field style site-wide (text/number/email/select/textarea)
+   Plus the named one-offs grouped in. Checkbox/radio get the purple accent.
+   ============================================================================ */
+.profile-input,
+.search-bar,
+.stats-game-picker,
+.form-field input,
+.form-field select,
+.form-field textarea,
+.editor-section input[type="text"],
+.editor-section input[type="number"],
+.editor-section select,
+.editor-section textarea,
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="url"],
+input[type="search"],
+select,
+textarea.form-control {
+  width: 100%; box-sizing: border-box;
+  padding: var(--spacing-sm);
+  font-family: 'Poppins', Arial, sans-serif; font-size: 1rem; color: #fff;
+  background: var(--surface-inset);
   border: 2px solid var(--primary-medium);
-  background-color: rgba(11, 9, 22, 0.6);
-  color: white;
-  outline: none;
-  transition: all var(--transition-medium);
-  font-size: 1rem;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-  .search-bar:focus {
-    border-color: var(--secondary-blue);
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 5px rgba(99, 193, 255, 0.5);
-  }
-
-  .search-bar::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-/* ==== SCROLLBAR ==== */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: rgba(11, 9, 22, 0.6);
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--primary-medium);
-  border-radius: var(--border-radius-lg);
-  transition: background-color var(--transition-medium);
-}
-
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--secondary-blue);
-  }
-
-
-/* ==== PAGINATION ==== */
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: var(--spacing-lg);
-  gap: var(--spacing-sm);
-}
-
-  .pagination-controls button {
-    background-color: var(--primary-medium);
-    color: white;
-    border: none;
-    padding: var(--spacing-xs) var(--spacing-md);
-    border-radius: var(--border-radius-sm);
-    cursor: pointer;
-    transition: all var(--transition-medium);
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-    .pagination-controls button:hover {
-      background-color: var(--secondary-blue);
-      transform: translateY(-2px);
-    }
-
-    .pagination-controls button:disabled {
-      background-color: rgba(82, 15, 115, 0.3);
-      cursor: not-allowed;
-      transform: none;
-    }
-
-/* ==== LOADING SPINNER ==== */
-.spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255, 255, 255, 0.3);
-  border-radius: 50%;
-  border-top-color: var(--secondary-blue);
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-.loading, .error {
-  text-align: center;
-  padding: var(--spacing-lg);
-  background-color: rgba(11, 9, 22, 0.6);
   border-radius: var(--border-radius-md);
-  margin: var(--spacing-md) auto;
-  max-width: 500px;
+  outline: none;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: border-color var(--transition-medium), box-shadow var(--transition-medium);
 }
-
-.loading {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: var(--spacing-sm);
+.profile-input::placeholder, .search-bar::placeholder, input::placeholder, textarea::placeholder { color: rgba(255, 255, 255, 0.5); }
+.profile-input:focus, .search-bar:focus, .stats-game-picker:focus,
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus,
+input:focus, select:focus, textarea.form-control:focus {
+  border-color: var(--secondary-blue);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), var(--glow-soft);
 }
+.profile-input.error, input.error { border-color: var(--status-danger-deep); box-shadow: 0 0 10px rgba(220, 53, 69, 0.3); }
+input:disabled, select:disabled, textarea:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.error {
-  color: #ff3860;
-  border: 1px solid #ff3860;
+/* Custom select chevron: replaces the unstyled native arrow and reserves space
+   on the right so long option text clips before it instead of overlapping.
+   padding-right is !important on purpose: per-page shorthand `padding` rules
+   (higher specificity through Angular scoping) must never shrink the reserve,
+   or text runs over the arrow again. */
+select:not([multiple]) {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239645c4' d='M1.41 0 6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px 8px;
+  padding-right: 36px !important;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
 }
+select:not([multiple]):focus {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2363c1ff' d='M1.41 0 6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+}
+select::-ms-expand { display: none; }
 
+/* Pill search bar variant (existing) */
+.search-container { margin: var(--spacing-md) 0; text-align: center; }
+.search-bar { width: 60%; border-radius: var(--border-radius-lg); }
+
+/* Inline picker that sits inside a section title (profile Game Stats) */
+.stats-game-picker { width: auto; padding: 6px 12px; font-size: 0.95rem; font-weight: 400; }
+
+/* Checkbox / radio accent */
+input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; accent-color: var(--primary-light); cursor: pointer; }
+
+
+/* ============================================================================
+   3. PANEL / CARD  — one surface for editor sections & admin panels
+   GROUP the existing panel class names so they share one look.
+   ============================================================================ */
+.editor-section,
+.edit-section,
+.stats-section,
+.games-list-panel,
+.game-editor-panel,
+.panel {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  box-shadow: var(--shadow-md);
+  transition: border-color var(--transition-medium), box-shadow var(--transition-medium);
+}
+/* Interactive (hoverable) variant — keep the blue glow used on profile */
+.editor-section:hover, .edit-section:hover { border-color: var(--secondary-blue); box-shadow: var(--shadow-lg), var(--glow); }
+
+.panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-md); }
+.panel-header h3, .panel-header h4 { margin: 0; color: var(--secondary-blue); }
+
+
+/* ============================================================================
+   4. DATA TABLE  — ONE table style for the whole site (ZEBRA + sticky header)
+   GROUP every table class name so they unify with no template edits.
+   Sticky headers require border-collapse: separate (do not change to collapse).
+   ============================================================================ */
+.data-table,
+.roster-table,
+.forms-table,
+.submissions-table,
+.events-table {
+  width: 100%;
+  border-collapse: separate;   /* required for sticky header/columns */
+  border-spacing: 0;
+  font-size: 0.95rem;
+  color: var(--text-body);
+}
+.data-table th, .roster-table th, .forms-table th, .submissions-table th, .events-table th {
+  background: var(--surface-table-head);
+  color: var(--secondary-blue);
+  text-align: left; font-weight: 600;
+  padding: 12px 14px;
+  position: sticky; top: 0; z-index: 2;
+  white-space: nowrap;
+}
+.data-table td, .roster-table td, .forms-table td, .submissions-table td, .events-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+/* ZEBRA STRIPING — the headline request */
+.data-table tbody tr:nth-child(even) td,
+.roster-table tbody tr:nth-child(even) td,
+.forms-table tbody tr:nth-child(even) td,
+.submissions-table tbody tr:nth-child(even) td,
+.events-table tbody tr:nth-child(even) td { background: var(--surface-row-alt); }
+/* Hover (wins over zebra) */
+.data-table tbody tr:hover td,
+.roster-table tbody tr:hover td,
+.forms-table tbody tr:hover td,
+.submissions-table tbody tr:hover td,
+.events-table tbody tr:hover td { background: var(--surface-row-hover); }
+.table-wrapper { overflow-x: auto; }
+
+
+/* ============================================================================
+   5. SAVE / STATUS INDICATORS  — unified inline auto-save state
+   ============================================================================ */
+.saving-indicator, .success-indicator {
+  display: inline-flex; align-items: center; gap: var(--spacing-xs);
+  font-size: 0.9rem; font-weight: 400;
+}
+.saving-indicator { color: var(--secondary-blue); }
+.success-indicator, .success-indicator i { color: var(--status-success); }
+.mini-spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(99, 193, 255, 0.3); border-top-color: var(--secondary-blue);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+.autosave-hint { text-align: center; font-size: 0.85rem; color: var(--text-faint); }
+
+/* Large standalone spinner (existing) */
+.spinner {
+  display: inline-block; width: 20px; height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3); border-top-color: var(--secondary-blue);
+  border-radius: 50%; animation: spin 0.8s linear infinite;
+}
+.loading, .error { text-align: center; padding: var(--spacing-lg); background-color: var(--surface-inset); border-radius: var(--border-radius-md); margin: var(--spacing-md) auto; max-width: 500px; }
+.loading { display: flex; justify-content: center; align-items: center; gap: var(--spacing-sm); }
+.error { color: var(--status-danger); border: 1px solid var(--status-danger); }
+
+
+/* ============================================================================
+   6. UNIFIED MESSAGES  (success / error / validation share one look)
+   ============================================================================ */
+.success-message, .error-message, .validation-errors {
+  padding: var(--spacing-md); border-radius: var(--border-radius-md);
+  border: 1px solid transparent;
+}
+.success-message { background: rgba(46, 213, 115, 0.12); border-color: var(--status-success); color: var(--text-body); }
+.error-message, .validation-errors { background: rgba(220, 53, 69, 0.2); border-color: var(--status-danger-deep); color: #fff; }
+
+
+/* ============================================================================
+   7. EMPTY STATES  — icon + text (replaces bare .no-data / .no-games text)
+   ============================================================================ */
+.no-data, .no-games {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--spacing-sm); padding: var(--spacing-xl); text-align: center;
+  color: var(--text-muted);
+  background: var(--surface-inset);
+  border: 1px dashed var(--border-soft);
+  border-radius: var(--border-radius-md);
+}
+.no-data i, .no-games i { font-size: 2.4rem; color: var(--primary-light); }
+
+
+/* ============================================================================
+   8. AVATAR FALLBACK helper (nice-to-have) — initials circle when no image.
+   Add <span class="avatar-fallback">AB</span> where member.avatar is null.
+   ============================================================================ */
+.avatar-fallback {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--border-radius-circle); color: #fff; font-weight: 600; text-transform: uppercase;
+  background: linear-gradient(135deg, var(--primary-medium), var(--primary-light));
+}

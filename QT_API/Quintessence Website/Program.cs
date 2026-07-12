@@ -1,18 +1,13 @@
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using QuintessenceWebsiteBLL.Container;
-using QuintessenceWebsiteBLL.CONTAINERS;
-using QuintessenceWebsiteDAL.Context;
 using QuintessenceWebsiteDAL.DAL;
+using QuintessenceWebsiteDAL.Store;
 using QuintessenceWebsiteInterface.DTO;
 using QuintessenceWebsiteInterface.INTERFACE;
+using Quintessence_Website.Services;
 using Microsoft.AspNetCore.Authentication;
 using AspNet.Security.OAuth.Discord;
-using System;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Microsoft.AspNetCore.HttpOverrides;
-using Quintessence_Website.Controllers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,11 +26,10 @@ builder.Configuration.AddUserSecrets<Program>();
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
-    .AddJsonFile($"appsettings.{environment.EnvironmentName}.json", optional: true) 
+    .AddJsonFile($"appsettings.{environment.EnvironmentName}.json", optional: true)
     .AddEnvironmentVariables()
     .Build();
 
-string connectionString = configuration["Database:ConnectionString"] ?? throw (new Exception("Connectionstring not found"));
 string clientId = builder.Configuration["Discord:ClientId"] ?? throw (new Exception("Client id not found"));
 string clientSecret = builder.Configuration["Discord:ClientSecret"] ?? throw (new Exception("Client secret not found"));
 
@@ -43,16 +37,14 @@ string frontendUrl = isDevelopment
     ? "https://localhost:4200"
     : "https://quintessence-eu.com";
 
-long adminId = 1152617541190041600;
-long rosterId = 1137817925638684802;
+// The old bot-synced role check is gone (the bot lives in Qutie now); admins are a
+// plain allowlist of Discord user ids in config: "Discord": { "AdminUserIds": [ "123..." ] }.
+var adminUserIds = builder.Configuration.GetSection("Discord:AdminUserIds").Get<string[]>() ?? Array.Empty<string>();
 
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("IsAdmin", policy =>
         policy.RequireClaim("is_admin", "true"));
-
-    options.AddPolicy("IsMainRoster", policy =>
-        policy.RequireClaim("is_main_roster", "true"));
 });
 
 // Discord Oauth2
@@ -85,13 +77,13 @@ builder.Services.AddAuthentication(options =>
 })
 .AddDiscord(options =>
 {
-    options.ClientId = clientId ?? throw (new Exception("Client id not found"));
-    options.ClientSecret = clientSecret ?? throw(new Exception("Client secret not found"));
+    options.ClientId = clientId;
+    options.ClientSecret = clientSecret;
     options.Scope.Add("identify");
     options.SaveTokens = true;
     options.CallbackPath = "/api/accounts/auth-callback";
 
-    options.Events.OnCreatingTicket = async context =>
+    options.Events.OnCreatingTicket = context =>
     {
         var user = context.Identity;
 
@@ -107,94 +99,50 @@ builder.Services.AddAuthentication(options =>
         user.AddClaim(new Claim("display_name", displayname ?? string.Empty));
         user.AddClaim(new Claim("user_name", username ?? string.Empty));
 
-        var userDal = context.HttpContext.RequestServices.GetRequiredService<IUserDAL>();
-
-        if (!string.IsNullOrEmpty(discordId))
+        if (!string.IsNullOrEmpty(discordId) && adminUserIds.Contains(discordId))
         {
-            long userId = long.Parse(discordId);
-
-            bool isAdmin = await userDal.UserHasRole(userId, adminId);
-            bool isMainRoster = await userDal.UserHasRole(userId, rosterId);
-
-            if (isAdmin)
-            {
-                user.AddClaim(new Claim("is_admin", "true"));
-            }
-
-            if (isMainRoster)
-            {
-                user.AddClaim(new Claim("is_main_roster", "true"));
-            }
+            user.AddClaim(new Claim("is_admin", "true"));
         }
+
+        return Task.CompletedTask;
     };
 
     options.Events.OnRemoteFailure = context =>
     {
         context.Response.Redirect(frontendUrl);
-        context.HandleResponse(); 
+        context.HandleResponse();
         return Task.CompletedTask;
     };
 });
 
-builder.Services.AddSignalR();
-
-// Add services to the container.
-builder.Services.AddDbContext<QuintessenceDbContext>(options =>
-    options.UseSqlServer(connectionString));
-
-builder.Services.AddScoped<IUserDAL, UserDAL>();
-builder.Services.AddScoped<UserContainer>();
-
-builder.Services.AddScoped<IAutomationDAL, AutomationDAL>();
-builder.Services.AddScoped<AutomationContainer>();
-
-builder.Services.AddScoped<IUserDataDAL, UserDataDAL>();
-builder.Services.AddScoped<UserDataContainer>();
-
-builder.Services.AddScoped<IXPConfigDAL, XPConfigDAL>();
-builder.Services.AddScoped<XPConfigContainer>();
-
-builder.Services.AddScoped<IRolesDAL, RolesDAL>();
-builder.Services.AddScoped<RolesContainer>();
-
-builder.Services.AddScoped<IReactionRoleConfigDAL, ReactionRoleConfigDAL>();
-builder.Services.AddScoped<ReactionRoleConfigContainer>();
-
-builder.Services.AddScoped<ILevelVoiceConfigDAL, LevelToRoleVoiceDAL>();
-builder.Services.AddScoped<LevelVoiceConfigContainer>();
-
-builder.Services.AddScoped<ILevelMessageConfigDAL, LevelToRoleMessageDAL>();
-builder.Services.AddScoped<LevelMessageConfigContainer>();
-
-builder.Services.AddScoped<IEventSignupsDAL, EventSignupsDAL>();
-builder.Services.AddScoped<EventSignupsContainer>();
-
-builder.Services.AddScoped<IEventsDAL, EventsDAL>();
-builder.Services.AddScoped<EventsContainer>();
-
-builder.Services.AddScoped<IChannelsDAL, ChannelsDAL>();
-builder.Services.AddScoped<ChannelsContainer>();
-
-builder.Services.AddScoped<IEventChannelsDAL, EventChannelsDAL>();
-builder.Services.AddScoped<EventChannelsContainer>();
-
-builder.Services.AddScoped<IQuestionTypeDAL, QuestionTypeDAL>();
-builder.Services.AddScoped<QuestionTypeContainer>();
-
-builder.Services.AddScoped<IQuestionsDAL, QuestionsDAL>();
-builder.Services.AddScoped<QuestionsContainer>();
-
-builder.Services.AddScoped<IFormDAL, FormDAL>();
-builder.Services.AddScoped<FormContainer>();
-
-builder.Services.AddScoped<IAnswersDAL, AnswersDAL>();
-builder.Services.AddScoped<AnswersContainer>();
+// Data lives in JSON files under App_Data (no database). Stores are singletons so the
+// in-process file lock actually serializes writes.
+var dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
+builder.Services.AddSingleton(new JsonStore<GamesDTO>(Path.Combine(dataDir, "games.json"), Seed.Games));
+builder.Services.AddSingleton(new JsonStore<GuildTimelineEntryDTO>(Path.Combine(dataDir, "timeline.json"), Seed.Timeline));
+builder.Services.AddSingleton(new JsonStore<RosterMemberDTO>(Path.Combine(dataDir, "roster.json"), Seed.Roster));
 
 builder.Services.AddScoped<IGamesDAL, GamesDAL>();
-builder.Services.AddScoped<GamesContainer>();
+builder.Services.AddScoped<ITimelineDAL, TimelineDAL>();
+builder.Services.AddScoped<IRosterDAL, RosterDAL>();
 
-builder.Services.AddScoped<IFormSubmissionsDAL, FormSubmissionsDAL>();
-builder.Services.AddScoped<FormSubmissionsContainer>();
+// Server-side client for the Qutie public API. Base url in config ("Qutie:ApiBase"),
+// the read-only key in "Qutie:ApiKey" (user secrets / env / prod appsettings - never
+// committed). Same-server prod: point ApiBase at Qutie's local API (e.g. http://localhost:5001).
+builder.Services.AddHttpClient<QutieApiClient>((sp, http) =>
+{
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    var baseUrl = cfg["Qutie:ApiBase"] ?? "https://localhost:5001";
+    http.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+    http.Timeout = TimeSpan.FromSeconds(10);
+})
+.ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    // Trust Qutie's self-signed dev cert only in Development; prod uses a real cert or plain http localhost.
+    ServerCertificateCustomValidationCallback = isDevelopment
+        ? HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        : null
+});
 
 builder.Services.AddControllers();
 
@@ -228,4 +176,3 @@ else
 }
 
 app.Run();
-

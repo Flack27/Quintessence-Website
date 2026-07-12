@@ -11,12 +11,6 @@
 
   <ItemGroup>
     <PackageReference Include="AspNet.Security.OAuth.Discord" Version="8.3.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.1.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.8" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.8">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="SonarAnalyzer.CSharp" Version="10.3.0.106239">
       <PrivateAssets>all</PrivateAssets>
@@ -26,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\BotWebsiteBLL\QuintessenceWebsiteBLL.csproj" />
     <ProjectReference Include="..\BotWebsiteDAL\QuintessenceWebsiteDAL.csproj" />
   </ItemGroup>
 

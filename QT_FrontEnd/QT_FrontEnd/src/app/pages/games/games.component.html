@@ -9,140 +9,114 @@
 
   <!-- Game Type Tabs -->
   <div class="games-tabs">
-    <button class="tab-button active" data-tab="upcoming">Upcoming Games</button>
-    <button class="tab-button" data-tab="prior">Prior Games</button>
+    <button class="tab-button" [class.active]="activeTab === 'upcoming'" (click)="setTab('upcoming')">Upcoming Games</button>
+    <button class="tab-button" [class.active]="activeTab === 'prior'" (click)="setTab('prior')">Prior Games</button>
   </div>
 
-  <!-- Upcoming Games Grid -->
-  <div class="tab-content" id="upcoming-tab">
-    <div class="games-grid">
-      <!-- Aion 2 -->
-      <div class="game-card" (click)="openExternalLink('https://aion2.plaync.com')">
-        <img src="/assets/gamecards/Aion2_Gamecard.jpg" alt="Aion 2" class="game-image">
+  <div *ngIf="statusMessage" class="success-message">{{ statusMessage }}</div>
+  <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+  <!-- Upcoming / Active Games Grid: cards are NOT clickable; hover shows description + optional official-site link -->
+  <div class="tab-content" *ngIf="activeTab === 'upcoming'">
+    <div class="games-grid" cdkDropList [cdkDropListDisabled]="!isAdmin" (cdkDropListDropped)="onGameDrop($event)">
+      <div class="game-card" *ngFor="let game of activeGames" cdkDrag>
+        <button class="card-edit-btn" *ngIf="isAdmin" title="Edit game" (click)="openEditor(game, $event)">
+          <i class="fas fa-pen"></i>
+        </button>
+        <i class="fas fa-grip-vertical card-drag-handle" *ngIf="isAdmin" cdkDragHandle title="Drag to reorder"></i>
+        <img *ngIf="game.imageUrl" [src]="game.imageUrl" [alt]="game.gameName" class="game-image">
+        <div *ngIf="!game.imageUrl" class="game-image game-image-placeholder"><i class="fas fa-gamepad"></i></div>
         <div class="game-overlay">
-          <p class="game-description">Aion 2 is the long-awaited sequel to the classic MMORPG, bringing fresh mechanics, a new world, and intense aerial combat.</p>
+          <p class="game-description">{{ game.description }}</p>
+          <a *ngIf="game.siteUrl" class="external-link game-site-link" (click)="openSite(game, $event)">
+            Official site <i class="fas fa-external-link-alt"></i>
+          </a>
           <div class="game-meta">
-            <span>Release: 2026</span>
-            <span class="game-status status-upcoming">Upcoming</span>
+            <span>{{ game.gameName }}</span>
+            <span class="game-status" [ngClass]="game.status === 'Active' ? 'status-active' : 'status-upcoming'">{{ game.status }}</span>
           </div>
         </div>
       </div>
 
-
-      <!-- ArcheAge Chronicles -->
-      <div class="game-card" (click)="openExternalLink('https://archeagechronicles.kakaogames.com/')">
-        <img src="/assets/gamecards/Archeage_Chronicles_Gamecard.jpg" alt="Archeage Chronicles" class="game-image">
-        <div class="game-overlay">
-          <p class="game-description">ArcheAge Chronicles reimagines the sandbox MMORPG with action combat and a greater focus on PvE adventures.</p>
-          <div class="game-meta">
-            <span>Release: 2026</span>
-            <span class="game-status status-upcoming">Upcoming</span>
-          </div>
-        </div>
-      </div>
-
-
-      <!-- Chrono Odyssey -->
-      <div class="game-card" (click)="openExternalLink('https://chronoodyssey.com')">
-        <img src="/assets/gamecards/Chrono_Odyssey_Gamecard.jpg" alt="Chrono Odyssey" class="game-image">
-        <div class="game-overlay">
-          <p class="game-description">Chrono Odyssey showcases stunning visuals and time manipulation mechanics, promising a unique MMORPG experience.</p>
-          <div class="game-meta">
-            <span>Release: 2027</span>
-            <span class="game-status status-upcoming">Upcoming</span>
-          </div>
-        </div>
-      </div>
-
-
-      <!-- Bellatores -->
-      <div class="game-card" (click)="openExternalLink('https://www.bellatores.com/en/')">
-        <img src="/assets/gamecards/Bellatores_Gamecard.jpg" alt="Bellator" class="game-image">
-        <div class="game-overlay">
-          <p class="game-description">Bellatores is a medieval MMORPG with large-scale PvP battles and a strong emphasis on guild warfare.</p>
-          <div class="game-meta">
-            <span>Release: TBA</span>
-            <span class="game-status status-upcoming">Upcoming</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Lord of the Mysteries -->
-      <div class="game-card" (click)="openExternalLink('https://lotm-global.sparknexa.com')">
-        <img src="/assets/gamecards/LOTM_Gamecard.jpg" alt="Lord of the Mysteries" class="game-image">
-        <div class="game-overlay">
-          <p class="game-description">Lord of the Mysteries is an upcoming MMORPG set in a dark, Victorian-era world steeped in occult mystery and eldritch intrigue, based on the beloved web novel.</p>
-          <div class="game-meta">
-            <span>Release: TBA</span>
-            <span class="game-status status-upcoming">Upcoming</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Scars of Honor -->
-      <div class="game-card" (click)="openExternalLink('https://www.scarsofhonor.com')">
-        <img src="/assets/gamecards/Scars_of_Honor_Gamecard.jpg" alt="Scars of Honor" class="game-image">
-        <div class="game-overlay">
-          <p class="game-description">Scars of Honor is a free-to-play fantasy MMORPG set on the war-torn continent of Aragon, featuring skill-based combat, deep faction warfare, and zero pay-to-win.</p>
-          <div class="game-meta">
-            <span>Release: TBA</span>
-            <span class="game-status status-upcoming">Upcoming</span>
-          </div>
-        </div>
+      <!-- Admin: add game inline -->
+      <div class="game-card game-add-card" *ngIf="isAdmin" (click)="openEditor(null)">
+        <div class="game-add-inner"><i class="fas fa-plus"></i><span>Add game</span></div>
       </div>
     </div>
   </div>
 
-
-  <!-- Prior Games Grid -->
-  <div class="tab-content" id="prior-tab" style="display: none;">
+  <!-- Prior Games Grid: click opens the details popup -->
+  <div class="tab-content" *ngIf="activeTab === 'prior'">
     <div class="games-grid">
-      <!-- Throne and Liberty -->
-      <div class="game-card" (click)="viewGameDetails('throne-and-liberty')">
-        <img src="/assets/gamecards/Throne_and_Liberty_Gamecard.jpg" alt="Throne and Liberty" class="game-image">
+      <div class="game-card card-clickable" *ngFor="let game of archivedGames" (click)="openDetails(game)">
+        <button class="card-edit-btn" *ngIf="isAdmin" title="Edit game" (click)="openEditor(game, $event)">
+          <i class="fas fa-pen"></i>
+        </button>
+        <img *ngIf="game.imageUrl" [src]="game.imageUrl" [alt]="game.gameName" class="game-image">
+        <div *ngIf="!game.imageUrl" class="game-image game-image-placeholder"><i class="fas fa-archive"></i></div>
         <div class="game-overlay">
-          <p class="game-description">Throne and Liberty was the first game we played as Quintessence and managed to accumalate a variety of achievements during our time in Solsium. We're looking forward to building upon the lessons learned & reputation acquired in the next MMO. </p>
+          <p class="game-description">{{ game.description }}</p>
           <div class="game-meta">
-            <span>2024-2025</span>
-            <span class="game-status status-completed">Completed</span>
+            <span>{{ game.gameName }}</span>
+            <span class="game-status status-completed">{{ game.period || 'Completed' }}</span>
           </div>
         </div>
         <div class="achievement-icon">
           <i class="fas fa-trophy"></i>
         </div>
       </div>
+
+      <!-- Admin: add game inline -->
+      <div class="game-card game-add-card" *ngIf="isAdmin" (click)="openEditor(null)">
+        <div class="game-add-inner"><i class="fas fa-plus"></i><span>Add past game</span></div>
+      </div>
     </div>
 
-    <!-- Game Timeline -->
-    <div class="games-timeline">
+    <!-- Guild-wide timeline ("Our journey") -->
+    <div class="games-timeline" *ngIf="timeline.length > 0 || isAdmin">
       <div class="timeline-line"></div>
-      <div class="timeline-entry">
+      <div class="timeline-entry visible" *ngFor="let entry of timeline">
         <div class="timeline-content">
-          <div class="timeline-date">April 2024</div>
-          <h3 class="timeline-title">Throne and Liberty Beta</h3>
-          <p class="timeline-description">Quintessence participated in the closed beta, establishing strategies and preparing for the full release.</p>
+          <div class="timeline-date">{{ entry.period }}</div>
+          <h3 class="timeline-title">
+            {{ entry.title }}
+            <button class="inline-delete-btn" *ngIf="isAdmin" title="Remove entry" (click)="deleteTimelineEntry(entry)">
+              <i class="fas fa-times"></i>
+            </button>
+          </h3>
+          <p class="timeline-description">{{ entry.description }}</p>
         </div>
       </div>
+    </div>
 
-      <div class="timeline-entry">
-        <div class="timeline-content">
-          <div class="timeline-date">October 2024</div>
-          <h3 class="timeline-title">Throne and Liberty Launch</h3>
-          <p class="timeline-description">We secured our first castle during the Siege the Day event, claiming another in the first release castle siege.</p>
+    <!-- Admin: add timeline entry -->
+    <div class="timeline-admin" *ngIf="isAdmin">
+      <button class="dashed-add-btn" *ngIf="!showTimelineForm" (click)="showTimelineForm = true">
+        <i class="fas fa-plus"></i> Add timeline entry
+      </button>
+      <div class="inline-form" *ngIf="showTimelineForm">
+        <div class="inline-form-row">
+          <input type="text" placeholder="Period — e.g. 2024 – 2025" [(ngModel)]="newTimelineEntry.period">
+          <input type="text" placeholder="Title — e.g. Throne and Liberty" [(ngModel)]="newTimelineEntry.title">
+        </div>
+        <input type="text" placeholder="Description" [(ngModel)]="newTimelineEntry.description">
+        <div class="inline-form-row">
+          <button class="form-btn primary" (click)="addTimelineEntry()">Add entry</button>
+          <button class="form-btn ghost" (click)="showTimelineForm = false">Cancel</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Game Details Modal -->
-<div class="game-details-modal" id="game-details-modal">
+<!-- Game Details Popup (prior games) -->
+<div class="game-details-modal open" *ngIf="details" (click)="$event.target === $event.currentTarget && closeDetails()">
   <div class="modal-content">
     <div class="modal-header">
-      <img src="" alt="" class="modal-image" id="modal-image">
+      <img [src]="details.bannerUrl || details.imageUrl" [alt]="details.gameName" class="modal-image">
       <div class="modal-image-overlay"></div>
-      <h2 class="modal-title" id="modal-title"></h2>
-      <div class="modal-close" (click)="closeGameDetails()">
+      <h2 class="modal-title">{{ details.gameName }}</h2>
+      <div class="modal-close" (click)="closeDetails()">
         <i class="fas fa-times"></i>
       </div>
     </div>
@@ -151,33 +125,225 @@
         <div class="info-column">
           <div class="info-item">
             <div class="info-label">Time Period</div>
-            <div class="info-value" id="game-period"></div>
+            <div class="info-value">{{ details.period || '—' }}</div>
           </div>
         </div>
         <div class="info-column">
           <div class="info-item">
             <div class="info-label">Player Count</div>
-            <div class="info-value" id="game-players"></div>
+            <div class="info-value">{{ details.players || '—' }}</div>
           </div>
         </div>
       </div>
-      
-      <div class="game-description-full" id="game-description-full">
-        <!-- Game description will be loaded dynamically -->
-      </div>
-      
-      <div class="achievements-section">
+
+      <div class="game-description-full full-story">{{ details.fullStory }}</div>
+
+      <div class="achievements-section" *ngIf="details.achievements.length > 0 || isAdmin">
         <h3 class="section-title">Guild Achievements</h3>
-        <div class="achievements-grid" id="achievements-grid">
-          <!-- Achievements will be loaded dynamically -->
-        </div>
-      </div> 
-      <div class="gallery-section">
-        <h3 class="section-title">Gallery</h3>
-        <div class="gallery-grid" id="gallery-grid">
-          <!-- Gallery images will be loaded dynamically -->
+        <div class="achievements-grid">
+          <div class="achievement-card" *ngFor="let achievement of details.achievements">
+            <button class="inline-delete-btn corner" *ngIf="isAdmin" title="Remove achievement" (click)="deleteAchievement(achievement)">
+              <i class="fas fa-times"></i>
+            </button>
+            <div class="achievement-wrap">
+              <div class="achievement-medal">
+                <i class="fas" [ngClass]="achievement.icon"></i>
+              </div>
+              <div class="achievement-title">{{ achievement.title }}</div>
+            </div>
+            <div class="achievement-description">{{ achievement.description }}</div>
+          </div>
+
+          <!-- Admin: inline add with icon picker -->
+          <div class="achievement-card inline-form" *ngIf="isAdmin">
+            <div class="icon-picker">
+              <button *ngFor="let icon of achievementIcons" [class.selected]="newAchievement.icon === icon"
+                      (click)="newAchievement.icon = icon" [title]="icon">
+                <i class="fas" [ngClass]="icon"></i>
+              </button>
+            </div>
+            <input type="text" placeholder="Title — e.g. Territory Lords" [(ngModel)]="newAchievement.title">
+            <input type="text" placeholder="Description" [(ngModel)]="newAchievement.description">
+            <button class="form-btn primary" (click)="addAchievement()">Add achievement</button>
+          </div>
         </div>
       </div>
+
+      <div class="gallery-section" *ngIf="details.gallery.length > 0 || isAdmin">
+        <h3 class="section-title">Gallery</h3>
+        <div class="gallery-grid">
+          <div class="gallery-item" *ngFor="let item of details.gallery" (click)="openGalleryItem(item)">
+            <button class="inline-delete-btn corner" *ngIf="isAdmin" title="Remove item" (click)="deleteGalleryItem(item); $event.stopPropagation()">
+              <i class="fas fa-times"></i>
+            </button>
+            <ng-container *ngIf="item.itemType === 'video'; else imageItem">
+              <div class="video-thumbnail">
+                <img *ngIf="galleryThumb(item)" [src]="galleryThumb(item)" [alt]="item.caption" class="gallery-image">
+                <div class="play-button"><i class="fas fa-play"></i></div>
+              </div>
+              <div class="gallery-overlay"><i class="fab fa-youtube"></i></div>
+            </ng-container>
+            <ng-template #imageItem>
+              <img [src]="item.imageUrl" [alt]="item.caption" class="gallery-image">
+              <div class="gallery-overlay"><i class="fas fa-search-plus"></i></div>
+            </ng-template>
+          </div>
+
+          <!-- Admin: inline add (image upload or youtube link) -->
+          <div class="gallery-item inline-form gallery-form" *ngIf="isAdmin" (click)="$event.stopPropagation()">
+            <div class="inline-form-row">
+              <select [(ngModel)]="newGallery.itemType">
+                <option value="image">Image</option>
+                <option value="video">YouTube video</option>
+              </select>
+            </div>
+            <input *ngIf="newGallery.itemType === 'video'" type="text" placeholder="YouTube link" [(ngModel)]="newGallery.youtubeUrl">
+            <input *ngIf="newGallery.itemType === 'image'" type="file" accept=".jpg,.jpeg,.png,.webp" (change)="onGalleryFile($event)">
+            <input type="text" placeholder="Caption" [(ngModel)]="newGallery.caption">
+            <button class="form-btn primary" [disabled]="galleryUploading" (click)="addGalleryItem()">
+              {{ galleryUploading ? 'Uploading...' : 'Add to gallery' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events & videos: auto-generated from Qutie's event history -->
+      <div class="events-section" *ngIf="qutieEvents">
+        <h3 class="section-title">Events &amp; Videos</h3>
+        <p class="events-subtitle">{{ qutieEvents.length }} events · {{ vodCount }} with video — click a highlighted point to watch</p>
+        <div class="events-graph-panel">
+          <svg [attr.width]="graphW" [attr.height]="graphH" [attr.viewBox]="'0 0 ' + graphW + ' ' + graphH" role="img"
+               aria-label="Events per month with video markers">
+            <g *ngFor="let line of graphGridLines">
+              <line x1="30" [attr.y1]="line.y" [attr.x2]="graphW - 10" [attr.y2]="line.y" class="graph-gridline"/>
+              <text x="26" [attr.y]="line.y + 4" text-anchor="end" class="graph-label">{{ line.label }}</text>
+            </g>
+            <g *ngFor="let month of graphMonths">
+              <rect [attr.x]="month.x" [attr.y]="month.y" [attr.width]="month.w" [attr.height]="month.h" rx="4" class="graph-bar"/>
+              <text [attr.x]="month.x + month.w / 2" [attr.y]="graphH - 10" text-anchor="middle" class="graph-label">{{ month.label }}</text>
+            </g>
+            <circle *ngFor="let dot of graphDots" [attr.cx]="dot.cx" [attr.cy]="dot.cy" r="6" class="graph-vod-dot"
+                    (click)="openEventVideo(dot)">
+              <title>{{ dotTooltip(dot) }}</title>
+            </circle>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- YouTube overlay -->
+<div class="fullscreen-modal open video-modal" *ngIf="video" (click)="$event.target === $event.currentTarget && closeVideo()">
+  <div class="modal-content video-content">
+    <div class="video-container">
+      <iframe [src]="videoSrc" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    </div>
+    <h3 class="video-title">{{ video.title }}<span class="video-subtitle" *ngIf="video.subtitle"> — {{ video.subtitle }}</span></h3>
+  </div>
+</div>
+
+<!-- Fullscreen image overlay -->
+<div class="fullscreen-modal open" *ngIf="fullscreenImage" (click)="closeImage()">
+  <div class="modal-content fullscreen-content">
+    <img [src]="fullscreenImage.src" [alt]="fullscreenImage.alt" class="fullscreen-image">
+  </div>
+</div>
+
+<!-- Admin: add/edit game overlay -->
+<div class="editor-overlay" *ngIf="editorOpen && editorGame" (click)="$event.target === $event.currentTarget && closeEditor()">
+  <div class="editor-modal">
+    <h3>{{ editorGame.gameId === 0 ? 'Add game' : 'Edit game' }}</h3>
+    <p class="editor-sub">Changes go live on the public games page immediately.</p>
+
+    <div class="editor-form">
+      <div class="editor-row" *ngIf="editorGame.gameId !== 0">
+        <label class="editor-field">
+          <span>Card image <small>(3:4 portrait)</small></span>
+          <label class="upload-drop">
+            <i class="fas fa-upload"></i> {{ editorGame.imageUrl ? 'Replace card' : 'Upload card' }}
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" hidden (change)="uploadImage($event, 'card')">
+          </label>
+        </label>
+        <label class="editor-field">
+          <span>Banner <small>(1400×220)</small></span>
+          <label class="upload-drop">
+            <i class="fas fa-upload"></i> {{ editorGame.bannerUrl ? 'Replace banner' : 'Upload banner' }}
+            <input type="file" accept=".jpg,.jpeg,.png,.webp" hidden (change)="uploadImage($event, 'banner')">
+          </label>
+        </label>
+      </div>
+      <p class="editor-hint" *ngIf="editorGame.gameId === 0">Save the game first, then edit it again to upload its card and banner.</p>
+
+      <div class="editor-row">
+        <label class="editor-field">
+          <span>Name</span>
+          <input type="text" [(ngModel)]="editorGame.gameName">
+        </label>
+        <label class="editor-field">
+          <span>Status</span>
+          <select [(ngModel)]="editorGame.status">
+            <option value="Active">Active</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Previous">Previous</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="editor-field">
+        <span>Card hover text</span>
+        <textarea rows="2" maxlength="1000" [(ngModel)]="editorGame.description"
+                  placeholder="Short description shown when hovering the game card..."></textarea>
+      </label>
+
+      <label class="editor-field">
+        <span>Official website <small>(optional, shown on card hover)</small></span>
+        <input type="text" placeholder="https://..." [(ngModel)]="editorGame.siteUrl">
+      </label>
+
+      <ng-container *ngIf="editorGame.status === 'Previous'">
+        <div class="editor-divider">Previous-game popup</div>
+        <div class="editor-row">
+          <label class="editor-field">
+            <span>Period</span>
+            <input type="text" placeholder="e.g. 2024–2025" [(ngModel)]="editorGame.period">
+          </label>
+          <label class="editor-field">
+            <span>Players</span>
+            <input type="text" placeholder="e.g. 100+" [(ngModel)]="editorGame.players">
+          </label>
+        </div>
+        <label class="editor-field">
+          <span>Full story</span>
+          <textarea rows="5" [(ngModel)]="editorGame.fullStory"
+                    placeholder="The chapter text shown on the popup. Blank line = new paragraph."></textarea>
+        </label>
+        <div class="editor-toggle-row">
+          <div>
+            <div class="editor-toggle-title">Pull events &amp; videos from Qutie</div>
+            <div class="editor-toggle-hint">Auto-builds the events graph and video overlays from this game's Qutie history</div>
+          </div>
+          <input type="checkbox" [(ngModel)]="editorGame.pullFromQutie">
+        </div>
+        <label class="editor-field" *ngIf="editorGame.pullFromQutie">
+          <span>Qutie game</span>
+          <select *ngIf="qutieGames" [(ngModel)]="editorGame.qutieGameId">
+            <option [ngValue]="null">— not linked —</option>
+            <option *ngFor="let qutieGame of qutieGames" [ngValue]="qutieGame.gameId">
+              {{ qutieGame.gameName }}{{ qutieGame.isArchived ? ' (archived)' : '' }}
+            </option>
+          </select>
+          <input *ngIf="!qutieGames" type="text" placeholder="Qutie game id (API not reachable yet)"
+                 [(ngModel)]="editorGame.qutieGameId">
+        </label>
+        <p class="editor-hint">Achievements and the gallery are edited inline on the popup itself.</p>
+      </ng-container>
+    </div>
+
+    <div class="editor-actions">
+      <button class="form-btn primary" [disabled]="editorSaving" (click)="saveEditor()">{{ editorSaving ? 'Saving...' : 'Save' }}</button>
+      <button class="form-btn ghost" (click)="closeEditor()">Cancel</button>
+      <button class="form-btn danger" *ngIf="editorGame.gameId !== 0" (click)="deleteEditorGame()">Delete game</button>
     </div>
   </div>
 </div>

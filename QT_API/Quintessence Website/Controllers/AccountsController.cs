@@ -1,11 +1,6 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using QuintessenceWebsiteInterface.INTERFACE;
-using static AspNet.Security.OAuth.Discord.DiscordAuthenticationConstants;
-using System.Security.Claims;
-
 
 namespace Quintessence_Website.Controllers
 {
@@ -13,14 +8,10 @@ namespace Quintessence_Website.Controllers
     [ApiController]
     public class AccountsController : ControllerBase
     {
-        private readonly IUserDAL _userDal;
         private readonly IWebHostEnvironment _environment;
 
-        public AccountsController(
-            IUserDAL userDal,
-            IWebHostEnvironment environment)
+        public AccountsController(IWebHostEnvironment environment)
         {
-            _userDal = userDal;
             _environment = environment;
         }
 
@@ -42,32 +33,15 @@ namespace Quintessence_Website.Controllers
         }
 
         [HttpGet("Info")]
-        public async Task<IActionResult> Info()
+        public IActionResult Info()
         {
-            if(User.Identity != null && User.Identity.IsAuthenticated)
+            if (User.Identity != null && User.Identity.IsAuthenticated)
             {
-                var userId = User.FindFirst("id")?.Value;
-                if (userId == null) return Unauthorized();
-
-                var discordId = long.Parse(userId);
-                var user = await _userDal.GetUserById(discordId);
-
-                var inGuild = false;
-                var filledForm = false;
-
-                if (user != null)
-                {
-                    if (user.InGuild == true) { inGuild = true; }
-                    filledForm = user.FormSubmissions?.Any() ?? false;
-                }
-
                 var claims = User.Claims.ToDictionary(c => c.Type, c => c.Value);
 
                 return Ok(new
                 {
                     isAuthenticated = true,
-                    inGuild,
-                    filledForm,
                     claims
                 });
             }

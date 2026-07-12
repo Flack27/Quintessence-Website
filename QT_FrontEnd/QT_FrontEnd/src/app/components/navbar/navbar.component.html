@@ -13,15 +13,11 @@
     <!-- Navigation Links - right aligned -->
     <ul [ngClass]="{'mobile-open': isMobileMenuOpen}">
       <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileMenu()">Home</a></li>
-      <li *ngIf="user?.claims?.is_admin" class="li-menu"><a routerLink="/menu" routerLinkActive="active" (click)="closeMobileMenu()">Menu</a></li>
-      <li><a routerLink="/apply" routerLinkActive="active" (click)="closeMobileMenu()">Apply</a></li>
+      <li><a [href]="applyUrl" (click)="closeMobileMenu()">Apply</a></li>
       <li><a routerLink="/games" routerLinkActive="active" (click)="closeMobileMenu()">Games</a></li>
       <li><a routerLink="/roster" routerLinkActive="active" (click)="closeMobileMenu()">Roster</a></li>
-      <!-- Login Link -->
-      <li *ngIf="!user?.isAuthenticated">
-        <a href="api/accounts/login/home">Login</a>
-      </li>
-      <!-- User Dropdown -->
+      <!-- No login link: admins use the hidden /login route -->
+      <!-- User Dropdown (only ever visible to logged-in admins) -->
       <li class="user-info" *ngIf="user?.isAuthenticated">
         <div class="user" (click)="toggleDropdown()">
           <img [src]="user?.claims?.avatar_url"
@@ -30,7 +26,6 @@
           <span>{{ user?.claims?.display_name }}</span>
         </div>
         <ul class="dropdown">
-          <li *ngIf="user?.claims?.is_main_roster"><a routerLink="/profile" routerLinkActive="active" (click)="closeMobileMenu()">Profile</a></li>
           <li><a (click)="logout(); closeMobileMenu()">Logout</a></li>
         </ul>
       </li>
