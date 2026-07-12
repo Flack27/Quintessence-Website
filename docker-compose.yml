@@ -23,7 +23,9 @@ services:
       - qt-uploads:/app/uploads        # uploaded game images — BACK UP
     expose:
       - "8080"
-    networks: [quintessence-net]
+    # Also joins the qutie stack's network so the Qutie public-API call stays internal
+    # (Qutie__ApiBase=http://qutie-api:8080) instead of hair-pinning out via qutie.app.
+    networks: [quintessence-net, qutie-net]
 
   frontend:
     build:
@@ -55,6 +57,11 @@ services:
 networks:
   quintessence-net:
     driver: bridge
+  # The qutie stack's network (external) — lets quintessence-api reach qutie-api:8080
+  # directly for the Qutie public-API proxy.
+  qutie-net:
+    external: true
+    name: qutie_qutie-net
 
 volumes:
   qt-appdata:
