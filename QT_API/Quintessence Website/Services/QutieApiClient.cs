@@ -33,6 +33,13 @@ namespace Quintessence_Website.Services
         /// <summary>GET /api/v1/games - a bare array, passed through as-is.</summary>
         public Task<string?> GetGamesJson() => GetRawJson("api/v1/games");
 
+        /// <summary>GET /api/v1/members[?roleId=...] - paged, returned as { members:[...], total }.
+        /// The optional role id scopes the roster to members holding that Discord role.</summary>
+        public Task<string?> GetGuildMembersJson(string? roleId) =>
+            GetPagedJson(string.IsNullOrWhiteSpace(roleId)
+                ? "api/v1/members"
+                : $"api/v1/members?roleId={Uri.EscapeDataString(roleId)}", "members");
+
         /// <summary>GET /api/v1/games/{gameId}/members - paged, returned as { members:[...], total }.</summary>
         public Task<string?> GetGameMembersJson(string gameId) =>
             GetPagedJson($"api/v1/games/{Uri.EscapeDataString(gameId)}/members", "members");

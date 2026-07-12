@@ -290,6 +290,16 @@ select:not([multiple]):focus {
 }
 select::-ms-expand { display: none; }
 
+/* Native option popup: the OS-rendered dropdown inherits the select's translucent
+   background + chevron image, which bleed through as a tiled "pattern" glitch on
+   click (Windows/Chrome). Give options a solid, opaque fill so the popup renders
+   cleanly. (Only honoured on Windows/Linux; macOS renders the popup itself.) */
+select option,
+select optgroup {
+  background-color: #150033;
+  color: #fff;
+}
+
 /* Pill search bar variant (existing) */
 .search-container { margin: var(--spacing-md) 0; text-align: center; }
 .search-bar { width: 60%; border-radius: var(--border-radius-lg); }

@@ -120,11 +120,9 @@ builder.Services.AddAuthentication(options =>
 var dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 builder.Services.AddSingleton(new JsonStore<GamesDTO>(Path.Combine(dataDir, "games.json"), Seed.Games));
 builder.Services.AddSingleton(new JsonStore<GuildTimelineEntryDTO>(Path.Combine(dataDir, "timeline.json"), Seed.Timeline));
-builder.Services.AddSingleton(new JsonStore<RosterMemberDTO>(Path.Combine(dataDir, "roster.json"), Seed.Roster));
 
 builder.Services.AddScoped<IGamesDAL, GamesDAL>();
 builder.Services.AddScoped<ITimelineDAL, TimelineDAL>();
-builder.Services.AddScoped<IRosterDAL, RosterDAL>();
 
 // Server-side client for the Qutie public API. Base url in config ("Qutie:ApiBase"),
 // the read-only key in "Qutie:ApiKey" (user secrets / env / prod appsettings - never

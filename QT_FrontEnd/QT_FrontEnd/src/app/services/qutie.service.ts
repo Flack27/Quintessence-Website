@@ -20,6 +20,17 @@ export interface QutieGame {
   hasRoster: boolean;
 }
 
+// GET /api/qutie/members[?roleId=...]  ->  { members:[...], total }
+export interface QutieGuildMember {
+  memberKey: string;
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  rank: string;             // Owner / Admin / Officer / Member (permission tier label)
+  joinedAt: string | null;
+  gameIds: string[];        // Qutie game ids (map to local games via PublicGame.qutieGameId)
+}
+
 // GET /api/qutie/games/{gameId}/members  ->  { members:[...], total }
 export interface QutieGameMember {
   memberKey: string;
@@ -66,6 +77,13 @@ export class QutieService {
   /** The guild's games in Qutie (drives the admin game-link picker). */
   getGames(): Observable<QutieGame[] | null> {
     return this.http.get<QutieGame[]>('/api/qutie/games').pipe(catchError(() => of(null)));
+  }
+
+  /** Guild members, optionally scoped to one Discord role (drives the main-roster cards). */
+  getGuildMembers(roleId?: string): Observable<QutieGuildMember[] | null> {
+    const q = roleId ? `?roleId=${encodeURIComponent(roleId)}` : '';
+    return this.http.get<{ members: QutieGuildMember[] }>(`/api/qutie/members${q}`)
+      .pipe(map(r => r.members ?? []), catchError(() => of(null)));
   }
 
   /** Per-game roster with aggregate attendance (active-game roster section). */

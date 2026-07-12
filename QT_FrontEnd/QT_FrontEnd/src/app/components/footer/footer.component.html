@@ -1,0 +1,33 @@
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a routerLink="/" class="footer-logo">
+        <img src="/assets/logo.png" alt="Quintessence" />
+      </a>
+      <p class="footer-tagline">A community built on skill, camaraderie, and continuous improvement.</p>
+    </div>
+
+    <nav class="footer-links" aria-label="Footer">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+      <a [href]="applyUrl" target="_blank" rel="noopener">Apply</a>
+      <a routerLink="/games" routerLinkActive="active">Games</a>
+      <a routerLink="/roster" routerLinkActive="active">Roster</a>
+    </nav>
+
+    <div class="footer-social">
+      <a href="https://discord.com/invite/qte" target="_blank" rel="noopener" class="footer-social-link" title="Discord" aria-label="Discord">
+        <i class="fab fa-discord"></i>
+      </a>
+      <a href="https://www.twitch.tv/quintessenceeu" target="_blank" rel="noopener" class="footer-social-link" title="Twitch" aria-label="Twitch">
+        <img src="/assets/twitch.svg" alt="Twitch" />
+      </a>
+      <a href="https://www.youtube.com/@QuintessenceEU" target="_blank" rel="noopener" class="footer-social-link" title="YouTube" aria-label="YouTube">
+        <img src="/assets/youtube.svg" alt="YouTube" />
+      </a>
+    </div>
+  </div>
+
+  <div class="footer-bottom">
+    <span>&copy; {{ year }} Quintessence. All rights reserved.</span>
+  </div>
+</footer>

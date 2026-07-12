@@ -1,8 +1,7 @@
 import { Component, OnInit } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
 import { GameService, PublicGame } from '../../services/game.service';
-import { RosterService, RosterMember, RankTier, MemberPayload } from '../../services/roster.service';
-import { QutieService, QutieGameMember } from '../../services/qutie.service';
+import { QutieService, QutieGameMember, QutieGuildMember } from '../../services/qutie.service';
+import { QUTIE_MAIN_ROSTER_ROLE_ID } from '../../qutie.config';
 
 /** A played-game token on a main-roster member (icon from the local games showcase). */
 interface GameToken {
@@ -18,15 +17,6 @@ interface GameRosterSection {
   loaded: boolean;
 }
 
-interface EditableMember {
-  memberId: number;   // 0 = new
-  displayName: string;
-  rank: string;
-  rankTier: RankTier;
-  avatarUrl: string;
-  gameIds: number[];
-}
-
 @Component({
   selector: 'app-roster',
   templateUrl: './roster.component.html',
@@ -34,55 +24,43 @@ interface EditableMember {
 })
 export class RosterComponent implements OnInit {
   loading = true;
-  isAdmin = false;
 
-  members: RosterMember[] = [];
+  // Main roster: the Discord-role-scoped guild members from Qutie (no hand-managed list).
+  mainMembers: QutieGuildMember[] = [];
+  mainUnavailable = false;   // Qutie unreachable / no read key configured
+
   games: PublicGame[] = [];
   sections: GameRosterSection[] = [];
 
   private erroredAvatars = new Set<string>();
   private readonly tierOrder: Record<string, number> = { owner: 0, admin: 1, officer: 2, member: 3 };
 
-  // Admin editor
-  readonly rankTiers: { tier: RankTier; label: string }[] = [
-    { tier: 'owner', label: 'Owner' },
-    { tier: 'admin', label: 'Admin' },
-    { tier: 'officer', label: 'Officer' },
-    { tier: 'member', label: 'Member' }
-  ];
-  editorOpen = false;
-  editor: EditableMember | null = null;
-  editorSaving = false;
-  statusMessage = '';
-  errorMessage = '';
-
   constructor(
-    private rosterService: RosterService,
     private gameService: GameService,
-    private qutieService: QutieService,
-    private authService: AuthService
+    private qutieService: QutieService
   ) { }
 
   ngOnInit(): void {
-    this.authService.isAdmin$.subscribe(isAdmin => this.isAdmin = isAdmin === true);
-
     this.gameService.getPublicGames().subscribe({
       next: games => {
         this.games = games;
+        this.loadMainRoster();
         this.loadGameSections();
       },
-      error: () => { /* tokens fall back to initials; no per-game sections */ }
+      // Without the games list, tokens fall back to initials and there are no per-game sections,
+      // but the main roster can still load.
+      error: () => this.loadMainRoster()
     });
+  }
 
-    this.rosterService.getRoster().subscribe({
-      next: members => {
-        this.members = [...members].sort((a, b) => {
-          const tier = (this.tierOrder[a.rankTier] ?? 9) - (this.tierOrder[b.rankTier] ?? 9);
-          return tier !== 0 ? tier : a.displayName.localeCompare(b.displayName);
-        });
-        this.loading = false;
-      },
-      error: () => { this.loading = false; }
+  private loadMainRoster(): void {
+    this.qutieService.getGuildMembers(QUTIE_MAIN_ROSTER_ROLE_ID).subscribe(members => {
+      this.loading = false;
+      if (members === null) { this.mainUnavailable = true; return; }
+      this.mainMembers = [...members].sort((a, b) => {
+        const tier = (this.tierOrder[a.rank.toLowerCase()] ?? 9) - (this.tierOrder[b.rank.toLowerCase()] ?? 9);
+        return tier !== 0 ? tier : a.displayName.localeCompare(b.displayName);
+      });
     });
   }
 
@@ -107,11 +85,17 @@ export class RosterComponent implements OnInit {
 
   // ---------- played-game tokens ----------
 
-  tokens(member: RosterMember): GameToken[] {
+  /** Maps a member's Qutie game ids to the local games showcase (linked via PublicGame.qutieGameId). */
+  tokens(member: QutieGuildMember): GameToken[] {
     return member.gameIds
-      .map(id => this.games.find(g => g.gameId === id))
+      .map(qid => this.games.find(g => g.qutieGameId === qid))
       .filter((g): g is PublicGame => !!g)
       .map(g => ({ name: g.gameName, imageUrl: g.imageUrl, initials: this.initials(g.gameName) }));
+  }
+
+  /** Lower-cased permission tier ('owner'|'admin'|'officer'|'member') used for the role colour class. */
+  rankTier(rank: string): string {
+    return (rank || 'member').toLowerCase();
   }
 
   // ---------- avatars ----------
@@ -149,99 +133,5 @@ export class RosterComponent implements OnInit {
   sinceLabel(iso: string | null): string {
     if (!iso) return '';
     return new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
-  }
-
-  // ==================== Admin: main roster editing ====================
-
-  openEditor(member: RosterMember | null): void {
-    if (!this.isAdmin) return;
-    this.editor = member
-      ? { memberId: member.memberId, displayName: member.displayName, rank: member.rank,
-          rankTier: member.rankTier, avatarUrl: member.avatarUrl ?? '', gameIds: [...member.gameIds] }
-      : { memberId: 0, displayName: '', rank: 'Member', rankTier: 'member', avatarUrl: '', gameIds: [] };
-    this.editorOpen = true;
-    this.errorMessage = '';
-    this.statusMessage = '';
-  }
-
-  closeEditor(): void {
-    this.editorOpen = false;
-    this.editor = null;
-  }
-
-  toggleEditorGame(gameId: number): void {
-    if (!this.editor) return;
-    const i = this.editor.gameIds.indexOf(gameId);
-    if (i >= 0) this.editor.gameIds.splice(i, 1);
-    else this.editor.gameIds.push(gameId);
-  }
-
-  editorHasGame(gameId: number): boolean {
-    return !!this.editor && this.editor.gameIds.includes(gameId);
-  }
-
-  /** Auto-fills the rank label when the tier changes and the label is still a default. */
-  onTierChange(): void {
-    if (!this.editor) return;
-    const defaults = this.rankTiers.map(t => t.label);
-    if (!this.editor.rank.trim() || defaults.includes(this.editor.rank)) {
-      this.editor.rank = this.rankTiers.find(t => t.tier === this.editor!.rankTier)?.label ?? 'Member';
-    }
-  }
-
-  saveEditor(): void {
-    const e = this.editor;
-    if (!e) return;
-    if (!e.displayName.trim()) {
-      this.errorMessage = 'Name is required.';
-      return;
-    }
-
-    const payload: MemberPayload = {
-      displayName: e.displayName.trim(),
-      rank: e.rank.trim() || 'Member',
-      rankTier: e.rankTier,
-      avatarUrl: e.avatarUrl.trim() || null,
-      gameIds: e.gameIds
-    };
-
-    this.editorSaving = true;
-    const done = (ok: boolean, msg: string) => {
-      this.editorSaving = false;
-      if (ok) { this.statusMessage = msg; this.closeEditor(); this.reload(); }
-      else { this.errorMessage = msg; }
-    };
-
-    if (e.memberId === 0) {
-      this.rosterService.addMember(payload).subscribe({
-        next: () => done(true, 'Member added.'),
-        error: () => done(false, 'Failed to add member.')
-      });
-    } else {
-      this.rosterService.updateMember(e.memberId, payload).subscribe({
-        next: () => done(true, 'Member saved.'),
-        error: () => done(false, 'Failed to save member.')
-      });
-    }
-  }
-
-  deleteEditorMember(): void {
-    const e = this.editor;
-    if (!e || e.memberId === 0) return;
-    if (!confirm(`Remove ${e.displayName} from the roster?`)) return;
-
-    this.rosterService.deleteMember(e.memberId).subscribe({
-      next: () => { this.statusMessage = `${e.displayName} removed.`; this.closeEditor(); this.reload(); },
-      error: () => this.errorMessage = 'Failed to remove member.'
-    });
-  }
-
-  private reload(): void {
-    this.rosterService.getRoster().subscribe({
-      next: members => this.members = [...members].sort((a, b) => {
-        const tier = (this.tierOrder[a.rankTier] ?? 9) - (this.tierOrder[b.rankTier] ?? 9);
-        return tier !== 0 ? tier : a.displayName.localeCompare(b.displayName);
-      })
-    });
   }
 }

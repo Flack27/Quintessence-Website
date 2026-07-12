@@ -13,7 +13,7 @@
     <!-- Navigation Links - right aligned -->
     <ul [ngClass]="{'mobile-open': isMobileMenuOpen}">
       <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileMenu()">Home</a></li>
-      <li><a [href]="applyUrl" (click)="closeMobileMenu()">Apply</a></li>
+      <li><a [href]="applyUrl" target="_blank" rel="noopener" (click)="closeMobileMenu()">Apply</a></li>
       <li><a routerLink="/games" routerLinkActive="active" (click)="closeMobileMenu()">Games</a></li>
       <li><a routerLink="/roster" routerLinkActive="active" (click)="closeMobileMenu()">Roster</a></li>
       <!-- No login link: admins use the hidden /login route -->

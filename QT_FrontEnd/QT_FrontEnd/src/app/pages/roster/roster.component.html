@@ -1,3 +1,4 @@
+<div class="roster-bg" aria-hidden="true"></div>
 <div class="container">
   <div class="page-header">
     <div class="title">
@@ -10,38 +11,22 @@
     <p>Loading roster...</p>
   </div>
 
-  <div *ngIf="statusMessage" class="success-message">{{ statusMessage }}</div>
-  <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
-
   <ng-container *ngIf="!loading">
 
-    <!-- Main roster (static, admin-managed) -->
-    <div class="roster-section-head" *ngIf="members.length > 0 || isAdmin">
-      <h2>Main Roster</h2>
-      <span class="roster-section-note">the people who run and carry the guild</span>
-    </div>
-
-    <div class="invisible-container" *ngIf="members.length > 0 || isAdmin">
-      <div class="item" *ngFor="let member of members">
-        <button class="member-edit-btn" *ngIf="isAdmin" title="Edit member" (click)="openEditor(member)">
-          <i class="fas fa-pen"></i>
-        </button>
+    <!-- Main roster: guild members holding the main-roster Discord role (pulled from Qutie) -->
+    <div class="invisible-container" *ngIf="mainMembers.length > 0">
+      <div class="item" *ngFor="let member of mainMembers">
         <img *ngIf="avatarOk(member.avatarUrl)" [src]="member.avatarUrl" (error)="onAvatarError(member.avatarUrl)"
              class="item-icon" alt="{{ member.displayName }}'s avatar" />
         <div *ngIf="!avatarOk(member.avatarUrl)" class="item-icon item-icon-initials">{{ initials(member.displayName) }}</div>
         <p class="name">{{ member.displayName }}</p>
-        <p class="role" [ngClass]="'role-' + member.rankTier">{{ member.rank }}</p>
+        <p class="role" [ngClass]="'role-' + rankTier(member.rank)">{{ member.rank }}</p>
         <div class="game-tokens" *ngIf="tokens(member).length > 0">
           <ng-container *ngFor="let token of tokens(member)">
             <img *ngIf="token.imageUrl" [src]="token.imageUrl" class="game-token" [alt]="token.name" [title]="token.name" />
             <span *ngIf="!token.imageUrl" class="game-token game-token-initials" [title]="token.name">{{ token.initials }}</span>
           </ng-container>
         </div>
-      </div>
-
-      <!-- Admin: add member -->
-      <div class="item member-add" *ngIf="isAdmin" (click)="openEditor(null)">
-        <div class="member-add-inner"><i class="fas fa-plus"></i><span>Add member</span></div>
       </div>
     </div>
 
@@ -81,61 +66,11 @@
       Only aggregate participation is shown publicly. Attendance comes straight from our event history.
     </p>
 
-    <!-- Empty state (no members yet, not admin) -->
-    <div class="roster-coming-soon" *ngIf="members.length === 0 && visibleSections.length === 0 && !isAdmin">
+    <!-- Empty state (nothing to show yet) -->
+    <div class="roster-coming-soon" *ngIf="mainMembers.length === 0 && visibleSections.length === 0">
       <i class="fas fa-users"></i>
       <h2>Roster coming soon</h2>
       <p>Our roster is being set up. Check back soon!</p>
     </div>
   </ng-container>
-</div>
-
-<!-- Admin: add/edit member overlay -->
-<div class="editor-overlay" *ngIf="editorOpen && editor" (click)="$event.target === $event.currentTarget && closeEditor()">
-  <div class="editor-modal">
-    <h3>{{ editor.memberId === 0 ? 'Add member' : 'Edit member' }}</h3>
-    <p class="editor-sub">The main roster is a static list — it doesn't come from Qutie.</p>
-
-    <div class="editor-form">
-      <div class="editor-row">
-        <label class="editor-field">
-          <span>Name</span>
-          <input type="text" [(ngModel)]="editor.displayName">
-        </label>
-        <label class="editor-field">
-          <span>Rank tier</span>
-          <select [(ngModel)]="editor.rankTier" (ngModelChange)="onTierChange()">
-            <option *ngFor="let t of rankTiers" [value]="t.tier">{{ t.label }}</option>
-          </select>
-        </label>
-      </div>
-
-      <label class="editor-field">
-        <span>Rank label <small>(shown on the card)</small></span>
-        <input type="text" placeholder="e.g. Guild Master, Shotcaller" [(ngModel)]="editor.rank">
-      </label>
-
-      <label class="editor-field">
-        <span>Avatar URL <small>(optional — initials shown otherwise)</small></span>
-        <input type="text" placeholder="https://cdn.discordapp.com/avatars/..." [(ngModel)]="editor.avatarUrl">
-      </label>
-
-      <div class="editor-field" *ngIf="games.length > 0">
-        <span>Games played <small>(shown as icon tokens)</small></span>
-        <div class="game-chip-picker">
-          <button type="button" *ngFor="let game of games" class="game-chip"
-                  [class.selected]="editorHasGame(game.gameId)" (click)="toggleEditorGame(game.gameId)">
-            <img *ngIf="game.imageUrl" [src]="game.imageUrl" class="game-chip-icon" [alt]="game.gameName">
-            {{ game.gameName }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="editor-actions">
-      <button class="form-btn primary" [disabled]="editorSaving" (click)="saveEditor()">{{ editorSaving ? 'Saving...' : 'Save' }}</button>
-      <button class="form-btn ghost" (click)="closeEditor()">Cancel</button>
-      <button class="form-btn danger" *ngIf="editor.memberId !== 0" (click)="deleteEditorMember()">Remove</button>
-    </div>
-  </div>
 </div>

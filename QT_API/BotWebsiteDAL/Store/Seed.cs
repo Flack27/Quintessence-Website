@@ -81,9 +81,5 @@ namespace QuintessenceWebsiteDAL.Store
             new GuildTimelineEntryDTO { EntryId = 2, DisplayOrder = 1, Period = "October 2024", Title = "Throne and Liberty Launch",
                 Description = "We secured our first castle during the Siege the Day event, claiming another in the first release castle siege." }
         };
-
-        // The main roster starts empty - add the real members in the admin view so no
-        // placeholder people go live.
-        public static List<RosterMemberDTO> Roster() => new();
     }
 }

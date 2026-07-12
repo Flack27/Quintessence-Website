@@ -25,13 +25,4 @@ namespace QuintessenceWebsiteInterface.INTERFACE
         GuildTimelineEntryDTO AddEntry(GuildTimelineEntryDTO entry);
         bool DeleteEntry(long entryId);
     }
-
-    public interface IRosterDAL
-    {
-        List<RosterMemberDTO> GetMembers();
-        RosterMemberDTO AddMember(RosterMemberDTO member);
-        bool UpdateMember(RosterMemberDTO member);
-        bool DeleteMember(long memberId);
-        bool ReorderMembers(List<long> orderedMemberIds);
-    }
 }

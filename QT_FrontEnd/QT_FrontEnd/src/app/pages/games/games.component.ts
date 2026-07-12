@@ -107,12 +107,14 @@ export class GamesComponent implements OnInit {
     });
   }
 
+  // Imageless games still show publicly (the template renders a placeholder card);
+  // a game shouldn't be invisible just because no card art was uploaded yet.
   get activeGames(): AdminGame[] {
-    return this.games.filter(g => g.status !== 'Previous' && (!!g.imageUrl || this.isAdmin));
+    return this.games.filter(g => g.status !== 'Previous');
   }
 
   get archivedGames(): AdminGame[] {
-    return this.games.filter(g => g.status === 'Previous' && (!!g.imageUrl || this.isAdmin));
+    return this.games.filter(g => g.status === 'Previous');
   }
 
   setTab(tab: 'upcoming' | 'prior'): void {
