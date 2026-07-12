@@ -12,16 +12,13 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      # Discord OAuth app (required — the API won't boot without these). Redirect URI
-      # in the Discord app must be: https://quintessence-eu.com/api/accounts/auth-callback
-      - Discord__ClientId=${DISCORD_CLIENT_ID}
-      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET}
-      # Admin allowlist (Discord user ids). Add more as __1, __2, ...
-      - Discord__AdminUserIds__0=${DISCORD_ADMIN_ID}
       # Optional Qutie public-API proxy (per-game roster + events graph light up when set).
       - Qutie__ApiBase=${QUTIE_API_BASE:-}
       - Qutie__ApiKey=${QUTIE_API_KEY:-}
     volumes:
+      # Discord OAuth ClientId/Secret + admin user-id allowlist (gitignored secrets).
+      # The Discord app's redirect URI must be https://quintessence-eu.com/api/accounts/auth-callback
+      - "./QT_API/Quintessence Website/appsettings.Production.json:/app/appsettings.Production.json:ro"
       - qt-appdata:/app/App_Data      # JSON data store (games/timeline/roster) — BACK UP
       - qt-uploads:/app/uploads        # uploaded game images — BACK UP
     expose:
