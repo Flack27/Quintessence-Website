@@ -12,62 +12,27 @@
   </div>
 
   <ng-container *ngIf="!loading">
-
-    <!-- Main roster: guild members holding the main-roster Discord role (pulled from Qutie) -->
-    <div class="invisible-container" *ngIf="mainMembers.length > 0">
-      <div class="item" *ngFor="let member of mainMembers">
+    <!-- Main roster: members holding the roster role, labelled by their highest rank role -->
+    <div class="invisible-container" *ngIf="members.length > 0">
+      <div class="item" *ngFor="let member of members">
         <img *ngIf="avatarOk(member.avatarUrl)" [src]="member.avatarUrl" (error)="onAvatarError(member.avatarUrl)"
              class="item-icon" alt="{{ member.displayName }}'s avatar" />
         <div *ngIf="!avatarOk(member.avatarUrl)" class="item-icon item-icon-initials">{{ initials(member.displayName) }}</div>
         <p class="name">{{ member.displayName }}</p>
-        <p class="role" [ngClass]="'role-' + rankTier(member.rank)">{{ member.rank }}</p>
+        <p class="role" [style.color]="roleColor(member)">{{ roleName(member) }}</p>
         <div class="game-tokens" *ngIf="tokens(member).length > 0">
           <ng-container *ngFor="let token of tokens(member)">
             <img *ngIf="token.imageUrl" [src]="token.imageUrl" class="game-token" [alt]="token.name" [title]="token.name" />
-            <span *ngIf="!token.imageUrl" class="game-token game-token-initials" [title]="token.name">{{ token.initials }}</span>
+            <span *ngIf="!token.imageUrl && token.emojiChar" class="game-token game-token-emoji" [title]="token.name">{{ token.emojiChar }}</span>
+            <span *ngIf="!token.imageUrl && !token.emojiChar" class="game-token game-token-initials"
+                  [style.background]="token.color || null" [title]="token.name">{{ token.initials }}</span>
           </ng-container>
         </div>
       </div>
     </div>
 
-    <!-- Per active game (linked to Qutie) -->
-    <ng-container *ngFor="let section of visibleSections">
-      <div class="roster-section-head game-section-head">
-        <h2>{{ section.game.gameName }} — Active Roster</h2>
-        <span class="roster-section-note">sorted by attendance</span>
-      </div>
-      <div class="game-roster-grid">
-        <div class="gr-member" *ngFor="let member of section.members">
-          <div class="ring-wrap" [ngClass]="attendanceClass(member.attendancePercent)">
-            <svg width="62" height="62" viewBox="0 0 62 62" aria-hidden="true">
-              <circle cx="31" cy="31" r="26" fill="none" class="ring-track" stroke-width="4"/>
-              <circle cx="31" cy="31" r="26" fill="none" class="ring-fill" stroke-width="4" stroke-linecap="round"
-                      [attr.stroke-dasharray]="ringDash(member.attendancePercent)"/>
-            </svg>
-            <img *ngIf="avatarOk(member.avatarUrl)" [src]="member.avatarUrl" (error)="onAvatarError(member.avatarUrl)"
-                 class="gr-avatar" alt="{{ member.displayName }}'s avatar" />
-            <div *ngIf="!avatarOk(member.avatarUrl)" class="gr-avatar gr-avatar-initials">{{ initials(member.displayName) }}</div>
-          </div>
-          <div class="gr-info">
-            <div class="gr-name">{{ member.displayName }}</div>
-            <div class="gr-meta">
-              {{ member.eventsAttended }}/{{ member.eventsEligible }} events<ng-container *ngIf="member.joined"> · since {{ sinceLabel(member.joined) }}</ng-container>
-            </div>
-            <div class="gr-roles" *ngIf="member.rosterRoles.length > 0">{{ member.rosterRoles.join(', ') }}</div>
-          </div>
-          <div class="gr-percent" [ngClass]="attendanceClass(member.attendancePercent)">
-            {{ member.attendancePercent != null ? member.attendancePercent + '%' : '—' }}
-          </div>
-        </div>
-      </div>
-    </ng-container>
-
-    <p class="roster-footnote" *ngIf="visibleSections.length > 0">
-      Only aggregate participation is shown publicly. Attendance comes straight from our event history.
-    </p>
-
-    <!-- Empty state (nothing to show yet) -->
-    <div class="roster-coming-soon" *ngIf="mainMembers.length === 0 && visibleSections.length === 0">
+    <!-- Empty / unavailable state -->
+    <div class="roster-coming-soon" *ngIf="members.length === 0">
       <i class="fas fa-users"></i>
       <h2>Roster coming soon</h2>
       <p>Our roster is being set up. Check back soon!</p>

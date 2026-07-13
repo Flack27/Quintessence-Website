@@ -1,20 +1,14 @@
 import { Component, OnInit } from '@angular/core';
-import { GameService, PublicGame } from '../../services/game.service';
-import { QutieService, QutieGameMember, QutieGuildMember } from '../../services/qutie.service';
-import { QUTIE_MAIN_ROSTER_ROLE_ID } from '../../qutie.config';
+import { QutieService, QutieGame, QutieGuildMember } from '../../services/qutie.service';
+import { QUTIE_MAIN_ROSTER_ROLE_ID, QUTIE_ROSTER_RANK_ROLE_IDS } from '../../qutie.config';
 
-/** A played-game token on a main-roster member (icon from the local games showcase). */
+/** A played-game token on a roster member, rendered from the Qutie game's emoji. */
 interface GameToken {
   name: string;
-  imageUrl: string | null;
-  initials: string;
-}
-
-/** One "active game" roster section, fed by the Qutie per-game members endpoint. */
-interface GameRosterSection {
-  game: PublicGame;
-  members: QutieGameMember[];
-  loaded: boolean;
+  imageUrl: string | null;   // custom Discord emoji -> CDN image
+  emojiChar: string | null;  // unicode emoji -> rendered as text
+  color: string | null;      // the game's colour (fallback badge tint)
+  initials: string;          // last-resort fallback
 }
 
 @Component({
@@ -24,78 +18,75 @@ interface GameRosterSection {
 })
 export class RosterComponent implements OnInit {
   loading = true;
+  unavailable = false;   // Qutie unreachable / no read key configured
 
-  // Main roster: the Discord-role-scoped guild members from Qutie (no hand-managed list).
-  mainMembers: QutieGuildMember[] = [];
-  mainUnavailable = false;   // Qutie unreachable / no read key configured
-
-  games: PublicGame[] = [];
-  sections: GameRosterSection[] = [];
+  members: QutieGuildMember[] = [];
+  private gamesById = new Map<string, QutieGame>();
 
   private erroredAvatars = new Set<string>();
-  private readonly tierOrder: Record<string, number> = { owner: 0, admin: 1, officer: 2, member: 3 };
+  private readonly rankOrder = new Map<string, number>(
+    QUTIE_ROSTER_RANK_ROLE_IDS.map((id, i) => [id, i] as [string, number]));
+  // Colours by rank priority (highest first), matching the config order.
+  private readonly rankColors = ['#f5b942', '#eb2f8a', '#63c1ff', '#b3a3d1'];
 
-  constructor(
-    private gameService: GameService,
-    private qutieService: QutieService
-  ) { }
+  constructor(private qutieService: QutieService) { }
 
   ngOnInit(): void {
-    this.gameService.getPublicGames().subscribe({
-      next: games => {
-        this.games = games;
-        this.loadMainRoster();
-        this.loadGameSections();
-      },
-      // Without the games list, tokens fall back to initials and there are no per-game sections,
-      // but the main roster can still load.
-      error: () => this.loadMainRoster()
+    // Games first (they carry the emoji + colour the tokens use), then the roster.
+    this.qutieService.getGames().subscribe(games => {
+      if (games) for (const g of games) this.gamesById.set(g.gameId, g);
+      this.loadRoster();
     });
   }
 
-  private loadMainRoster(): void {
-    this.qutieService.getGuildMembers(QUTIE_MAIN_ROSTER_ROLE_ID).subscribe(members => {
+  private loadRoster(): void {
+    this.qutieService.getGuildMembers(QUTIE_MAIN_ROSTER_ROLE_ID, QUTIE_ROSTER_RANK_ROLE_IDS).subscribe(members => {
       this.loading = false;
-      if (members === null) { this.mainUnavailable = true; return; }
-      this.mainMembers = [...members].sort((a, b) => {
-        const tier = (this.tierOrder[a.rank.toLowerCase()] ?? 9) - (this.tierOrder[b.rank.toLowerCase()] ?? 9);
-        return tier !== 0 ? tier : a.displayName.localeCompare(b.displayName);
+      if (members === null) { this.unavailable = true; return; }
+      this.members = [...members].sort((a, b) => {
+        const ra = this.rankIndex(a), rb = this.rankIndex(b);
+        return ra !== rb ? ra - rb : a.displayName.localeCompare(b.displayName);
       });
     });
   }
 
-  private loadGameSections(): void {
-    const linkedActive = this.games.filter(g => g.status === 'Active' && !!g.qutieGameId);
-    this.sections = linkedActive.map(game => ({ game, members: [], loaded: false }));
+  // ---------- rank role ----------
 
-    for (const section of this.sections) {
-      this.qutieService.getGameMembers(section.game.qutieGameId!).subscribe(members => {
-        section.loaded = true;
-        if (members) {
-          section.members = [...members].sort(
-            (a, b) => (b.attendancePercent ?? -1) - (a.attendancePercent ?? -1));
-        }
-      });
-    }
+  private rankIndex(m: QutieGuildMember): number {
+    const id = m.rankRole?.roleId;
+    return id != null && this.rankOrder.has(id) ? this.rankOrder.get(id)! : 99;
   }
 
-  get visibleSections(): GameRosterSection[] {
-    return this.sections.filter(s => s.members.length > 0);
+  roleName(m: QutieGuildMember): string {
+    return m.rankRole?.name ?? 'Member';
   }
 
-  // ---------- played-game tokens ----------
-
-  /** Maps a member's Qutie game ids to the local games showcase (linked via PublicGame.qutieGameId). */
-  tokens(member: QutieGuildMember): GameToken[] {
-    return member.gameIds
-      .map(qid => this.games.find(g => g.qutieGameId === qid))
-      .filter((g): g is PublicGame => !!g)
-      .map(g => ({ name: g.gameName, imageUrl: g.imageUrl, initials: this.initials(g.gameName) }));
+  roleColor(m: QutieGuildMember): string {
+    const i = this.rankIndex(m);
+    return this.rankColors[i] ?? this.rankColors[this.rankColors.length - 1];
   }
 
-  /** Lower-cased permission tier ('owner'|'admin'|'officer'|'member') used for the role colour class. */
-  rankTier(rank: string): string {
-    return (rank || 'member').toLowerCase();
+  // ---------- game tokens ----------
+
+  /** First 4 games the member plays (guild game order), rendered from each Qutie game's emoji. */
+  tokens(m: QutieGuildMember): GameToken[] {
+    return m.gameIds
+      .map(id => this.gamesById.get(id))
+      .filter((g): g is QutieGame => !!g)
+      .slice(0, 4)
+      .map(g => this.tokenFor(g));
+  }
+
+  private tokenFor(g: QutieGame): GameToken {
+    const emoji = g.emoji ?? '';
+    const custom = emoji.match(/^<(a)?:\w+:(\d+)>$/);   // custom Discord emoji <:name:id> / <a:name:id>
+    return {
+      name: g.gameName,
+      imageUrl: custom ? `https://cdn.discordapp.com/emojis/${custom[2]}.${custom[1] ? 'gif' : 'png'}` : null,
+      emojiChar: !custom && emoji ? emoji : null,
+      color: g.color,
+      initials: this.initials(g.gameName)
+    };
   }
 
   // ---------- avatars ----------
@@ -112,26 +103,5 @@ export class RosterComponent implements OnInit {
     const parts = (name || '').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
     return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-  }
-
-  // ---------- attendance ring ----------
-
-  readonly ringCircumference = 2 * Math.PI * 26;
-
-  ringDash(percent: number | null): string {
-    const filled = ((percent ?? 0) / 100) * this.ringCircumference;
-    return `${filled} ${this.ringCircumference}`;
-  }
-
-  attendanceClass(percent: number | null): string {
-    if (percent == null) return 'att-none';
-    if (percent >= 80) return 'att-good';
-    if (percent >= 60) return 'att-warn';
-    return 'att-bad';
-  }
-
-  sinceLabel(iso: string | null): string {
-    if (!iso) return '';
-    return new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
   }
 }

@@ -207,25 +207,28 @@
         </div>
       </div>
 
-      <!-- Events & videos: auto-generated from Qutie's event history -->
+      <!-- Events & videos: signups per event over time (auto-generated from Qutie's event history) -->
       <div class="events-section" *ngIf="qutieEvents">
         <h3 class="section-title">Events &amp; Videos</h3>
         <p class="events-subtitle">{{ qutieEvents.length }} events · {{ vodCount }} with video — click a highlighted point to watch</p>
         <div class="events-graph-panel">
-          <svg [attr.width]="graphW" [attr.height]="graphH" [attr.viewBox]="'0 0 ' + graphW + ' ' + graphH" role="img"
-               aria-label="Events per month with video markers">
+          <svg [attr.viewBox]="'0 0 ' + graphW + ' ' + graphH" width="100%" [attr.height]="graphH"
+               preserveAspectRatio="xMidYMid meet" role="img"
+               aria-label="Signups per event over time, with markers for events that have a video">
             <g *ngFor="let line of graphGridLines">
-              <line x1="30" [attr.y1]="line.y" [attr.x2]="graphW - 10" [attr.y2]="line.y" class="graph-gridline"/>
-              <text x="26" [attr.y]="line.y + 4" text-anchor="end" class="graph-label">{{ line.label }}</text>
+              <line x1="40" [attr.y1]="line.y" [attr.x2]="graphW - 16" [attr.y2]="line.y" class="graph-gridline"/>
+              <text x="34" [attr.y]="line.y + 4" text-anchor="end" class="graph-label">{{ line.label }}</text>
             </g>
-            <g *ngFor="let month of graphMonths">
-              <rect [attr.x]="month.x" [attr.y]="month.y" [attr.width]="month.w" [attr.height]="month.h" rx="4" class="graph-bar"/>
-              <text [attr.x]="month.x + month.w / 2" [attr.y]="graphH - 10" text-anchor="middle" class="graph-label">{{ month.label }}</text>
-            </g>
-            <circle *ngFor="let dot of graphDots" [attr.cx]="dot.cx" [attr.cy]="dot.cy" r="6" class="graph-vod-dot"
-                    (click)="openEventVideo(dot)">
-              <title>{{ dotTooltip(dot) }}</title>
-            </circle>
+            <polyline [attr.points]="graphLine" class="graph-trend"/>
+            <ng-container *ngFor="let p of graphPoints">
+              <circle *ngIf="!p.hasVod" [attr.cx]="p.cx" [attr.cy]="p.cy" r="3.5" class="graph-event-dot">
+                <title>{{ dotTooltip(p.event) }}</title>
+              </circle>
+              <circle *ngIf="p.hasVod" [attr.cx]="p.cx" [attr.cy]="p.cy" r="7" class="graph-vod-dot" (click)="openEventVideo(p.event)">
+                <title>{{ dotTooltip(p.event) }} · click to watch</title>
+              </circle>
+            </ng-container>
+            <text *ngFor="let tick of graphMonthTicks" [attr.x]="tick.x" [attr.y]="graphH - 10" text-anchor="middle" class="graph-label">{{ tick.label }}</text>
           </svg>
         </div>
       </div>

@@ -408,6 +408,14 @@
   color: var(--text-body, #e8e0f5);
   background: var(--surface-inset, rgba(11, 9, 22, .6));
 }
+.game-token-emoji {
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  line-height: 1;
+  border-color: transparent;
+  background: var(--surface-inset, rgba(11, 9, 22, .6));
+}
 
 /* ---- per-game roster grid ---- */
 .game-roster-grid {

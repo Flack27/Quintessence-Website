@@ -33,12 +33,17 @@ namespace Quintessence_Website.Services
         /// <summary>GET /api/v1/games - a bare array, passed through as-is.</summary>
         public Task<string?> GetGamesJson() => GetRawJson("api/v1/games");
 
-        /// <summary>GET /api/v1/members[?roleId=...] - paged, returned as { members:[...], total }.
-        /// The optional role id scopes the roster to members holding that Discord role.</summary>
-        public Task<string?> GetGuildMembersJson(string? roleId) =>
-            GetPagedJson(string.IsNullOrWhiteSpace(roleId)
-                ? "api/v1/members"
-                : $"api/v1/members?roleId={Uri.EscapeDataString(roleId)}", "members");
+        /// <summary>GET /api/v1/members[?roleId=&rankRoleIds=] - paged, returned as { members:[...], total }.
+        /// roleId scopes the roster to members holding that Discord role; rankRoleIds (comma-separated,
+        /// highest first) adds each member's highest-held rankRole + its live name.</summary>
+        public Task<string?> GetGuildMembersJson(string? roleId, string? rankRoleIds)
+        {
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(roleId)) query.Add($"roleId={Uri.EscapeDataString(roleId)}");
+            if (!string.IsNullOrWhiteSpace(rankRoleIds)) query.Add($"rankRoleIds={Uri.EscapeDataString(rankRoleIds)}");
+            var path = "api/v1/members" + (query.Count > 0 ? "?" + string.Join("&", query) : "");
+            return GetPagedJson(path, "members");
+        }
 
         /// <summary>GET /api/v1/games/{gameId}/members - paged, returned as { members:[...], total }.</summary>
         public Task<string?> GetGameMembersJson(string gameId) =>

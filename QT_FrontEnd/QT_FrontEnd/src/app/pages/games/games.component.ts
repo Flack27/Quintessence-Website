@@ -7,16 +7,11 @@ import {
 } from '../../services/game.service';
 import { QutieService, QutieGame, QutieEvent } from '../../services/qutie.service';
 
-/** One month column of the events graph. */
-interface GraphMonth {
-  label: string;
-  x: number; y: number; w: number; h: number;
-  count: number;
-}
-
-/** One clickable VOD dot on the events graph. */
-interface GraphDot {
+/** One event plotted on the signups-per-event-over-time graph. */
+interface GraphPoint {
   cx: number; cy: number;
+  signups: number;
+  hasVod: boolean;
   event: QutieEvent;
 }
 
@@ -39,12 +34,13 @@ export class GamesComponent implements OnInit {
   detailsLoading = false;
   qutieEvents: QutieEvent[] | null = null;   // null = section hidden (not pulled / unavailable)
 
-  // Events graph geometry (computed from qutieEvents)
-  graphMonths: GraphMonth[] = [];
-  graphDots: GraphDot[] = [];
-  graphW = 0;
-  readonly graphH = 200;
+  // Events graph geometry (signups per event over time; computed from qutieEvents)
+  graphPoints: GraphPoint[] = [];
+  graphLine = '';
+  readonly graphW = 680;
+  readonly graphH = 240;
   graphGridLines: { y: number; label: number }[] = [];
+  graphMonthTicks: { x: number; label: string }[] = [];
 
   // ----- Video / image overlays -----
   video: { youtubeId: string; title: string; subtitle: string } | null = null;
@@ -150,8 +146,9 @@ export class GamesComponent implements OnInit {
     this.details = null;
     this.detailsLoading = true;
     this.qutieEvents = null;
-    this.graphMonths = [];
-    this.graphDots = [];
+    this.graphPoints = [];
+    this.graphLine = '';
+    this.graphMonthTicks = [];
     document.body.style.overflow = 'hidden';
 
     this.gameService.getGameDetails(game.gameId).subscribe({
@@ -160,9 +157,11 @@ export class GamesComponent implements OnInit {
         this.detailsLoading = false;
         if (details.pullFromQutie && details.qutieGameId) {
           this.qutieService.getGameEvents(details.qutieGameId).subscribe(events => {
-            if (events && events.length > 0) {
-              this.qutieEvents = events;
-              this.buildGraph(events);
+            // Drop cancelled events (they inflate the count and carry no real signups).
+            const active = (events ?? []).filter(e => e.status !== 'cancelled');
+            if (active.length > 0) {
+              this.qutieEvents = active;
+              this.buildGraph(active);
             }
           });
         }
@@ -185,55 +184,47 @@ export class GamesComponent implements OnInit {
     return (this.qutieEvents ?? []).filter(e => e.vodCount > 0).length;
   }
 
-  /** Buckets events into calendar months and lays out bars + VOD dots. */
+  /** Plots each event as one point (x = date, y = signups); VOD events become bigger clickable dots. */
   private buildGraph(events: QutieEvent[]): void {
-    const padL = 34, padR = 14, padT = 12, padB = 30, slot = 84;
-    const ih = this.graphH - padT - padB;
+    const padL = 40, padR = 16, padT = 16, padB = 34;
+    const iw = this.graphW - padL - padR, ih = this.graphH - padT - padB;
 
     const sorted = [...events].sort((a, b) => a.startAt.localeCompare(b.startAt));
+    const t0 = new Date(sorted[0].startAt).getTime();
+    const t1 = new Date(sorted[sorted.length - 1].startAt).getTime();
+    const span = Math.max(1, t1 - t0);
+    const maxSignups = Math.max(4, ...sorted.map(e => e.signupCount));
+
+    const xFor = (ms: number) => padL + ((ms - t0) / span) * iw;
+    const yFor = (v: number) => padT + ih - (v / maxSignups) * ih;
+
+    this.graphGridLines = [0, Math.round(maxSignups / 2), maxSignups].map(v => ({ y: yFor(v), label: v }));
+
+    this.graphPoints = sorted.map(e => ({
+      cx: xFor(new Date(e.startAt).getTime()),
+      cy: yFor(e.signupCount),
+      signups: e.signupCount,
+      hasVod: e.vodCount > 0,
+      event: e
+    }));
+    this.graphLine = this.graphPoints.map(p => `${p.cx.toFixed(1)},${p.cy.toFixed(1)}`).join(' ');
+
+    // Month ticks across the span, sampled so labels never crowd.
+    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const first = new Date(sorted[0].startAt);
     const last = new Date(sorted[sorted.length - 1].startAt);
-
-    const months: { key: string; label: string; count: number }[] = [];
     const cursor = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1));
     const end = new Date(Date.UTC(last.getUTCFullYear(), last.getUTCMonth(), 1));
-    const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    while (cursor <= end && months.length < 60) {
-      const key = `${cursor.getUTCFullYear()}-${cursor.getUTCMonth()}`;
-      months.push({ key, label: `${names[cursor.getUTCMonth()]} ${cursor.getUTCFullYear() % 100}`, count: 0 });
+    const months: { x: number; label: string }[] = [];
+    while (cursor <= end && months.length < 120) {
+      months.push({
+        x: xFor(Math.max(t0, cursor.getTime())),
+        label: `${names[cursor.getUTCMonth()]} ${cursor.getUTCFullYear() % 100}`
+      });
       cursor.setUTCMonth(cursor.getUTCMonth() + 1);
     }
-    const index = new Map(months.map((m, i) => [m.key, i]));
-    for (const e of sorted) {
-      const d = new Date(e.startAt);
-      const i = index.get(`${d.getUTCFullYear()}-${d.getUTCMonth()}`);
-      if (i !== undefined) months[i].count++;
-    }
-
-    const max = Math.max(4, ...months.map(m => m.count));
-    this.graphW = padL + padR + months.length * slot;
-    const y = (v: number) => padT + ih - (v / max) * ih;
-
-    this.graphGridLines = [0, Math.round(max / 2), max].map(v => ({ y: y(v), label: v }));
-
-    this.graphMonths = months.map((m, i) => ({
-      label: m.label,
-      x: padL + i * slot + slot * 0.18,
-      y: y(m.count),
-      w: slot * 0.64,
-      h: ih + padT - y(m.count),
-      count: m.count
-    }));
-
-    this.graphDots = sorted
-      .filter(e => e.vodCount > 0)
-      .map(e => {
-        const d = new Date(e.startAt);
-        const i = index.get(`${d.getUTCFullYear()}-${d.getUTCMonth()}`) ?? 0;
-        const daysInMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-        const frac = (d.getUTCDate() - 0.5) / daysInMonth;
-        return { cx: padL + i * slot + slot * frac, cy: y(months[i].count) - 10, event: e };
-      });
+    const step = Math.ceil(months.length / 8) || 1;
+    this.graphMonthTicks = months.filter((_, i) => i % step === 0);
   }
 
   private showVideo(youtubeId: string, title: string, subtitle: string): void {
@@ -243,8 +234,7 @@ export class GamesComponent implements OnInit {
   }
 
   /** Fetch the event's VODs and open the first (YouTube overlay, else a new tab). */
-  openEventVideo(dot: GraphDot): void {
-    const e = dot.event;
+  openEventVideo(e: QutieEvent): void {
     const date = new Date(e.startAt);
     const subtitle = `${date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} · ${e.signupCount} signed up`;
     this.qutieService.getEventVods(e.eventId).subscribe(vods => {
@@ -258,10 +248,10 @@ export class GamesComponent implements OnInit {
     });
   }
 
-  dotTooltip(dot: GraphDot): string {
-    const e = dot.event;
+  dotTooltip(e: QutieEvent): string {
     const date = new Date(e.startAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${e.title}\n${date} · ${e.vodCount} video${e.vodCount === 1 ? '' : 's'} · click to watch`;
+    const vods = e.vodCount > 0 ? ` · ${e.vodCount} video${e.vodCount === 1 ? '' : 's'}` : '';
+    return `${e.title}\n${date} · ${e.signupCount} signed up${vods}`;
   }
 
   /** Accepts youtu.be/ID, watch?v=ID, /embed/ID or a raw id. */

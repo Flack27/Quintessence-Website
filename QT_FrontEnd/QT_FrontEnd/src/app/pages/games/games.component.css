@@ -1042,7 +1042,6 @@ body::after {
   border: 1px solid var(--border-hairline, rgba(150, 69, 196, .15));
   border-radius: var(--border-radius-md, 10px);
   padding: 12px;
-  overflow-x: auto;
 }
 .graph-gridline { stroke: rgba(150, 69, 196, .18); }
 .graph-label {
@@ -1050,10 +1049,15 @@ body::after {
   font-size: 10px;
   font-family: inherit;
 }
-.graph-bar {
-  fill: rgba(99, 193, 255, .28);
-  stroke: rgba(99, 193, 255, .35);
+.graph-trend {
+  fill: none;
+  stroke: var(--secondary-blue, #63c1ff);
+  stroke-width: 1.5;
+  stroke-opacity: .4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
 }
+.graph-event-dot { fill: var(--secondary-blue, #63c1ff); }
 .graph-vod-dot {
   fill: var(--secondary-pink, #eb2f8a);
   stroke: #fff;

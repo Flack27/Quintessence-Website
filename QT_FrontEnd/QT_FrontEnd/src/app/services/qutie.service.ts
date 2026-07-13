@@ -20,15 +20,16 @@ export interface QutieGame {
   hasRoster: boolean;
 }
 
-// GET /api/qutie/members[?roleId=...]  ->  { members:[...], total }
+// GET /api/qutie/members[?roleId=&rankRoleIds=]  ->  { members:[...], total }
 export interface QutieGuildMember {
   memberKey: string;
   userId: string;
   displayName: string;
   avatarUrl: string | null;
   rank: string;             // Owner / Admin / Officer / Member (permission tier label)
+  rankRole: { roleId: string; name: string } | null;  // highest of the requested rankRoleIds + its live name
   joinedAt: string | null;
-  gameIds: string[];        // Qutie game ids (map to local games via PublicGame.qutieGameId)
+  gameIds: string[];        // Qutie game ids (games played)
 }
 
 // GET /api/qutie/games/{gameId}/members  ->  { members:[...], total }
@@ -79,9 +80,13 @@ export class QutieService {
     return this.http.get<QutieGame[]>('/api/qutie/games').pipe(catchError(() => of(null)));
   }
 
-  /** Guild members, optionally scoped to one Discord role (drives the main-roster cards). */
-  getGuildMembers(roleId?: string): Observable<QutieGuildMember[] | null> {
-    const q = roleId ? `?roleId=${encodeURIComponent(roleId)}` : '';
+  /** Guild members, optionally scoped to one Discord role, with each member's highest rank role
+   *  resolved from the ordered rankRoleIds (drives the main-roster cards). */
+  getGuildMembers(roleId?: string, rankRoleIds?: string[]): Observable<QutieGuildMember[] | null> {
+    const params: string[] = [];
+    if (roleId) params.push(`roleId=${encodeURIComponent(roleId)}`);
+    if (rankRoleIds && rankRoleIds.length) params.push(`rankRoleIds=${encodeURIComponent(rankRoleIds.join(','))}`);
+    const q = params.length ? `?${params.join('&')}` : '';
     return this.http.get<{ members: QutieGuildMember[] }>(`/api/qutie/members${q}`)
       .pipe(map(r => r.members ?? []), catchError(() => of(null)));
   }

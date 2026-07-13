@@ -25,7 +25,8 @@ namespace Quintessence_Website.Controllers
         public Task<IActionResult> Games() => Passthrough(_qutie.GetGamesJson());
 
         [HttpGet("members")]
-        public Task<IActionResult> Members([FromQuery] string? roleId) => Passthrough(_qutie.GetGuildMembersJson(roleId));
+        public Task<IActionResult> Members([FromQuery] string? roleId, [FromQuery] string? rankRoleIds) =>
+            Passthrough(_qutie.GetGuildMembersJson(roleId, rankRoleIds));
 
         [HttpGet("games/{gameId}/members")]
         public Task<IActionResult> GameMembers(string gameId) => Passthrough(_qutie.GetGameMembersJson(gameId));
