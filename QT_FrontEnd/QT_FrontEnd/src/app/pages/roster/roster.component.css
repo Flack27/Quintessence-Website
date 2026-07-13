@@ -106,7 +106,15 @@
   font-size: 16px;
   text-align: center;
   margin: var(--spacing-xs) 0 var(--spacing-md);
-  font-weight: 500;
+  font-weight: 600;
+  color: var(--text-faint, #b3a3d1);
+}
+/* Role name painted with the Discord role's gradient (set inline as background-image). */
+.role-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
 }
 
 .bottom-container {
@@ -385,37 +393,34 @@
 .role-officer { color: var(--secondary-blue, #63c1ff); }
 .role-member { color: var(--text-faint, #b3a3d1); }
 
-/* ---- played-game tokens on main-roster cards ---- */
-.game-tokens {
-  display: flex;
-  gap: 5px;
+/* ---- played-game tags on roster cards (matches Qutie's members-page game tags) ---- */
+.game-tags {
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  margin-top: 8px;
+  gap: 5px;
   flex-wrap: wrap;
+  margin-top: 8px;
 }
-.game-token {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  object-fit: cover;
+.game-tag {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  border-radius: 7px;
+  overflow: hidden;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-inset, rgba(11, 9, 22, .6));
   border: 1px solid var(--border-soft, rgba(150, 69, 196, .3));
+  color: var(--text-muted, #b8a8d5);
+  font-size: 0.8rem;
 }
-.game-token-initials {
-  display: grid;
-  place-items: center;
-  font-size: .55rem;
-  font-weight: 700;
-  color: var(--text-body, #e8e0f5);
-  background: var(--surface-inset, rgba(11, 9, 22, .6));
-}
-.game-token-emoji {
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-  line-height: 1;
-  border-color: transparent;
-  background: var(--surface-inset, rgba(11, 9, 22, .6));
-}
+.game-tag img { position: absolute; inset: 3px; width: calc(100% - 6px); height: calc(100% - 6px); object-fit: contain; }
+.game-tag .game-e { font-size: 1.05rem; line-height: 1; }
+.game-tag i { font-size: 0.95rem; }
 
 /* ---- per-game roster grid ---- */
 .game-roster-grid {

@@ -19,14 +19,13 @@
              class="item-icon" alt="{{ member.displayName }}'s avatar" />
         <div *ngIf="!avatarOk(member.avatarUrl)" class="item-icon item-icon-initials">{{ initials(member.displayName) }}</div>
         <p class="name">{{ member.displayName }}</p>
-        <p class="role" [style.color]="roleColor(member)">{{ roleName(member) }}</p>
-        <div class="game-tokens" *ngIf="tokens(member).length > 0">
-          <ng-container *ngFor="let token of tokens(member)">
-            <img *ngIf="token.imageUrl" [src]="token.imageUrl" class="game-token" [alt]="token.name" [title]="token.name" />
-            <span *ngIf="!token.imageUrl && token.emojiChar" class="game-token game-token-emoji" [title]="token.name">{{ token.emojiChar }}</span>
-            <span *ngIf="!token.imageUrl && !token.emojiChar" class="game-token game-token-initials"
-                  [style.background]="token.color || null" [title]="token.name">{{ token.initials }}</span>
-          </ng-container>
+        <p class="role" [class.role-gradient]="roleGradient(member)" [style.background-image]="roleGradient(member)">{{ roleName(member) }}</p>
+        <div class="game-tags" *ngIf="tokens(member).length > 0">
+          <span class="game-tag" *ngFor="let token of tokens(member)" [title]="token.name" [style.borderColor]="token.color || null">
+            <img *ngIf="token.imageUrl" [src]="token.imageUrl" alt="" />
+            <span *ngIf="!token.imageUrl && token.emojiChar" class="game-e">{{ token.emojiChar }}</span>
+            <i *ngIf="!token.imageUrl && !token.emojiChar" class="fas fa-gamepad" [style.color]="token.color || null"></i>
+          </span>
         </div>
       </div>
     </div>

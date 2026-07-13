@@ -2,13 +2,12 @@ import { Component, OnInit } from '@angular/core';
 import { QutieService, QutieGame, QutieGuildMember } from '../../services/qutie.service';
 import { QUTIE_MAIN_ROSTER_ROLE_ID, QUTIE_ROSTER_RANK_ROLE_IDS } from '../../qutie.config';
 
-/** A played-game token on a roster member, rendered from the Qutie game's emoji. */
+/** A played-game tag on a roster member, rendered from the Qutie game's emoji + colour. */
 interface GameToken {
   name: string;
-  imageUrl: string | null;   // custom Discord emoji -> CDN image
+  imageUrl: string | null;   // custom Discord emoji -> CDN png
   emojiChar: string | null;  // unicode emoji -> rendered as text
-  color: string | null;      // the game's colour (fallback badge tint)
-  initials: string;          // last-resort fallback
+  color: string | null;      // the game's colour (tag border)
 }
 
 @Component({
@@ -26,8 +25,14 @@ export class RosterComponent implements OnInit {
   private erroredAvatars = new Set<string>();
   private readonly rankOrder = new Map<string, number>(
     QUTIE_ROSTER_RANK_ROLE_IDS.map((id, i) => [id, i] as [string, number]));
-  // Colours by rank priority (highest first), matching the config order.
-  private readonly rankColors = ['#f5b942', '#eb2f8a', '#63c1ff', '#b3a3d1'];
+  // Discord role gradient colours (2 stops each), by rank priority, matching the config order.
+  // The API can't return a role's colour, so these are hardcoded per role.
+  private readonly rankGradients = [
+    ['#ff0090', '#86035a'],
+    ['#60009c', '#d400b1'],
+    ['#ac76b4', '#8b0dad'],
+    ['#3765b4', '#b14bd6']
+  ];
 
   constructor(private qutieService: QutieService) { }
 
@@ -61,9 +66,10 @@ export class RosterComponent implements OnInit {
     return m.rankRole?.name ?? 'Member';
   }
 
-  roleColor(m: QutieGuildMember): string {
-    const i = this.rankIndex(m);
-    return this.rankColors[i] ?? this.rankColors[this.rankColors.length - 1];
+  /** The member's rank-role gradient (null when no rank role matched, e.g. before Qutie is deployed). */
+  roleGradient(m: QutieGuildMember): string | null {
+    const g = this.rankGradients[this.rankIndex(m)];
+    return g ? `linear-gradient(90deg, ${g[0]}, ${g[1]})` : null;
   }
 
   // ---------- game tokens ----------
@@ -79,13 +85,12 @@ export class RosterComponent implements OnInit {
 
   private tokenFor(g: QutieGame): GameToken {
     const emoji = g.emoji ?? '';
-    const custom = emoji.match(/^<(a)?:\w+:(\d+)>$/);   // custom Discord emoji <:name:id> / <a:name:id>
+    const custom = /^<a?:\w+:(\d+)>$/.exec(emoji);   // custom Discord emoji <:name:id> / <a:name:id>
     return {
       name: g.gameName,
-      imageUrl: custom ? `https://cdn.discordapp.com/emojis/${custom[2]}.${custom[1] ? 'gif' : 'png'}` : null,
+      imageUrl: custom ? `https://cdn.discordapp.com/emojis/${custom[1]}.png` : null,
       emojiChar: !custom && emoji ? emoji : null,
-      color: g.color,
-      initials: this.initials(g.gameName)
+      color: g.color
     };
   }
 
