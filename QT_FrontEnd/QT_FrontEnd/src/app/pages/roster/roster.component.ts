@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { QutieService, QutieGame, QutieGuildMember } from '../../services/qutie.service';
 import { QUTIE_MAIN_ROSTER_ROLE_ID, QUTIE_ROSTER_RANK_ROLE_IDS } from '../../qutie.config';
 
@@ -13,7 +13,10 @@ interface GameToken {
 @Component({
   selector: 'app-roster',
   templateUrl: './roster.component.html',
-  styleUrls: ['./roster.component.css']
+  styleUrls: ['./roster.component.css'],
+  // Like the games page: the page background is a body{} rule, which only reaches the
+  // real <body> without style encapsulation.
+  encapsulation: ViewEncapsulation.None
 })
 export class RosterComponent implements OnInit {
   loading = true;
