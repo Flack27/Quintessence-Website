@@ -3,8 +3,19 @@ import { getSession } from "./_lib/session";
 import { contentFileExists, createContentFile } from "./_lib/github";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+const IMAGE_FILENAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,80}\.(png|jpe?g|gif|webp|svg)$/;
 const MAX_BODY_LENGTH = 200_000;
 const MAX_FIELD_LENGTH = 300;
+const MAX_IMAGES = 6;
+// Vercel serverless functions cap the whole request body around 4.5MB, and base64 inflates
+// payload size by ~33% — keep well under that so a full request doesn't get rejected upstream.
+const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024;
+const MAX_TOTAL_IMAGE_BYTES = 4 * 1024 * 1024;
+
+interface PublishRequestImage {
+  filename?: unknown;
+  content?: unknown;
+}
 
 interface PublishRequestBody {
   slug?: unknown;
@@ -17,6 +28,61 @@ interface PublishRequestBody {
   date?: unknown;
   cover?: unknown;
   body?: unknown;
+  images?: unknown;
+}
+
+interface PublishImage {
+  filename: string;
+  content: string;
+}
+
+/** Validates the client-supplied image list; throws with a user-facing message on the first bad entry. */
+function parseImages(value: unknown): PublishImage[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) {
+    throw new Error("Images must be a list.");
+  }
+  if (value.length > MAX_IMAGES) {
+    throw new Error(`Too many images (max ${MAX_IMAGES}).`);
+  }
+
+  const seen = new Set<string>();
+  let totalBytes = 0;
+
+  const images = value.map((item: PublishRequestImage) => {
+    const filename = item?.filename;
+    const content = item?.content;
+
+    if (typeof filename !== "string" || !IMAGE_FILENAME_PATTERN.test(filename)) {
+      throw new Error(`Invalid image filename: "${String(filename)}".`);
+    }
+    if (seen.has(filename)) {
+      throw new Error(`Duplicate image filename: "${filename}".`);
+    }
+    seen.add(filename);
+
+    if (typeof content !== "string" || !content) {
+      throw new Error(`Missing image data for "${filename}".`);
+    }
+    const base64 = content.replace(/^data:[^,]*base64,/, "");
+    if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+      throw new Error(`Image "${filename}" is not valid base64 data.`);
+    }
+
+    const bytes = Buffer.byteLength(base64, "base64");
+    if (bytes > MAX_IMAGE_BYTES) {
+      throw new Error(`Image "${filename}" is too large (max ${MAX_IMAGE_BYTES / (1024 * 1024)}MB).`);
+    }
+    totalBytes += bytes;
+
+    return { filename, content: base64 };
+  });
+
+  if (totalBytes > MAX_TOTAL_IMAGE_BYTES) {
+    throw new Error(`Images are too large together (max ${MAX_TOTAL_IMAGE_BYTES / (1024 * 1024)}MB total).`);
+  }
+
+  return images;
 }
 
 /** Frontmatter scalars are single-line and the parser has no quote-escaping, so strip both. */
@@ -59,6 +125,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   let game: string;
   let section: string;
   let body: string;
+  let images: PublishImage[];
 
   try {
     slug = requireNonEmptyString(payload.slug, "slug").trim().toLowerCase();
@@ -67,6 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     game = requireNonEmptyString(payload.game, "game");
     section = requireNonEmptyString(payload.section, "section");
     body = requireNonEmptyString(payload.body, "body");
+    images = parseImages(payload.images);
   } catch (error) {
     res.status(400).json({ error: error instanceof Error ? error.message : "Invalid request." });
     return;
@@ -108,16 +176,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       tags.length ? `tags: [${tags.join(", ")}]` : null,
       date ? `date: ${yamlString(date)}` : null,
       `author: ${yamlString(session.username)}`,
+      // Discord user id, not shown anywhere in the UI — lets /api/delete verify that only
+      // the person who published a guide can remove it.
+      `authorId: ${yamlString(session.sub)}`,
       cover ? `cover: ${yamlString(cover)}` : null,
     ].filter((line): line is string => line !== null);
 
     const markdown = `---\n${frontmatterLines.join("\n")}\n---\n\n${body.trim()}\n`;
+    const author = { name: session.username, email: `${session.sub}@users.noreply.discord.com` };
+
+    // Uploaded one at a time: the Contents API commits each file separately, and
+    // parallel PUTs against the same branch ref can race and clobber each other.
+    for (const image of images) {
+      await createContentFile({
+        path: `contents/${slug}/${image.filename}`,
+        content: image.content,
+        encoding: "base64",
+        message: `Add image for guide ${slug}: ${image.filename}`,
+        author,
+      });
+    }
 
     const { commitUrl } = await createContentFile({
       path,
       content: markdown,
       message: `Add guide: ${title} (${slug})`,
-      author: { name: session.username, email: `${session.sub}@users.noreply.discord.com` },
+      author,
     });
 
     res.status(200).json({ ok: true, slug, url: `/guide/${slug}`, commitUrl });

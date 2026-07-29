@@ -1,18 +1,50 @@
-import { Link, useParams } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { getPostBySlug } from "@/lib/content";
 import { formatPostDate } from "@/lib/date";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
+import { useAuth } from "@/lib/AuthContext";
 import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
   const { slug } = useParams<{ slug: string }>();
   const post = slug ? getPostBySlug(slug) : undefined;
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   if (!post) return <NotFoundPage />;
 
   const { frontmatter, content, coverUrl } = post;
   const date = formatPostDate(frontmatter.date);
+  const canDelete = Boolean(user && frontmatter.authorId && user.id === frontmatter.authorId);
+
+  async function handleDelete() {
+    if (!window.confirm(`Delete "${frontmatter.title}"? This can't be undone.`)) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch("/api/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug: post.slug }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to delete.");
+      }
+
+      navigate("/");
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete.");
+      setDeleting(false);
+    }
+  }
 
   return (
     <article className="mx-auto max-w-3xl px-6 pb-24 pt-12">
@@ -31,7 +63,18 @@ export function PostPage() {
         <TagPill label={frontmatter.section} />
         {date && <span className="text-xs text-slate-500">{date}</span>}
         {frontmatter.author && <span className="text-xs text-slate-500">by {frontmatter.author}</span>}
+        {canDelete && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="ml-auto rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+          >
+            {deleting ? "Deleting…" : "Delete guide"}
+          </button>
+        )}
       </div>
+      {deleteError && <p className="mb-4 text-sm text-red-400">{deleteError}</p>}
 
       <h1 className="font-display text-3xl font-bold text-white sm:text-4xl">{frontmatter.title}</h1>
 

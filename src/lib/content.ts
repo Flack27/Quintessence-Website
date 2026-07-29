@@ -61,6 +61,7 @@ function buildPost(path: string, raw: string): Post {
     tags: toStringArray(data.tags),
     date: typeof data.date === "string" ? data.date : undefined,
     author: typeof data.author === "string" ? data.author : undefined,
+    authorId: typeof data.authorId === "string" ? data.authorId : undefined,
     cover: typeof data.cover === "string" ? data.cover : undefined,
     draft: Boolean(data.draft),
   };

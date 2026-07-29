@@ -78,6 +78,33 @@ No content, sessions, or roles are stored in a database — the repo is still
 the only source of truth for guides, and Discord is the only source of truth
 for who's allowed to publish.
 
+> This whole feature is currently switched off in production via
+> `PUBLISHING_ENABLED` in [`src/lib/config.ts`](src/lib/config.ts) — see that
+> file for why. The section below still works locally regardless, via the dev
+> mock described next.
+
+### Testing publish/delete with just `npm run dev`
+
+`npm run dev` runs Vite only, which has no idea what `api/*.ts` is — those
+routes only exist as real Vercel functions, normally reachable via `vercel
+dev` (see Setup below). For quick local testing without a Discord app or
+GitHub token, [`vite.config.ts`](vite.config.ts) loads
+[`dev/mock-api.ts`](dev/mock-api.ts), which is active only under `npm run
+dev` (never in a production build) and:
+
+- Always reports a logged-in, authorized fake user (`Local Dev`) from
+  `/api/auth/me`, so the navbar, `/publish` and the delete button all behave
+  as if you're logged in.
+- Handles `POST /api/publish` by writing a real `contents/<slug>/index.md`
+  (plus any uploaded images) straight to disk — Vite's own file watcher then
+  picks it up the same as if you'd written the file by hand.
+- Handles `DELETE /api/delete` by removing that folder, gated the same way
+  the real endpoint is (only a guide whose `authorId` matches the current
+  user can be deleted).
+
+Nothing here touches GitHub or Discord. To exercise the real commit-to-GitHub
+flow, use `vercel dev` instead, per the Setup section below.
+
 ### Setup
 
 1. Create a Discord application at

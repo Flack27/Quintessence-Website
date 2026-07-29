@@ -11,6 +11,8 @@ export interface PostFrontmatter {
   tags?: string[];
   date?: string;
   author?: string;
+  /** Discord user id of whoever published this guide; used to gate the delete button. */
+  authorId?: string;
   cover?: string;
   draft?: boolean;
 }

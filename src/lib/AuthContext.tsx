@@ -44,7 +44,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // With publishing off there is no session to look up, and `/api/auth/me`
     // isn't ours to call — see PUBLISHING_ENABLED. Settle as logged-out.
-    if (!PUBLISHING_ENABLED) {
+    // (DEV still calls out to dev/mock-api.ts's fake /api/auth/me so the publish
+    // page and delete button stay testable locally without flipping the flag.)
+    if (!PUBLISHING_ENABLED && !import.meta.env.DEV) {
       setState({ loading: false, authenticated: false, authorized: false, user: null });
       return;
     }

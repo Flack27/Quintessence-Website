@@ -1,4 +1,5 @@
 {
+  "outputDirectory": "dist/guides",
   "rewrites": [
     { "source": "/guides/((?!api/).*)", "destination": "/guides/index.html" }
   ],
