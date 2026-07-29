@@ -1,4 +1,5 @@
 import { parseFrontmatter } from "./frontmatter";
+import { publicAsset } from "./assets";
 import type { Post, PostFrontmatter } from "@/types/post";
 
 // Every guide lives at contents/<slug>/index.md — this glob is the single
@@ -36,9 +37,8 @@ function stripMarkdown(markdown: string): string {
 
 /** Resolves a markdown-relative image path (e.g. "cover.png", "./shot.jpg") to its built URL. */
 export function resolveAssetUrl(slug: string, relativePath: string): string | undefined {
-  if (/^https?:\/\//.test(relativePath) || relativePath.startsWith("/")) {
-    return relativePath;
-  }
+  if (/^https?:\/\//.test(relativePath)) return relativePath;
+  if (relativePath.startsWith("/")) return publicAsset(relativePath);
   const cleaned = relativePath.replace(/^\.\//, "");
   return assetModules[`/contents/${slug}/${cleaned}`];
 }

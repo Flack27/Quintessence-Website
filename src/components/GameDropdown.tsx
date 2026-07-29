@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { publicAsset } from "@/lib/assets";
 
 /**
  * Game switcher, styled after questlog.gg's navbar dropdown. The Codex only
@@ -38,7 +39,7 @@ export function GameDropdown() {
         aria-expanded={open}
         className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-2 pr-3 text-sm font-medium text-slate-200 transition-colors hover:border-quint-purple/50 hover:text-white"
       >
-        <img src="/aion-2.png" alt="" className="h-5 w-5 rounded object-contain" />
+        <img src={publicAsset("/aion-2.png")} alt="" className="h-5 w-5 rounded object-contain" />
         <span>Aion 2</span>
         <svg
           aria-hidden
@@ -60,7 +61,7 @@ export function GameDropdown() {
             aria-selected="true"
             className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-white"
           >
-            <img src="/aion-2.png" alt="" className="h-5 w-5 rounded object-contain" />
+            <img src={publicAsset("/aion-2.png")} alt="" className="h-5 w-5 rounded object-contain" />
             Aion 2
             <svg aria-hidden viewBox="0 0 20 20" fill="none" className="ml-auto h-4 w-4 text-quint-pink">
               <path d="M4 10.5L8 14.5L16 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

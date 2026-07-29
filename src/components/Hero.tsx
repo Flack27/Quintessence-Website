@@ -1,3 +1,5 @@
+import { publicAsset } from "@/lib/assets";
+
 interface HeroProps {
   postCount: number;
 }
@@ -11,7 +13,7 @@ export function Hero({ postCount }: HeroProps) {
       />
       <div className="relative mx-auto mb-6 flex justify-center">
         <img
-          src="/logo-quintessence-v1.png"
+          src={publicAsset("/logo-quintessence-v1.png")}
           alt="Quintessence"
           className="max-h-40 w-auto object-contain drop-shadow-[0_0_45px_rgba(236,77,174,0.35)] sm:max-h-48"
         />

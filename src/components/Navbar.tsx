@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 import { GameDropdown } from "./GameDropdown";
 import { DiscordLoginButton } from "./DiscordLoginButton";
+import { PUBLISHING_ENABLED } from "@/lib/config";
 
 export function Navbar() {
   return (
@@ -31,7 +32,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center justify-end">
-          <DiscordLoginButton />
+          {PUBLISHING_ENABLED && <DiscordLoginButton />}
         </div>
       </div>
     </header>

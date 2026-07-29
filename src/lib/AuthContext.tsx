@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { PUBLISHING_ENABLED } from "./config";
 
 export interface AuthUser {
   id: string;
@@ -40,6 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+
+    // With publishing off there is no session to look up, and `/api/auth/me`
+    // isn't ours to call — see PUBLISHING_ENABLED. Settle as logged-out.
+    if (!PUBLISHING_ENABLED) {
+      setState({ loading: false, authenticated: false, authorized: false, user: null });
+      return;
+    }
 
     fetch("/api/auth/me")
       .then((res) => res.json() as Promise<MeResponse>)

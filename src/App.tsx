@@ -7,6 +7,7 @@ import { PostPage } from "@/pages/PostPage";
 import { PublishPage } from "@/pages/PublishPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { AuthProvider } from "@/lib/AuthContext";
+import { PUBLISHING_ENABLED } from "@/lib/config";
 
 export default function App() {
   return (
@@ -17,7 +18,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/guide/:slug" element={<PostPage />} />
-            <Route path="/publish" element={<PublishPage />} />
+            {PUBLISHING_ENABLED && <Route path="/publish" element={<PublishPage />} />}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
