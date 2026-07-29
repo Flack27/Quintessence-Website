@@ -17,7 +17,7 @@ export function PostPage() {
 
   if (!post) return <NotFoundPage />;
 
-  const { frontmatter, content, coverUrl } = post;
+  const { slug: postSlug, frontmatter, content, coverUrl } = post;
   const date = formatPostDate(frontmatter.date);
   const canDelete = Boolean(user && frontmatter.authorId && user.id === frontmatter.authorId);
 
@@ -31,7 +31,7 @@ export function PostPage() {
       const response = await fetch("/api/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: post.slug }),
+        body: JSON.stringify({ slug: postSlug }),
       });
 
       const data = await response.json();
