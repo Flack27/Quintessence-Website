@@ -28,6 +28,23 @@ The Worker matches `/guides*` **at Cloudflare's edge**, before the request enter
 tunnel. So those requests never touch the home server at all — the Codex stays up even
 when the server is down, and vice versa.
 
+> ### Do **not** add a tunnel route for this
+>
+> The tunnel's published application routes stay exactly as they are: one entry,
+> `quintessence-eu.com` → `http://frontend:80`.
+>
+> Tunnel routes do have a path field, so adding a `/guides` one looks like the obvious
+> move — but a tunnel route's **service URL has to be reachable from `cloudflared` on the
+> home server** (`http://frontend:80`, `http://api:8080`, …). The Codex runs on Vercel,
+> so there is no such URL to give it. That is precisely why this needs a Worker instead.
+>
+> A Worker route wins before origin resolution happens, so the two never conflict: the
+> Worker answers `/guides*` itself, and everything else falls through to the tunnel
+> untouched.
+>
+> You would only add a tunnel route if the Codex later moved onto the box as its own
+> container — then it becomes an ordinary service like `http://codex:80`.
+
 The two sites share only a URL prefix. There is no shared code, no shared build, no
 shared deploy.
 
