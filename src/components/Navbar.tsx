@@ -23,9 +23,9 @@ export function Navbar() {
         </div>
 
         <nav className="hidden items-center gap-8 text-sm font-medium text-slate-300 sm:flex">
-          <Link to="/" className="transition-colors hover:text-white">
+          <a href="/" className="transition-colors hover:text-white">
             Home
-          </Link>
+          </a>
           <a href="#guides" className="transition-colors hover:text-white">
             Guides
           </a>
