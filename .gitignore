@@ -408,3 +408,9 @@ App_Data/
 # Home-server deploy secrets
 .env
 QT_API/Quintessence Website/appsettings.Production.json
+
+# TLS material. Cloudflare terminates TLS, so the app never needs certs - this is
+# purely a guard against a stray key ever being committed.
+*.pem
+*.key
+ssl/
