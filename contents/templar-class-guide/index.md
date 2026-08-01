@@ -90,11 +90,11 @@ Gear priorities below assume the base kit obtainable from your questlog.
 
 | Slot | Priority stats |
 | --- | --- |
-| Chest piece | DMG Boost, Endurance, Critical Hit, +1 passive/skill (Ironclad or Enhance Health) |
+| Chest piece | DMG Boost, Regeneration, Critical Hit, +1 passive/skill (Ironclad or Enhance Health) |
 | Gloves | Combat Speed, Perfect Chance, Critical Hit, +1 passive/skill (Ironclad or Enhance Health) |
 | Boots | Movement Speed, Perfect Chance, ATK, +1 passive/skill (Ironclad or Enhance Health) |
-| Shoulders | Crit DMG Boost, Endurance, ATK, +1 passive/skill (Ironclad or Enhance Health) |
-| Helmet | Smite, ATK increase, Endurance, +1 passive/skill (Ironclad or Enhance Health) |
+| Shoulders | Crit DMG Boost, Regeneration, ATK, +1 passive/skill (Ironclad or Enhance Health) |
+| Helmet | Smite, ATK increase, Incoming Healing, +1 passive/skill (Ironclad or Enhance Health) |
 | Pants | Perfect Chance, ATK increase, ATK, Endurance |
 | Cloak | Smite, ATK increase, Perfect Chance, +1 passive/skill (Ironclad or Enhance Health) |
 | Necklace | Intelligence, 3x +1 passive/skill (Ironclad, Enhance Health or Impact Hit) |
@@ -105,11 +105,11 @@ Gear priorities below assume the base kit obtainable from your questlog.
 
 | Slot | Priority stats |
 | --- | --- |
-| Chest piece | DMG Boost, Status Effect Resist, Endurance, +1 passive/skill (Ironclad or Enhance Health) |
-| Gloves | Combat Speed, Status Effect Resist, Willpower, +1 passive/skill (Ironclad or Enhance Health) |
-| Boots | Movement Speed, Status Effect Resist, Willpower, +1 passive/skill (Ironclad or Enhance Health) |
-| Shoulders | Willpower, Status Effect Resist, Endurance, +1 passive/skill (Ironclad or Enhance Health) |
-| Helmet | Endurance, Status Effect Resist, Willpower, Endurance, +1 passive/skill (Ironclad or Enhance Health) |
+| Chest piece | DMG Boost, Status Effect Resist, Regeneration, +1 passive/skill (Ironclad or Enhance Health) |
+| Gloves | Combat Speed, Status Effect Resist, Regeneration, +1 passive/skill (Ironclad or Enhance Health) |
+| Boots | Movement Speed, Status Effect Resist, Regeneration, +1 passive/skill (Ironclad or Enhance Health) |
+| Shoulders | Willpower, Status Effect Resist, Regeneration, +1 passive/skill (Ironclad or Enhance Health) |
+| Helmet | Endurance, Status Effect Resist, Incoming Healing, Endurance, +1 passive/skill (Ironclad or Enhance Health) |
 | Pants | Endurance, Status Effect Resist, Willpower, Damage Tolerance |
 | Cloak | Status Effect Resist, Willpower, Critical Damage Tolerance, +1 passive/skill (Ironclad or Enhance Health) |
 | Necklace | Intelligence, 3x +1 passive/skill (Ironclad, Enhance Health or Impact Hit) |
@@ -150,11 +150,18 @@ This is our main set for now. Build order recommendation: **Bell → Chalice →
 
 ![Primal Vigor Arcana set — Chalice of Vigor](arcana-primal-vigor.png)
 
+- **Grail skills:** Enhance Health Lvl 4, Ironclad Defense Lvl 4, Fury Lvl 4 and Judgment Lvl 4
+- **Parchment skills:** Vicious Strike Lvl 4, Punishment Lvl 4, Judgment Lvl 2 and Poach Lvl 2
+- **Compass skills:** Pummel Lvl 4, Defiance Lvl 4, Shield Smite Lvl 4, Warding Strike Lvl 4
+- **Bell skills:** Enhance Health Lvl 4, Fury Lvl 4, Insulting Roar Lvl 4 and Punishing Benediction Lvl 4
+
 ### Magic Armor
 
 What we want from this set is the **Mirror**, which grants Wisdom.
 
 ![Magic Armor Arcana set — Mirror of Magic](arcana-magic-armor.png)
+
+- **Mirror skills:** Ironclad Defense Lvl 4, Impact Hit Lvl 4, Block Pain Lvl 4 and Warding Shield Lvl 4
 
 ## Wings
 
@@ -215,7 +222,7 @@ The goal is to keep leveling your Genus insight until it hits level 10, then sta
 | Smite | Smite | Smite | Smite | Smite |
 | Accuracy / Crit | Accuracy / Crit | Accuracy / Crit | Accuracy / Crit | Attack bonus |
 | Attack bonus | Attack bonus | Attack bonus | Attack bonus | Attack bonus |
-| Endurance | Endurance | Endurance | Endurance | Endurance |
+| Regeneration | Regeneration | Regeneration | Regeneration | Regeneration |
 | Accuracy / Crit | Accuracy / Crit | Accuracy / Crit | Accuracy / Crit | Attack bonus |
 | Attack bonus | Attack bonus | Attack bonus | Attack bonus | Attack bonus |
 | Smite | Smite | Smite | Smite | Smite |
@@ -223,6 +230,18 @@ The goal is to keep leveling your Genus insight until it hits level 10, then sta
 Rolling it perfectly in every slot is nearly impossible — sometimes you'll need to compromise.
 
 ## Skill builds
+
+Keep in mind, if you don't have enough Stigma shards, swap skills around according to your gameplay needs. If you're doing PvP, reset some of your PvE Stigmas to perform better in PvP, and vice versa for PvE.
+
+**PvE — main skills & passives to prioritize maxing:**
+
+- **Skills & Stigmas:** Vicious Strike, Pummel, Judgment, Poach, Punishment, Defiance, Battlefield Banner
+- **Passives:** Enhance Health, Ironclad Defense, Fury, Punishing Benediction, Insulting Roar, Impact Hit
+
+**PvP — main skills & passives to prioritize maxing:**
+
+- **Skills & Stigmas:** Vicious Strike, Pummel, Poach, Judgment, Punishment, Defiance, Shield Smite, Warding Strike, Shield of Protection, Second Skin, Armor of Balance
+- **Passives:** Enhance Health, Ironclad Defense, Fury, Punishing Benediction, Impact Hit, Block Pain
 
 - [PvE Mob grinder](https://questlog.gg/aion-2/en/skill-builder/ssbhocXcpUCO?build-id=4450)
 - [PvE Dungeon grinder](https://questlog.gg/aion-2/en/skill-builder/ssbhocXcpUCO?build-id=3415)
