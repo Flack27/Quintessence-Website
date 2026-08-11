@@ -5,12 +5,13 @@ import { formatPostDate } from "@/lib/date";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
 import { useAuth } from "@/lib/AuthContext";
+import { API_ORIGIN } from "@/lib/config";
 import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
   const { slug } = useParams<{ slug: string }>();
   const post = slug ? getPostBySlug(slug) : undefined;
-  const { user } = useAuth();
+  const { user, canModerate } = useAuth();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export function PostPage() {
 
   const { slug: postSlug, frontmatter, content, coverUrl } = post;
   const date = formatPostDate(frontmatter.date);
-  const canDelete = Boolean(user && frontmatter.authorId && user.id === frontmatter.authorId);
+  const canManage = Boolean(canModerate || (user && frontmatter.authorId && user.id === frontmatter.authorId));
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${frontmatter.title}"? This can't be undone.`)) return;
@@ -28,8 +29,9 @@ export function PostPage() {
     setDeleteError(null);
 
     try {
-      const response = await fetch("/api/delete", {
+      const response = await fetch(`${API_ORIGIN}/api/delete`, {
         method: "DELETE",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ slug: postSlug }),
       });
@@ -63,15 +65,23 @@ export function PostPage() {
         <TagPill label={frontmatter.section} />
         {date && <span className="text-xs text-slate-500">{date}</span>}
         {frontmatter.author && <span className="text-xs text-slate-500">by {frontmatter.author}</span>}
-        {canDelete && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            className="ml-auto rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
-          >
-            {deleting ? "Deleting…" : "Delete guide"}
-          </button>
+        {canManage && (
+          <div className="ml-auto flex items-center gap-2">
+            <Link
+              to={`/publish/${postSlug}`}
+              className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/50 hover:text-white"
+            >
+              Edit guide
+            </Link>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+            >
+              {deleting ? "Deleting…" : "Delete guide"}
+            </button>
+          </div>
         )}
       </div>
       {deleteError && <p className="mb-4 text-sm text-red-400">{deleteError}</p>}

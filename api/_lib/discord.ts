@@ -56,23 +56,41 @@ export async function getDiscordUser(accessToken: string): Promise<DiscordUser> 
 }
 
 /**
- * Looks up the user's roles in the configured guild using the bot token (server-side only —
- * never exposed to the client). Returns `false` if the user isn't a member of the guild.
+ * "none": no publishing rights. "author": can create/edit/delete their own posts
+ * (Guild Member / Main Roster). "moderator": can create/edit/delete anyone's posts
+ * (Advisors / Monarchs) — a strict superset of "author".
  */
-export async function hasRequiredRole(userId: string): Promise<boolean> {
+export type GuildRole = "none" | "author" | "moderator";
+
+function roleIdList(name: string): string[] {
+  return (process.env[name] ?? "")
+    .split(",")
+    .map((id) => id.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Looks up the user's roles in the configured guild using the bot token (server-side only —
+ * never exposed to the client), then maps those Discord role IDs onto our two permission
+ * tiers. Returns "none" if the user isn't a member of the guild.
+ */
+export async function resolveGuildRole(userId: string): Promise<GuildRole> {
   const guildId = requireEnv("DISCORD_GUILD_ID");
-  const requiredRoleId = requireEnv("DISCORD_REQUIRED_ROLE_ID");
   const botToken = requireEnv("DISCORD_BOT_TOKEN");
+  const moderatorRoleIds = roleIdList("DISCORD_MODERATOR_ROLE_IDS");
+  const authorRoleIds = roleIdList("DISCORD_AUTHOR_ROLE_IDS");
 
   const response = await fetch(`${API_BASE}/guilds/${guildId}/members/${userId}`, {
     headers: { Authorization: `Bot ${botToken}` },
   });
 
-  if (response.status === 404) return false;
+  if (response.status === 404) return "none";
   if (!response.ok) {
     throw new Error(`Failed to fetch guild member: ${response.status} ${await response.text()}`);
   }
 
   const member = (await response.json()) as { roles: string[] };
-  return member.roles.includes(requiredRoleId);
+  if (member.roles.some((id) => moderatorRoleIds.includes(id))) return "moderator";
+  if (member.roles.some((id) => authorRoleIds.includes(id))) return "author";
+  return "none";
 }

@@ -57,33 +57,76 @@ whenever you're ready — the frontmatter and folder structure stay the same.
 
 ## Discord-gated publishing
 
-Anyone with a required role in the guild's Discord can publish a new guide
-through a form at `/publish`, without touching git directly. Since the site
-itself stays a static build with no database, this is implemented as a
-handful of Vercel serverless functions under [`api/`](api):
+Logging in with Discord grants one of two permission tiers, checked against
+role IDs configured in env vars (see Setup below) — no roles/permissions are
+hardcoded:
+
+- **author** (Guild Member, Main Roster) — create a new guide via `/publish`,
+  and edit or delete **their own** guides via the "Edit guide"/"Delete guide"
+  buttons on a guide page.
+- **moderator** (Advisors, Monarchs) — everything an author can do, plus edit
+  or delete **anyone's** guide. A strict superset of author.
+
+Since the site itself stays a static build with no database, this is
+implemented as a handful of Vercel serverless functions under
+[`api/`](api):
 
 - `api/auth/login`, `api/auth/callback`, `api/auth/me`, `api/auth/logout` —
   Discord OAuth2 login. On callback, the server (never the browser) uses a
-  bot token to look up the logged-in user's roles in the configured guild and
-  stores an `authorized: true/false` flag in a signed, httpOnly session
-  cookie.
-- `api/publish` — only usable when `authorized` is true. Takes the form
-  fields, builds `contents/<slug>/index.md` in the same frontmatter format
-  `src/lib/frontmatter.ts` parses, and commits it straight to the repo via
-  the GitHub Contents API. That commit triggers the normal Vercel rebuild —
-  the guide goes live once that deploy finishes, same as if someone had
-  committed the file by hand.
+  bot token to look up the logged-in user's roles in the configured guild,
+  maps them onto the two tiers above, and stores the result (`"none" |
+  "author" | "moderator"`) in a signed, httpOnly session cookie.
+- `api/publish` (`POST`) — create a new guide. Only usable when role isn't
+  `"none"`. Takes the form fields, builds `contents/<slug>/index.md` in the
+  same frontmatter format `src/lib/frontmatter.ts` parses, and commits it
+  straight to the repo via the GitHub Contents API.
+- `api/update` (`PUT`) — edit an existing guide's fields/body/images in
+  place. Allowed when the caller is a moderator, or is the guide's original
+  publisher (`authorId` in its frontmatter, never trusted from the request —
+  always re-read from the file being edited). Rewrites `index.md` via the
+  same GitHub Contents API call as publish, but with that file's current
+  `sha` so it updates instead of erroring on a create-conflict.
+- `api/delete` (`DELETE`) — same allow rule as update.
+
+Every one of these triggers the normal Vercel rebuild on commit — a guide's
+create/edit/delete goes live once that deploy finishes, same as if someone
+had committed the file change by hand.
 
 No content, sessions, or roles are stored in a database — the repo is still
 the only source of truth for guides, and Discord is the only source of truth
-for who's allowed to publish.
+for who's allowed to touch them.
 
-> This whole feature is currently switched off in production via
-> `PUBLISHING_ENABLED` in [`src/lib/config.ts`](src/lib/config.ts) — see that
-> file for why. The section below still works locally regardless, via the dev
-> mock described next.
+### Why the cross-origin cookie/CORS plumbing exists
 
-### Testing publish/delete with just `npm run dev`
+The codex is served under `quintessence-eu.com/guides/` — a sub-path of a
+separate main site that owns `/api/*` at that domain's root — so relative
+`fetch("/api/...")` calls from the browser would never reach this project's
+functions. Every API call the frontend makes is instead pointed at this
+project's own absolute Vercel URL via `VITE_API_ORIGIN`
+([`src/lib/config.ts`](src/lib/config.ts)), which makes every one of those
+calls **cross-origin** relative to the page the user is actually looking at.
+Two things exist purely because of that:
+
+- The session/OAuth-state cookies are `SameSite=None` (not the more usual
+  `Lax`) — `Lax` cookies aren't sent on cross-site `fetch`/`XHR`, only
+  top-level navigations, which would silently break every logged-in API call
+  except the login link itself.
+- [`api/_lib/cors.ts`](api/_lib/cors.ts) answers every function's request
+  with `Access-Control-Allow-Origin`/`-Credentials` scoped to
+  `PUBLIC_SITE_URL`, and every frontend `fetch` call passes
+  `credentials: "include"` — both sides are required for the cookie to
+  actually cross that origin boundary.
+- `api/auth/callback` redirects to an **absolute** `PUBLIC_SITE_URL` URL
+  after login (e.g. `.../guides/publish`), since a relative redirect from
+  this response would land the browser on the bare Vercel domain instead of
+  back under `/guides/`.
+
+If this project is ever deployed standalone at its own domain instead of
+sub-path-mounted, none of this is needed — leave `VITE_API_ORIGIN` unset and
+all of the above degenerates to ordinary same-origin behavior (though the
+`SameSite=None`/CORS code is harmless to leave in either way).
+
+### Testing publish/edit/delete with just `npm run dev`
 
 `npm run dev` runs Vite only, which has no idea what `api/*.ts` is — those
 routes only exist as real Vercel functions, normally reachable via `vercel
@@ -92,35 +135,43 @@ GitHub token, [`vite.config.ts`](vite.config.ts) loads
 [`dev/mock-api.ts`](dev/mock-api.ts), which is active only under `npm run
 dev` (never in a production build) and:
 
-- Always reports a logged-in, authorized fake user (`Local Dev`) from
-  `/api/auth/me`, so the navbar, `/publish` and the delete button all behave
-  as if you're logged in.
+- Always reports a logged-in fake user (`Local Dev`) with the **moderator**
+  tier from `/api/auth/me`, so the navbar, `/publish`, `/publish/:slug` and
+  the edit/delete buttons all behave as if you're logged in with full
+  rights — including editing/deleting a guide "published" under a different
+  author, to exercise the moderator-only path.
 - Handles `POST /api/publish` by writing a real `contents/<slug>/index.md`
   (plus any uploaded images) straight to disk — Vite's own file watcher then
   picks it up the same as if you'd written the file by hand.
-- Handles `DELETE /api/delete` by removing that folder, gated the same way
-  the real endpoint is (only a guide whose `authorId` matches the current
-  user can be deleted).
+- Handles `PUT /api/update` the same way, rewriting that file in place.
+- Handles `DELETE /api/delete` by removing that folder.
 
-Nothing here touches GitHub or Discord. To exercise the real commit-to-GitHub
-flow, use `vercel dev` instead, per the Setup section below.
+Nothing here touches GitHub or Discord, and none of the cross-origin
+cookie/CORS mechanics above apply locally (the dev server serves the app and
+this mock from the same origin). To exercise the real commit-to-GitHub flow,
+use `vercel dev` instead, per the Setup section below.
 
 ### Setup
 
 1. Create a Discord application at
    [discord.com/developers/applications](https://discord.com/developers/applications).
-   - **OAuth2** tab: add redirect URI `https://<your-domain>/api/auth/callback`,
-     note the client ID/secret.
+   - **OAuth2** tab: add redirect URI `https://<this-project's-vercel-domain>/api/auth/callback`
+     (the codex's own deployment URL — not `quintessence-eu.com`, since that's
+     not where these functions actually run), note the client ID/secret.
    - **Bot** tab: create a bot, note its token, and invite it to the guild
      with just the "View Channels" permission (no privileged gateway intents
      needed — this only calls the REST API for a single member's roles).
-2. In Discord, with Developer Mode on: copy the guild's ID and the ID of the
-   role that should be allowed to publish.
+2. In Discord, with Developer Mode on: copy the guild's ID, and the IDs of
+   every role that should map to each tier (Guild Member/Main Roster →
+   author; Advisors/Monarchs → moderator) — see `DISCORD_AUTHOR_ROLE_IDS`
+   / `DISCORD_MODERATOR_ROLE_IDS` in `.env.example`.
 3. Create a GitHub token (a fine-grained PAT scoped to just this repo, with
-   "Contents: Read and write") so the publish endpoint can commit files.
+   "Contents: Read and write") so publish/update can commit files.
 4. Copy [`.env.example`](.env.example) to `.env` for local dev with
-   `vercel dev`, and set the same variables as Environment Variables in the
-   Vercel project dashboard for deployed builds. **Never commit `.env`.**
+   `vercel dev`, and set the same variables — including `PUBLIC_SITE_URL` and
+   `VITE_API_ORIGIN` (see "Why the cross-origin cookie/CORS plumbing exists"
+   above) — as Environment Variables in the Vercel project dashboard for
+   deployed builds. **Never commit `.env`.**
 
 ## Search & filtering
 

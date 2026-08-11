@@ -1,11 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getSession } from "./_lib/session";
+import { applyCors } from "./_lib/cors";
 import { getContentFile, listDirectory, deleteContentFile } from "./_lib/github";
 import { parseFrontmatter } from "../src/lib/frontmatter";
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (applyCors(req, res)) return;
+
   if (req.method !== "DELETE") {
     res.status(405).json({ error: "Method not allowed" });
     return;
@@ -16,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(401).json({ error: "Not logged in." });
     return;
   }
-  if (!session.authorized) {
+  if (session.role === "none") {
     res.status(403).json({ error: "You don't have the required Discord role to publish." });
     return;
   }
@@ -40,8 +43,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data } = parseFrontmatter(indexFile.content);
     const authorId = typeof data.authorId === "string" ? data.authorId : null;
 
-    if (!authorId || authorId !== session.sub) {
-      res.status(403).json({ error: "Only the guide's original publisher can delete it." });
+    if (!(session.role === "moderator" || (authorId && authorId === session.sub))) {
+      res.status(403).json({ error: "Only the guide's original publisher (or a moderator) can delete it." });
       return;
     }
 

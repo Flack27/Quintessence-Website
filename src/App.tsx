@@ -18,9 +18,14 @@ export default function App() {
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/guide/:slug" element={<PostPage />} />
-            {/* PUBLISHING_ENABLED stays false in production per lib/config.ts — the DEV
-                clause only keeps the route reachable for local `npm run dev` testing. */}
-            {(PUBLISHING_ENABLED || import.meta.env.DEV) && <Route path="/publish" element={<PublishPage />} />}
+            {/* The DEV clause keeps these reachable under `npm run dev` even if
+                PUBLISHING_ENABLED is ever flipped back off locally. */}
+            {(PUBLISHING_ENABLED || import.meta.env.DEV) && (
+              <>
+                <Route path="/publish" element={<PublishPage />} />
+                <Route path="/publish/:slug" element={<PublishPage />} />
+              </>
+            )}
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>

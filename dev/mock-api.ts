@@ -164,17 +164,100 @@ async function handleDelete(req: IncomingMessage, res: ServerResponse, contentsR
     return;
   }
 
-  const raw = await fs.readFile(indexPath, "utf-8");
-  const { data } = parseFrontmatter(raw);
-  const authorId = typeof data.authorId === "string" ? data.authorId : null;
+  // DEV_USER is always reported as "moderator" (see /api/auth/me below), so it's implicitly
+  // allowed to delete any guide here — no ownership check needed, unlike the real endpoint.
+  await fs.rm(postDir, { recursive: true, force: true });
+  sendJson(res, 200, { ok: true });
+}
 
-  if (!authorId || authorId !== DEV_USER.id) {
-    sendJson(res, 403, { error: "Only the guide's original publisher can delete it." });
+async function handleUpdate(req: IncomingMessage, res: ServerResponse, contentsRoot: string) {
+  const payload = await readJsonBody(req);
+  const slug = typeof payload.slug === "string" ? payload.slug.trim().toLowerCase() : "";
+
+  if (!slug || !SLUG_PATTERN.test(slug)) {
+    sendJson(res, 400, { error: "Invalid slug." });
     return;
   }
 
-  await fs.rm(postDir, { recursive: true, force: true });
-  sendJson(res, 200, { ok: true });
+  let title: string;
+  let description: string;
+  let game: string;
+  let section: string;
+  let body: string;
+
+  try {
+    title = requireNonEmptyString(payload.title, "title");
+    description = requireNonEmptyString(payload.description, "description");
+    game = requireNonEmptyString(payload.game, "game");
+    section = requireNonEmptyString(payload.section, "section");
+    body = requireNonEmptyString(payload.body, "body");
+  } catch (error) {
+    sendJson(res, 400, { error: error instanceof Error ? error.message : "Invalid request." });
+    return;
+  }
+
+  const postDir = path.join(contentsRoot, slug);
+  const indexPath = path.join(postDir, "index.md");
+
+  if (!(await pathExists(indexPath))) {
+    sendJson(res, 404, { error: `No guide found with slug "${slug}".` });
+    return;
+  }
+
+  const existingRaw = await fs.readFile(indexPath, "utf-8");
+  const { data: existingData } = parseFrontmatter(existingRaw);
+  const authorName = typeof existingData.author === "string" ? existingData.author : DEV_USER.username;
+  const authorId = typeof existingData.authorId === "string" ? existingData.authorId : DEV_USER.id;
+
+  const images: { filename: string; base64: string }[] = [];
+  if (payload.images !== undefined) {
+    if (!Array.isArray(payload.images)) {
+      sendJson(res, 400, { error: "Images must be a list." });
+      return;
+    }
+    for (const item of payload.images as Array<{ filename?: unknown; content?: unknown }>) {
+      const filename = item?.filename;
+      const content = item?.content;
+      if (typeof filename !== "string" || !IMAGE_FILENAME_PATTERN.test(filename)) {
+        sendJson(res, 400, { error: `Invalid image filename: "${String(filename)}".` });
+        return;
+      }
+      if (typeof content !== "string" || !content) {
+        sendJson(res, 400, { error: `Missing image data for "${filename}".` });
+        return;
+      }
+      images.push({ filename, base64: content.replace(/^data:[^,]*base64,/, "") });
+    }
+  }
+
+  const subtitle = typeof payload.subtitle === "string" ? payload.subtitle : undefined;
+  const date = typeof payload.date === "string" ? payload.date : undefined;
+  const cover = typeof payload.cover === "string" ? payload.cover : undefined;
+  const tags = Array.isArray(payload.tags)
+    ? payload.tags.filter((tag): tag is string => typeof tag === "string").map((tag) => sanitizeScalar(tag).replace(/,/g, ""))
+    : [];
+
+  const frontmatterLines = [
+    `title: ${yamlString(title)}`,
+    subtitle ? `subtitle: ${yamlString(subtitle)}` : null,
+    `description: ${yamlString(description)}`,
+    `game: ${yamlString(game)}`,
+    `section: ${yamlString(section)}`,
+    tags.length ? `tags: [${tags.join(", ")}]` : null,
+    date ? `date: ${yamlString(date)}` : null,
+    `author: ${yamlString(authorName)}`,
+    `authorId: ${yamlString(authorId)}`,
+    cover ? `cover: ${yamlString(cover)}` : null,
+  ].filter((line): line is string => line !== null);
+
+  const markdown = `---\n${frontmatterLines.join("\n")}\n---\n\n${body.trim()}\n`;
+
+  await fs.writeFile(indexPath, markdown, "utf-8");
+  for (const image of images) {
+    await fs.writeFile(path.join(postDir, image.filename), Buffer.from(image.base64, "base64"));
+  }
+
+  sendJson(res, 200, { ok: true, slug, url: `/guide/${slug}`, commitUrl: "#" });
 }
 
 /**
@@ -195,7 +278,9 @@ export function mockApiPlugin(): Plugin {
 
         try {
           if (url === "/api/auth/me" && req.method === "GET") {
-            sendJson(res, 200, { authenticated: true, authorized: true, user: DEV_USER });
+            // Always reported as the top permission tier so `npm run dev` alone can exercise
+            // both "edit/delete your own post" and "edit/delete someone else's post" locally.
+            sendJson(res, 200, { authenticated: true, role: "moderator", user: DEV_USER });
             return;
           }
           if (url === "/api/auth/logout" && req.method === "POST") {
@@ -204,6 +289,10 @@ export function mockApiPlugin(): Plugin {
           }
           if (url === "/api/publish" && req.method === "POST") {
             await handlePublish(req, res, contentsRoot);
+            return;
+          }
+          if (url === "/api/update" && req.method === "PUT") {
+            await handleUpdate(req, res, contentsRoot);
             return;
           }
           if (url === "/api/delete" && req.method === "DELETE") {
@@ -219,7 +308,7 @@ export function mockApiPlugin(): Plugin {
       });
 
       console.log(
-        "\n  [dev-mock-api] /api/publish, /api/delete and /api/auth/* are mocked locally.\n" +
+        "\n  [dev-mock-api] /api/publish, /api/update, /api/delete and /api/auth/* are mocked locally.\n" +
           "  Guides are written for real to contents/<slug>/, but nothing touches GitHub or Discord.\n",
       );
     },

@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
+import { API_ORIGIN } from "@/lib/config";
 
 export function DiscordLoginButton() {
-  const { loading, authenticated, authorized, user, refresh } = useAuth();
+  const { loading, authenticated, canPublish, user, refresh } = useAuth();
 
   if (loading) return null;
 
   if (!authenticated) {
     return (
       <a
-        href="/api/auth/login"
+        href={`${API_ORIGIN}/api/auth/login`}
         className="flex items-center gap-2 rounded-full bg-quint-cta px-5 py-2.5 text-sm font-bold text-white shadow-glow transition-transform hover:scale-[1.03] hover:opacity-95"
       >
         <DiscordIcon className="h-4 w-4" />
@@ -19,13 +20,13 @@ export function DiscordLoginButton() {
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    await fetch(`${API_ORIGIN}/api/auth/logout`, { method: "POST", credentials: "include" });
     refresh();
   }
 
   return (
     <div className="flex items-center gap-3 text-sm">
-      {authorized && (
+      {canPublish && (
         <Link
           to="/publish"
           className="rounded-full border border-white/15 px-4 py-1.5 font-semibold text-slate-200 transition-colors hover:border-quint-purple/50 hover:text-white"

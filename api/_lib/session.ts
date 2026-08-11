@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { parse, serialize } from "cookie";
 import type { VercelRequest } from "@vercel/node";
 import { requireEnv } from "./env";
+import type { GuildRole } from "./discord";
 
 const SESSION_COOKIE = "aion_session";
 const STATE_COOKIE = "aion_oauth_state";
@@ -12,8 +13,8 @@ export interface SessionPayload {
   sub: string;
   username: string;
   avatar: string | null;
-  /** Has the required role in the configured guild, as of login time. */
-  authorized: boolean;
+  /** Permission tier in the configured guild, as of login time. */
+  role: GuildRole;
 }
 
 function secretKey(): Uint8Array {
@@ -27,17 +28,20 @@ export async function createSessionCookie(payload: SessionPayload): Promise<stri
     .setExpirationTime(`${SESSION_TTL_SECONDS}s`)
     .sign(secretKey());
 
+  // sameSite "none" (not "lax") because the browser calls this API cross-origin — the site is
+  // served from quintessence-eu.com/guides/, while these functions live on the codex's own
+  // Vercel domain. "Lax" cookies aren't sent on cross-site fetch/XHR, only top-level navigation.
   return serialize(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: true,
-    sameSite: "lax",
+    sameSite: "none",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   });
 }
 
 export function clearSessionCookie(): string {
-  return serialize(SESSION_COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 });
+  return serialize(SESSION_COOKIE, "", { httpOnly: true, secure: true, sameSite: "none", path: "/", maxAge: 0 });
 }
 
 export async function getSession(req: VercelRequest): Promise<SessionPayload | null> {
@@ -48,11 +52,12 @@ export async function getSession(req: VercelRequest): Promise<SessionPayload | n
   try {
     const { payload } = await jwtVerify(token, secretKey());
     if (typeof payload.sub !== "string" || typeof payload.username !== "string") return null;
+    const role = payload.role;
     return {
       sub: payload.sub,
       username: payload.username,
       avatar: (payload.avatar as string | null) ?? null,
-      authorized: Boolean(payload.authorized),
+      role: role === "author" || role === "moderator" ? role : "none",
     };
   } catch {
     return null;
@@ -64,14 +69,14 @@ export function createStateCookie(state: string): string {
   return serialize(STATE_COOKIE, state, {
     httpOnly: true,
     secure: true,
-    sameSite: "lax",
+    sameSite: "none",
     path: "/",
     maxAge: 60 * 10,
   });
 }
 
 export function clearStateCookie(): string {
-  return serialize(STATE_COOKIE, "", { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 0 });
+  return serialize(STATE_COOKIE, "", { httpOnly: true, secure: true, sameSite: "none", path: "/", maxAge: 0 });
 }
 
 export function readStateCookie(req: VercelRequest): string | null {

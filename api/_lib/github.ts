@@ -92,6 +92,8 @@ export async function createContentFile(options: {
   encoding?: "utf-8" | "base64";
   message: string;
   author: CommitAuthor;
+  /** Current file sha — required by the GitHub API to update an existing file in place; omit to create a new one. */
+  sha?: string;
 }): Promise<{ commitUrl: string }> {
   const { owner, repo, branch } = repoConfig();
 
@@ -106,6 +108,7 @@ export async function createContentFile(options: {
           : Buffer.from(options.content, "utf-8").toString("base64"),
       branch,
       author: options.author,
+      sha: options.sha,
     }),
   });
 

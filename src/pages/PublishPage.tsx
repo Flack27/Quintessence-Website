@@ -1,6 +1,8 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
+import { API_ORIGIN } from "@/lib/config";
+import { getPostBySlug } from "@/lib/content";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]";
@@ -65,6 +67,24 @@ const initialForm: FormState = {
   body: "",
 };
 
+/** Prefills the form from an existing post's frontmatter + body when editing. */
+function formFromPost(slug: string, post: ReturnType<typeof getPostBySlug>): FormState {
+  if (!post) return { ...initialForm, slug };
+  const { frontmatter, content } = post;
+  return {
+    slug,
+    title: frontmatter.title,
+    subtitle: frontmatter.subtitle ?? "",
+    description: frontmatter.description,
+    game: frontmatter.game || GAME_OPTIONS[0],
+    section: frontmatter.section,
+    tags: (frontmatter.tags ?? []).join(", "),
+    date: frontmatter.date ?? "",
+    cover: frontmatter.cover ?? "",
+    body: content,
+  };
+}
+
 /** URL-safe slug derived from a title, e.g. "Templar Tanking!" -> "templar-tanking". */
 function slugify(value: string): string {
   return value
@@ -113,8 +133,14 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 export function PublishPage() {
-  const { loading, authenticated, authorized } = useAuth();
-  const [form, setForm] = useState<FormState>(initialForm);
+  const { slug: editSlug } = useParams<{ slug: string }>();
+  const isEditing = Boolean(editSlug);
+  const existingPost = editSlug ? getPostBySlug(editSlug) : undefined;
+
+  const { loading, authenticated, user, canPublish, canModerate } = useAuth();
+  const [form, setForm] = useState<FormState>(() =>
+    isEditing ? formFromPost(editSlug ?? "", existingPost) : initialForm,
+  );
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -122,12 +148,15 @@ export function PublishPage() {
   const [result, setResult] = useState<{ url: string; commitUrl: string } | null>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
+  const existingCover = existingPost?.frontmatter.cover;
+  const canEditThis = isEditing && Boolean(canModerate || (user && user.id === existingPost?.frontmatter.authorId));
+
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function updateTitle(value: string) {
-    setForm((prev) => ({ ...prev, title: value, slug: slugify(value) }));
+    setForm((prev) => ({ ...prev, title: value, slug: isEditing ? prev.slug : slugify(value) }));
   }
 
   async function handleImagesSelected(event: ChangeEvent<HTMLInputElement>) {
@@ -204,8 +233,9 @@ export function PublishPage() {
     setResult(null);
 
     try {
-      const response = await fetch("/api/publish", {
-        method: "POST",
+      const response = await fetch(`${API_ORIGIN}/api/${isEditing ? "update" : "publish"}`, {
+        method: isEditing ? "PUT" : "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
@@ -223,8 +253,10 @@ export function PublishPage() {
       }
 
       setResult({ url: data.url, commitUrl: data.commitUrl });
-      setForm(initialForm);
-      setImages([]);
+      if (!isEditing) {
+        setForm(initialForm);
+        setImages([]);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to publish.");
     } finally {
@@ -239,13 +271,13 @@ export function PublishPage() {
   if (!bypassAuth && !authenticated) {
     return (
       <div className="mx-auto max-w-xl px-6 py-24 text-center">
-        <h1 className="font-display text-2xl font-bold text-white">Log in to publish</h1>
+        <h1 className="font-display text-2xl font-bold text-white">Log in to {isEditing ? "edit" : "publish"}</h1>
         <p className="mt-3 text-slate-400">
-          Publishing a guide requires logging in with a Discord account that has the required role
-          in the guild.
+          {isEditing ? "Editing" : "Publishing"} a guide requires logging in with a Discord account
+          that has the required role in the guild.
         </p>
         <a
-          href="/api/auth/login"
+          href={`${API_ORIGIN}/api/auth/login`}
           className="mt-6 inline-block rounded-full bg-quint-gradient px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Log in with Discord
@@ -254,12 +286,23 @@ export function PublishPage() {
     );
   }
 
-  if (!bypassAuth && !authorized) {
+  if (isEditing && !existingPost) {
+    return (
+      <div className="mx-auto max-w-xl px-6 py-24 text-center">
+        <h1 className="font-display text-2xl font-bold text-white">Guide not found</h1>
+        <p className="mt-3 text-slate-400">There's no guide with slug "{editSlug}" to edit.</p>
+      </div>
+    );
+  }
+
+  if (!bypassAuth && (isEditing ? !canEditThis : !canPublish)) {
     return (
       <div className="mx-auto max-w-xl px-6 py-24 text-center">
         <h1 className="font-display text-2xl font-bold text-white">You don't have access</h1>
         <p className="mt-3 text-slate-400">
-          Publishing is restricted to members of the guild's Discord with the required role.
+          {isEditing
+            ? "Only the guide's original publisher (or a moderator) can edit it."
+            : "Publishing is restricted to members of the guild's Discord with the required role."}{" "}
           Ask a guild officer if you think this is a mistake.
         </p>
       </div>
@@ -268,7 +311,7 @@ export function PublishPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-16">
-      <h1 className="font-display text-3xl font-bold text-white">Publish a guide</h1>
+      <h1 className="font-display text-3xl font-bold text-white">{isEditing ? "Edit guide" : "Publish a guide"}</h1>
 
       <form onSubmit={handleSubmit} className="mt-10 space-y-6">
         <div className="grid gap-6 sm:grid-cols-2">
@@ -438,12 +481,17 @@ export function PublishPage() {
               id="cover"
               value={form.cover}
               onChange={(e) => update("cover", e.target.value)}
-              disabled={images.length === 0}
+              disabled={images.length === 0 && !existingCover}
               className={`${selectClass} disabled:opacity-50`}
             >
               <option value="" className={optionClass}>
                 None
               </option>
+              {existingCover && !images.some((img) => img.filename === existingCover) && (
+                <option value={existingCover} className={optionClass}>
+                  {existingCover} (current)
+                </option>
+              )}
               {images.map((img) => (
                 <option key={img.filename} value={img.filename} className={optionClass}>
                   {img.filename}
@@ -488,7 +536,7 @@ export function PublishPage() {
           disabled={submitting}
           className="rounded-full bg-quint-gradient px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {submitting ? "Publishing…" : "Publish"}
+          {submitting ? (isEditing ? "Saving…" : "Publishing…") : isEditing ? "Save changes" : "Publish"}
         </button>
       </form>
     </div>
