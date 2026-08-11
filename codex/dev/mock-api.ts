@@ -277,25 +277,25 @@ export function mockApiPlugin(): Plugin {
         const url = req.url?.split("?")[0];
 
         try {
-          if (url === "/api/auth/me" && req.method === "GET") {
+          if (url === "/api/codex/auth/me" && req.method === "GET") {
             // Always reported as the top permission tier so `npm run dev` alone can exercise
             // both "edit/delete your own post" and "edit/delete someone else's post" locally.
             sendJson(res, 200, { authenticated: true, role: "moderator", user: DEV_USER });
             return;
           }
-          if (url === "/api/auth/logout" && req.method === "POST") {
+          if (url === "/api/codex/auth/logout" && req.method === "POST") {
             sendJson(res, 200, { ok: true });
             return;
           }
-          if (url === "/api/publish" && req.method === "POST") {
+          if (url === "/api/codex/publish" && req.method === "POST") {
             await handlePublish(req, res, contentsRoot);
             return;
           }
-          if (url === "/api/update" && req.method === "PUT") {
+          if (url === "/api/codex/update" && req.method === "PUT") {
             await handleUpdate(req, res, contentsRoot);
             return;
           }
-          if (url === "/api/delete" && req.method === "DELETE") {
+          if (url === "/api/codex/delete" && req.method === "DELETE") {
             await handleDelete(req, res, contentsRoot);
             return;
           }

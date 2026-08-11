@@ -29,7 +29,11 @@ services:
 
   frontend:
     build:
-      context: ./QT_FrontEnd/QT_FrontEnd
+      # Context is the repo root, not the Angular folder: one nginx image serves
+      # both the Angular site (/) and the Codex (/guides), so the build needs to
+      # reach ./QT_FrontEnd and ./codex. See .dockerignore for what's excluded.
+      context: .
+      dockerfile: QT_FrontEnd/QT_FrontEnd/Dockerfile
       args:
         BYPASS_BUDGET: "true"          # Angular production budget can trip on the bundle; relax it
     container_name: quintessence-frontend

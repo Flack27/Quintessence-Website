@@ -1,26 +1,32 @@
 /**
- * Site-level feature flags.
+ * Site-level configuration.
  */
 
 /**
- * Absolute origin of this codex's own Vercel deployment, e.g.
- * `https://quintessence-codex.vercel.app`. The site itself is served under
- * `quintessence-eu.com/guides/`, a sub-path of a separate main site that owns
- * `/api/*` at that domain's root — so every `/api/...` call the browser makes
- * has to point here explicitly instead of relying on same-origin `fetch("/api/...")`.
- * Set via the `VITE_API_ORIGIN` build-time env var; empty string means
- * same-origin (only correct if this app is ever deployed standalone at its
- * own domain instead of sub-path-mounted).
- */
-export const API_ORIGIN = import.meta.env.VITE_API_ORIGIN ?? "";
-
-/**
- * Discord-gated in-browser publishing (the `/publish` form, the navbar login
- * button, and the `api/` serverless functions behind them).
+ * Base path for the Codex's own API.
  *
- * Requires `VITE_API_ORIGIN` above plus the Discord/GitHub/`PUBLIC_SITE_URL`
- * env vars from `.env.example` to be set in the Vercel project for the
- * feature to actually work end to end — see README.md's "Discord-gated
- * publishing" section for the full setup checklist.
+ * The Codex is served at `quintessence-eu.com/guides/` by the same nginx that
+ * serves the Angular site and proxies `/api/` to the .NET API — so this is a
+ * plain **same-origin** path. No absolute origin, no CORS, no `SameSite=None`
+ * third-party cookie (which Safari blocks outright): the session cookie set by
+ * the API is first-party here, exactly like it is for the Angular admin login.
+ *
+ * The `/codex` namespace keeps these routes from colliding with the existing
+ * `/api/games`, `/api/timeline` etc. on the same API.
  */
-export const PUBLISHING_ENABLED = true;
+export const CODEX_API = "/api/codex";
+
+/**
+ * Discord-gated in-browser publishing — the `/publish` form, the navbar login
+ * button, and the endpoints behind them.
+ *
+ * **Off**: the UI is written and working, but the endpoints it calls do not
+ * exist yet. They are being built on the .NET API rather than as serverless
+ * functions (see `CODEX-PLAN.md` in the repo root, phase C). Flip this to
+ * `true` once `/api/codex/*` is live.
+ *
+ * Local development ignores this flag — `App.tsx` and `AuthContext` also check
+ * `import.meta.env.DEV`, which routes to the fake API in `dev/mock-api.ts`, so
+ * the publish flow stays testable with `npm run dev` and no backend at all.
+ */
+export const PUBLISHING_ENABLED = false;

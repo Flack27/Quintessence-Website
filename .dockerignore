@@ -1,0 +1,39 @@
+# Build context for the `frontend` service is the repo root (docker-compose.yml),
+# so everything below would otherwise be shipped to the Docker daemon on every
+# build. The frontend image only needs QT_FrontEnd/ and codex/.
+#
+# The `api` service has its own context (./QT_API) and its own .dockerignore.
+
+# The API is not part of the frontend build - and this is what keeps the
+# production secrets out of the frontend build context.
+QT_API/
+**/appsettings.Production.json
+.env
+
+# Runtime data and uploads (server-side only, never built)
+**/App_Data/
+**/uploads/
+
+# Dependencies and build output - reinstalled/rebuilt inside the image
+**/node_modules/
+**/dist/
+**/.angular/
+**/bin/
+**/obj/
+
+# TLS material - Cloudflare terminates TLS, nothing here needs certs
+**/ssl/
+*.pem
+*.key
+
+# Tooling / editor noise
+.git/
+.github/
+.vs/
+.vscode/
+**/*.user
+Thumbs.db
+desktop.ini
+
+# Docs - not needed to build either frontend
+*.md

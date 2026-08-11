@@ -5,7 +5,7 @@ import { formatPostDate } from "@/lib/date";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
 import { useAuth } from "@/lib/AuthContext";
-import { API_ORIGIN } from "@/lib/config";
+import { CODEX_API } from "@/lib/config";
 import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
@@ -29,7 +29,7 @@ export function PostPage() {
     setDeleteError(null);
 
     try {
-      const response = await fetch(`${API_ORIGIN}/api/delete`, {
+      const response = await fetch(`${CODEX_API}/delete`, {
         method: "DELETE",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

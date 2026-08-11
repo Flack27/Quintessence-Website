@@ -414,3 +414,8 @@ QT_API/Quintessence Website/appsettings.Production.json
 *.pem
 *.key
 ssl/
+
+# Frontend build output (Angular's dist/ was only ever untracked by accident)
+QT_FrontEnd/QT_FrontEnd/dist/
+codex/dist/
+.angular/

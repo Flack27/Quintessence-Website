@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { API_ORIGIN, PUBLISHING_ENABLED } from "./config";
+import { CODEX_API, PUBLISHING_ENABLED } from "./config";
 
 export type GuildRole = "none" | "author" | "moderator";
 
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    fetch(`${API_ORIGIN}/api/auth/me`, { credentials: "include" })
+    fetch(`${CODEX_API}/auth/me`, { credentials: "include" })
       .then((res) => res.json() as Promise<MeResponse>)
       .then((data) => {
         if (cancelled) return;

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { API_ORIGIN } from "@/lib/config";
+import { CODEX_API } from "@/lib/config";
 
 export function DiscordLoginButton() {
   const { loading, authenticated, canPublish, user, refresh } = useAuth();
@@ -10,7 +10,7 @@ export function DiscordLoginButton() {
   if (!authenticated) {
     return (
       <a
-        href={`${API_ORIGIN}/api/auth/login`}
+        href={`${CODEX_API}/auth/login`}
         className="flex items-center gap-2 rounded-full bg-quint-cta px-5 py-2.5 text-sm font-bold text-white shadow-glow transition-transform hover:scale-[1.03] hover:opacity-95"
       >
         <DiscordIcon className="h-4 w-4" />
@@ -20,7 +20,7 @@ export function DiscordLoginButton() {
   }
 
   async function logout() {
-    await fetch(`${API_ORIGIN}/api/auth/logout`, { method: "POST", credentials: "include" });
+    await fetch(`${CODEX_API}/auth/logout`, { method: "POST", credentials: "include" });
     refresh();
   }
 

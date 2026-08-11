@@ -1,6 +1,11 @@
 {
   "compilerOptions": {
     "composite": true,
+    // `composite` forces emit, and with no outDir tsc drops .js/.d.ts next to
+    // every source file - which then get committed and go stale, and can shadow
+    // the .ts they came from. Park them in node_modules instead; this project
+    // is only ever bundled by Vite, so the emit itself is throwaway.
+    "outDir": "./node_modules/.tmp/tsconfig-node",
     "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "bundler",

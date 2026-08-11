@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
-import { API_ORIGIN } from "@/lib/config";
+import { CODEX_API } from "@/lib/config";
 import { getPostBySlug } from "@/lib/content";
 
 const inputClass =
@@ -233,7 +233,7 @@ export function PublishPage() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_ORIGIN}/api/${isEditing ? "update" : "publish"}`, {
+      const response = await fetch(`${CODEX_API}/${isEditing ? "update" : "publish"}`, {
         method: isEditing ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -277,7 +277,7 @@ export function PublishPage() {
           that has the required role in the guild.
         </p>
         <a
-          href={`${API_ORIGIN}/api/auth/login`}
+          href={`${CODEX_API}/auth/login`}
           className="mt-6 inline-block rounded-full bg-quint-gradient px-6 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         >
           Log in with Discord
