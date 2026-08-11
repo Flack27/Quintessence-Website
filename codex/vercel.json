@@ -1,0 +1,10 @@
+{
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/guides/((?!api/).*)", "destination": "/guides/index.html" }
+  ],
+  "redirects": [
+    { "source": "/", "destination": "/guides/", "permanent": false },
+    { "source": "/guides", "destination": "/guides/", "permanent": false }
+  ]
+}
