@@ -34,13 +34,30 @@ export function DiscordLoginButton() {
           Publish
         </Link>
       )}
-      <span className="rounded-full border border-[rgba(201,160,220,0.13)] bg-white/[0.03] px-3 py-1.5 text-[#9c8fae]">
+      <span className="flex items-center gap-2 rounded-full border border-[rgba(201,160,220,0.13)] bg-white/[0.03] py-1 pl-1 pr-3.5 text-[#9c8fae]">
+        {user?.avatar ? (
+          <img
+            src={user.avatar}
+            alt=""
+            className="h-7 w-7 rounded-full border border-[rgba(201,160,220,0.26)] object-cover"
+            // Discord serves no avatar for accounts still on the default; the claim
+            // then points at a file that does not exist, so fall back to the initial.
+            onError={(event) => { event.currentTarget.style.display = "none"; }}
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#520f73] to-[#6b2d60] text-xs font-bold text-[#e6dcef]"
+          >
+            {(user?.username ?? "?").charAt(0).toUpperCase()}
+          </span>
+        )}
         {user?.username}
       </span>
       <button
         type="button"
         onClick={logout}
-        className="rounded-full border border-white/15 px-4 py-1.5 font-semibold text-slate-300 transition-colors hover:border-quint-pink/50 hover:text-white"
+        className="rounded-full border border-[rgba(201,160,220,0.26)] px-4 py-1.5 font-semibold text-[#9c8fae] transition-colors hover:border-[rgba(201,160,220,0.5)] hover:text-[#e6dcef]"
       >
         Log out
       </button>
