@@ -33,6 +33,13 @@ namespace QuintessenceWebsiteInterface.DTO
         /// <summary>Markdown body, frontmatter stripped. Null in index responses.</summary>
         public string? Content { get; set; }
 
+        /// <summary>
+        /// Plain-text rendering of the body, for the Codex's full-text search. Sent on the
+        /// index (where Content is omitted for weight) so searching still matches inside
+        /// guides rather than only their titles.
+        /// </summary>
+        public string? SearchText { get; set; }
+
         /// <summary>Last write time, for sorting when no date is set.</summary>
         public DateTime UpdatedUtc { get; set; }
     }

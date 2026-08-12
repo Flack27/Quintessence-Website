@@ -17,16 +17,14 @@
 export const CODEX_API = "/api/codex";
 
 /**
- * Discord-gated in-browser publishing — the `/publish` form, the navbar login
- * button, and the endpoints behind them.
+ * Discord-gated in-browser publishing - the `/publish` form, the sign-in control on
+ * the home page, and the guide endpoints behind them.
  *
- * **Off**: the UI is written and working, but the endpoints it calls do not
- * exist yet. They are being built on the .NET API rather than as serverless
- * functions (see `CODEX-PLAN.md` in the repo root, phase C). Flip this to
- * `true` once `/api/codex/*` is live.
+ * On. The endpoints live on the .NET API under `/api/codex/*`; guides are stored
+ * server-side, so publishing one makes it visible immediately rather than waiting for
+ * a container rebuild.
  *
- * Local development ignores this flag — `App.tsx` and `AuthContext` also check
- * `import.meta.env.DEV`, which routes to the fake API in `dev/mock-api.ts`, so
- * the publish flow stays testable with `npm run dev` and no backend at all.
+ * Who may publish is decided by Discord roles, resolved live per request - see
+ * CodexAccessService on the API side.
  */
-export const PUBLISHING_ENABLED = false;
+export const PUBLISHING_ENABLED = true;

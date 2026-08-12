@@ -192,6 +192,7 @@ namespace QuintessenceWebsiteDAL.Store
             }
 
             if (includeBody) guide.Content = body;
+            else guide.SearchText = StripMarkdown(body);
             return guide;
         }
 
@@ -214,6 +215,21 @@ namespace QuintessenceWebsiteDAL.Store
             sb.Append((g.Content ?? string.Empty).Replace("\r\n", "\n").TrimStart('\n'));
             if (!sb.ToString().EndsWith("\n")) sb.Append('\n');
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// Mirrors stripMarkdown() in codex/src/lib/content.ts - fences, inline code,
+        /// images, link syntax and marker punctuation out, so search matches prose.
+        /// </summary>
+        internal static string StripMarkdown(string markdown)
+        {
+            var text = System.Text.RegularExpressions.Regex.Replace(markdown, @"```[\s\S]*?```", " ");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"`[^`]*`", " ");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"!\[[^\]]*\]\([^)]*\)", " ");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\[([^\]]*)\]\([^)]*\)", "$1");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"[#>*_~|-]", " ");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
+            return text.Trim().ToLowerInvariant();
         }
 
         private static string Quote(string v) => "\"" + v.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";

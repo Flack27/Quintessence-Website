@@ -1,106 +1,96 @@
-import { parseFrontmatter } from "./frontmatter";
 import { publicAsset } from "./assets";
+import { CODEX_API } from "./config";
 import type { Post, PostFrontmatter } from "@/types/post";
 
-// Every guide lives at contents/<slug>/index.md — this glob is the single
-// place that knows about that convention.
-const markdownModules = import.meta.glob("/contents/*/index.md", {
-  eager: true,
-  query: "?raw",
-  import: "default",
-}) as Record<string, string>;
+/**
+ * Guides come from the API, not from the bundle.
+ *
+ * They used to be read at build time with `import.meta.glob("/contents/*&#47;index.md")`,
+ * which meant a guide could not appear without rebuilding and redeploying the
+ * container - fine on a host that rebuilds on every push, useless on the guild's
+ * hand-deployed server, and it made publishing from the site pointless.
+ *
+ * The `Post` shape is unchanged on purpose: PostCard, PostGrid, the search index and
+ * the markdown renderer all keep working against the same fields, so only the source
+ * of the data moved.
+ */
 
-// Images sitting next to a post's index.md are bundled as regular assets so
-// `cover: cover.png` and inline `![alt](cover.png)` markdown can resolve them.
-const assetModules = import.meta.glob("/contents/*/*.{png,jpg,jpeg,gif,webp,svg}", {
-  eager: true,
-  query: "?url",
-  import: "default",
-}) as Record<string, string>;
-
-function slugFromPath(path: string): string {
-  const match = path.match(/^\/contents\/([^/]+)\/index\.md$/);
-  if (!match) throw new Error(`Unexpected content path: ${path}`);
-  return match[1];
+/** What /api/codex/guides returns. */
+interface GuideResponse {
+  slug: string;
+  title: string;
+  subtitle?: string | null;
+  description: string;
+  game: string;
+  section: string;
+  tags: string[];
+  date?: string | null;
+  author?: string | null;
+  authorId?: string | null;
+  cover?: string | null;
+  draft: boolean;
+  content?: string | null;
+  /** Stripped body, sent on the index where `content` is omitted. */
+  searchText?: string | null;
 }
 
-function stripMarkdown(markdown: string): string {
-  return markdown
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/`[^`]*`/g, " ")
-    .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)]\([^)]*\)/g, "$1")
-    .replace(/[#>*_~|-]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/** Resolves a markdown-relative image path (e.g. "cover.png", "./shot.jpg") to its built URL. */
-export function resolveAssetUrl(slug: string, relativePath: string): string | undefined {
-  if (/^https?:\/\//.test(relativePath)) return relativePath;
-  if (relativePath.startsWith("/")) return publicAsset(relativePath);
-  const cleaned = relativePath.replace(/^\.\//, "");
-  return assetModules[`/contents/${slug}/${cleaned}`];
-}
-
-function toStringArray(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((item): item is string => typeof item === "string");
-}
-
-function buildPost(path: string, raw: string): Post {
-  const slug = slugFromPath(path);
-  const { data, content } = parseFrontmatter(raw);
-
+function toPost(dto: GuideResponse): Post {
   const frontmatter: PostFrontmatter = {
-    title: typeof data.title === "string" && data.title ? data.title : slug,
-    subtitle: typeof data.subtitle === "string" ? data.subtitle : undefined,
-    description: typeof data.description === "string" ? data.description : "",
-    game: typeof data.game === "string" && data.game ? data.game : "General",
-    section: typeof data.section === "string" && data.section ? data.section : "Uncategorized",
-    tags: toStringArray(data.tags),
-    date: typeof data.date === "string" ? data.date : undefined,
-    author: typeof data.author === "string" ? data.author : undefined,
-    authorId: typeof data.authorId === "string" ? data.authorId : undefined,
-    cover: typeof data.cover === "string" ? data.cover : undefined,
-    draft: Boolean(data.draft),
+    title: dto.title,
+    subtitle: dto.subtitle ?? undefined,
+    description: dto.description ?? "",
+    game: dto.game || "General",
+    section: dto.section || "Uncategorized",
+    tags: dto.tags ?? [],
+    date: dto.date ?? undefined,
+    author: dto.author ?? undefined,
+    authorId: dto.authorId ?? undefined,
+    cover: dto.cover ?? undefined,
+    draft: dto.draft,
   };
-
-  if (import.meta.env.DEV) {
-    if (!data.title) console.warn(`[contents/${slug}] missing required "title" in frontmatter.`);
-    if (!data.description) console.warn(`[contents/${slug}] missing required "description" (post intro) in frontmatter.`);
-    if (!data.game) console.warn(`[contents/${slug}] missing required "game" in frontmatter.`);
-    if (!data.section) console.warn(`[contents/${slug}] missing required "section" in frontmatter.`);
-  }
 
   return {
-    slug,
+    slug: dto.slug,
     frontmatter,
-    content,
-    searchText: stripMarkdown(content).toLowerCase(),
-    coverUrl: frontmatter.cover ? resolveAssetUrl(slug, frontmatter.cover) : undefined,
+    content: dto.content ?? "",
+    searchText: (dto.searchText ?? dto.content ?? "").toLowerCase(),
+    coverUrl: frontmatter.cover ? resolveAssetUrl(dto.slug, frontmatter.cover) : undefined,
   };
 }
 
-let cachedPosts: Post[] | null = null;
-
-/** All published posts, newest first. In dev mode, drafts are included so authors can preview them. */
-export function getAllPosts(): Post[] {
-  if (cachedPosts) return cachedPosts;
-
-  cachedPosts = Object.entries(markdownModules)
-    .map(([path, raw]) => buildPost(path, raw))
-    .filter((post) => !post.frontmatter.draft || import.meta.env.DEV)
-    .sort((a, b) => {
-      const dateA = a.frontmatter.date ? Date.parse(a.frontmatter.date) : 0;
-      const dateB = b.frontmatter.date ? Date.parse(b.frontmatter.date) : 0;
-      return dateB - dateA;
-    });
-
-  return cachedPosts;
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { credentials: "include" });
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return (await response.json()) as T;
 }
 
-export function getPostBySlug(slug: string): Post | undefined {
-  return getAllPosts().find((post) => post.slug === slug);
+/** Every guide the caller may see, newest first. Drafts are filtered server-side. */
+export async function fetchPosts(): Promise<Post[]> {
+  const guides = await getJson<GuideResponse[]>(`${CODEX_API}/guides`);
+  return guides.map(toPost);
 }
 
+/** One guide including its markdown body, or null if it does not exist. */
+export async function fetchPost(slug: string): Promise<Post | null> {
+  try {
+    return toPost(await getJson<GuideResponse>(`${CODEX_API}/guides/${encodeURIComponent(slug)}`));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves an image path from a guide's markdown to a URL.
+ *
+ * A bare or relative filename ("cover.png", "./shot.jpg") is an image uploaded with
+ * that guide, served by the API. A root-absolute path is a file in the Codex's own
+ * `assets/` folder and still resolves against the site base.
+ */
+export function resolveAssetUrl(slug: string, relativePath: string): string | undefined {
+  if (!relativePath) return undefined;
+  if (/^https?:\/\//.test(relativePath)) return relativePath;
+  if (relativePath.startsWith("/")) return publicAsset(relativePath);
+
+  const cleaned = relativePath.replace(/^\.\//, "");
+  return `${CODEX_API}/guides/${encodeURIComponent(slug)}/images/${encodeURIComponent(cleaned)}`;
+}

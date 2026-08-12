@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { getPostBySlug } from "@/lib/content";
+import { fetchPost } from "@/lib/content";
 import { formatPostDate } from "@/lib/date";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
@@ -10,11 +10,30 @@ import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
   const { slug } = useParams<{ slug: string }>();
-  const post = slug ? getPostBySlug(slug) : undefined;
   const { user, canModerate } = useAuth();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // The body lives on the server now, so a guide is fetched rather than read out of
+  // the bundle. `undefined` means still loading; `null` means there is no such guide.
+  const [post, setPost] = useState<Awaited<ReturnType<typeof fetchPost>> | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!slug) { setPost(null); return; }
+
+    setPost(undefined);
+    fetchPost(slug)
+      .then((loaded) => { if (!cancelled) setPost(loaded); })
+      .catch(() => { if (!cancelled) setPost(null); });
+
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  if (post === undefined) {
+    return <p className="mx-auto max-w-3xl px-6 py-24 text-[#6c6179]">Loading guide…</p>;
+  }
 
   if (!post) return <NotFoundPage />;
 
@@ -29,11 +48,9 @@ export function PostPage() {
     setDeleteError(null);
 
     try {
-      const response = await fetch(`${CODEX_API}/delete`, {
+      const response = await fetch(`${CODEX_API}/guides/${encodeURIComponent(postSlug)}`, {
         method: "DELETE",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: postSlug }),
       });
 
       const data = await response.json();

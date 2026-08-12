@@ -1,8 +1,9 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent, useEffect} from "react";
 import { Link, useParams } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { getPostBySlug } from "@/lib/content";
+import { fetchPost } from "@/lib/content";
+import type { Post } from "@/types/post";
 
 const inputClass =
   "w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]";
@@ -68,7 +69,7 @@ const initialForm: FormState = {
 };
 
 /** Prefills the form from an existing post's frontmatter + body when editing. */
-function formFromPost(slug: string, post: ReturnType<typeof getPostBySlug>): FormState {
+function formFromPost(slug: string, post: Post | null | undefined): FormState {
   if (!post) return { ...initialForm, slug };
   const { frontmatter, content } = post;
   return {
@@ -135,12 +136,25 @@ function readFileAsDataUrl(file: File): Promise<string> {
 export function PublishPage() {
   const { slug: editSlug } = useParams<{ slug: string }>();
   const isEditing = Boolean(editSlug);
-  const existingPost = editSlug ? getPostBySlug(editSlug) : undefined;
 
   const { loading, authenticated, user, canPublish, canModerate } = useAuth();
-  const [form, setForm] = useState<FormState>(() =>
-    isEditing ? formFromPost(editSlug ?? "", existingPost) : initialForm,
-  );
+  const [form, setForm] = useState<FormState>(initialForm);
+  const [existingPost, setExistingPost] = useState<Post | null | undefined>(undefined);
+
+  // Editing loads the guide from the API rather than the bundle, so the form fills in
+  // once it arrives instead of being seeded synchronously at first render.
+  useEffect(() => {
+    let cancelled = false;
+    if (!editSlug) { setExistingPost(null); return; }
+
+    fetchPost(editSlug).then((post) => {
+      if (cancelled) return;
+      setExistingPost(post);
+      setForm(formFromPost(editSlug, post));
+    });
+
+    return () => { cancelled = true; };
+  }, [editSlug]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -233,7 +247,12 @@ export function PublishPage() {
     setResult(null);
 
     try {
-      const response = await fetch(`${CODEX_API}/${isEditing ? "update" : "publish"}`, {
+      // REST now: POST /guides to create, PUT /guides/<slug> to edit.
+      const endpoint = isEditing
+        ? `${CODEX_API}/guides/${encodeURIComponent(editSlug ?? "")}`
+        : `${CODEX_API}/guides`;
+
+      const response = await fetch(endpoint, {
         method: isEditing ? "PUT" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

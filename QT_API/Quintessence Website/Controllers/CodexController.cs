@@ -58,9 +58,11 @@ namespace Quintessence_Website.Controllers
         [HttpGet("auth/me")]
         public async Task<IActionResult> Me(CancellationToken ct)
         {
+            // Shape matches what the Codex's AuthContext already expects: a single "role"
+            // tier plus the user. It derives canPublish/canModerate from that itself.
             if (User.Identity?.IsAuthenticated != true)
             {
-                return Ok(new { authenticated = false, canWrite = false, canManage = false, user = (object?)null });
+                return Ok(new { authenticated = false, role = "none", user = (object?)null });
             }
 
             var discordId = User.FindFirst("id")?.Value;
@@ -69,12 +71,11 @@ namespace Quintessence_Website.Controllers
             return Ok(new
             {
                 authenticated = true,
-                canWrite = access.CanWrite,
-                canManage = access.CanManage,
+                role = access.CanManage ? "moderator" : access.CanWrite ? "author" : "none",
                 user = new
                 {
                     id = discordId,
-                    name = User.FindFirst("display_name")?.Value is { Length: > 0 } displayName
+                    username = User.FindFirst("display_name")?.Value is { Length: > 0 } displayName
                         ? displayName
                         : User.FindFirst("user_name")?.Value,
                     avatar = User.FindFirst("avatar_url")?.Value,
