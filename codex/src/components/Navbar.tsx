@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 import { GameDropdown } from "./GameDropdown";
-import { DiscordLoginButton } from "./DiscordLoginButton";
-import { PUBLISHING_ENABLED } from "@/lib/config";
 
 /**
  * Deliberately NOT styled with Tailwind. This uses the same markup and class names
@@ -13,7 +11,9 @@ import { PUBLISHING_ENABLED } from "@/lib/config";
  * drifted on border width (0.8px vs 1px), blur radius, box-shadow and link padding.
  * If the bar needs to change, change it there and both halves follow.
  *
- * The game switcher is Codex-only and keeps its own styling.
+ * The game switcher is Codex-only and keeps its own styling. Sign-in deliberately
+ * does NOT live here - it sits beside the search bar on the home page, where it is
+ * actually relevant and where the signed-in state has room.
  */
 export function Navbar() {
   return (
@@ -44,9 +44,6 @@ export function Navbar() {
           <li><a className="qt-nav__link" href="/games">Games</a></li>
           <li><a className="qt-nav__link" href="/roster">Roster</a></li>
           <li><Link className="qt-nav__link qt-nav__link--active" to="/">Codex</Link></li>
-          {PUBLISHING_ENABLED && (
-            <li><DiscordLoginButton /></li>
-          )}
         </ul>
       </div>
     </header>
