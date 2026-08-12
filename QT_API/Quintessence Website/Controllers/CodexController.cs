@@ -1,0 +1,106 @@
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Mvc;
+using Quintessence_Website.Services;
+
+namespace Quintessence_Website.Controllers
+{
+    /// <summary>
+    /// Auth surface for the Codex (the React app served at /guides).
+    ///
+    /// Login and logout are the *same* cookie session the Angular site uses - this is one
+    /// website, one sign-in. These endpoints exist separately only so the Codex has a
+    /// return-path aware login and a capability-shaped session response; they do not create
+    /// a second session.
+    /// </summary>
+    [Route("api/codex")]
+    [ApiController]
+    public class CodexController : ControllerBase
+    {
+        private readonly CodexAccessService _access;
+        private readonly IWebHostEnvironment _environment;
+
+        public CodexController(CodexAccessService access, IWebHostEnvironment environment)
+        {
+            _access = access;
+            _environment = environment;
+        }
+
+        private string SiteBaseUrl => _environment.IsDevelopment()
+            ? "https://localhost:4200"
+            : "https://quintessence-eu.com";
+
+        /// <summary>
+        /// Starts Discord sign-in and returns the user to where they came from.
+        ///
+        /// The Codex's login entry points are contextual ("Write a guide"), so landing back
+        /// on the homepage would strand people away from what they were trying to do.
+        /// </summary>
+        [HttpGet("auth/login")]
+        public IActionResult Login([FromQuery] string? returnTo)
+        {
+            var target = SiteBaseUrl + SafeReturnPath(returnTo);
+            return Challenge(new AuthenticationProperties { RedirectUri = target }, "Discord");
+        }
+
+        [HttpPost("auth/logout")]
+        public async Task<IActionResult> Logout()
+        {
+            await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            return Ok(new { ok = true });
+        }
+
+        /// <summary>
+        /// Who the caller is and what they may do. Always 200 - "signed out" is a normal
+        /// answer here, not an error, so the UI can render its logged-out state without
+        /// treating it as a failure.
+        /// </summary>
+        [HttpGet("auth/me")]
+        public async Task<IActionResult> Me(CancellationToken ct)
+        {
+            if (User.Identity?.IsAuthenticated != true)
+            {
+                return Ok(new { authenticated = false, canWrite = false, canManage = false, user = (object?)null });
+            }
+
+            var discordId = User.FindFirst("id")?.Value;
+            var access = await _access.GetAccessAsync(discordId, ct);
+
+            return Ok(new
+            {
+                authenticated = true,
+                canWrite = access.CanWrite,
+                canManage = access.CanManage,
+                user = new
+                {
+                    id = discordId,
+                    name = User.FindFirst("display_name")?.Value is { Length: > 0 } displayName
+                        ? displayName
+                        : User.FindFirst("user_name")?.Value,
+                    avatar = User.FindFirst("avatar_url")?.Value,
+                }
+            });
+        }
+
+        /// <summary>
+        /// Keeps <paramref name="returnTo"/> to a path on this site.
+        ///
+        /// It arrives from a query string, so without this an attacker could hand someone a
+        /// login link that bounces them to another host after signing in. Anything that is
+        /// not a plain single-slash-rooted path is discarded in favour of the Codex home.
+        /// </summary>
+        private static string SafeReturnPath(string? returnTo)
+        {
+            const string fallback = "/guides/";
+
+            if (string.IsNullOrWhiteSpace(returnTo)) return fallback;
+            if (!returnTo.StartsWith('/')) return fallback;
+
+            // "//host" and "/\host" are both read as protocol-relative URLs by browsers.
+            if (returnTo.StartsWith("//") || returnTo.StartsWith("/\\")) return fallback;
+            if (returnTo.Contains('\\')) return fallback;
+
+            return returnTo;
+        }
+    }
+}

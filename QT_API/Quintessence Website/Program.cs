@@ -8,6 +8,8 @@ using AspNet.Security.OAuth.Discord;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using System.Security.Claims;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,6 +24,15 @@ var environment = builder.Environment;
 bool isDevelopment = environment.IsDevelopment();
 
 builder.Configuration.AddUserSecrets<Program>();
+
+// Persist the Data Protection keys, which encrypt the auth cookie. By default they live in
+// the container filesystem, so every `docker compose up --build` generated a fresh set and
+// silently signed everyone out - which made the 365-day cookie below last only until the
+// next deploy. App_Data is a named volume, so keys (and sessions) now survive redeploys.
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(
+        Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")))
+    .SetApplicationName("QuintessenceWebsite");
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -41,11 +52,30 @@ string frontendUrl = isDevelopment
 // plain allowlist of Discord user ids in config: "Discord": { "AdminUserIds": [ "123..." ] }.
 var adminUserIds = builder.Configuration.GetSection("Discord:AdminUserIds").Get<string[]>() ?? Array.Empty<string>();
 
+// Codex authoring access is decided by Discord roles, not by this allowlist - see
+// CodexAccessService. Bound here so a missing section is an empty (deny-all) config
+// rather than a crash.
+var codexOptions = builder.Configuration.GetSection("Codex").Get<CodexOptions>() ?? new CodexOptions();
+builder.Services.AddSingleton(codexOptions);
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient<CodexAccessService>(http => http.Timeout = TimeSpan.FromSeconds(10));
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("IsAdmin", policy =>
         policy.RequireClaim("is_admin", "true"));
+
+    // Codex policies are assertions rather than claim checks: roles are resolved live on
+    // each request (behind a short cache) instead of being stamped into the year-long auth
+    // cookie at sign-in, so revoking a role takes effect in minutes, not at next logout.
+    options.AddPolicy("CodexAuthor", policy =>
+        policy.Requirements.Add(new CodexAccessRequirement(RequireManage: false)));
+
+    options.AddPolicy("CodexManager", policy =>
+        policy.Requirements.Add(new CodexAccessRequirement(RequireManage: true)));
 });
+
+builder.Services.AddSingleton<IAuthorizationHandler, CodexAccessHandler>();
 
 // Discord Oauth2
 builder.Services.AddAuthentication(options =>
