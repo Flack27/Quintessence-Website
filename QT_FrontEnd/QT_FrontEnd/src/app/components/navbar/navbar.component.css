@@ -7,118 +7,6 @@
    What belongs here: the admin user dropdown and the mobile menu, neither of which
    the Codex has. */
 
-/* User info styling */
-.user-info {
-  position: relative;
-}
-
-.user {
-  border-radius: var(--border-radius-lg);
-  border: 2px solid white;
-  background: linear-gradient(180deg, rgba(82, 15, 115, 0.9), rgba(52, 10, 83, 0.9));
-  display: flex;
-  align-items: center;
-  padding: 4px var(--spacing-md);
-  transition: all var(--transition-medium);
-  position: relative;
-  z-index: 1001;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-}
-
-.user-info:hover .user {
-  border-color: var(--secondary-blue);
-  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
-  border-bottom: none;
-  padding-bottom: 10px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--border-radius-circle);
-  margin-right: var(--spacing-sm);
-  border: 2px solid var(--primary-medium);
-  object-fit: cover;
-  transition: all var(--transition-medium);
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.3);
-}
-
-.user span {
-  color: white;
-  font-weight: 600;
-  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.user-info:hover .avatar {
-  border-color: var(--secondary-blue);
-  transform: scale(1.05);
-}
-
-/* Dropdown animation */
-.dropdown {
-  position: absolute;
-  top: calc(100%);
-  right: 0;
-  background: linear-gradient(180deg, rgba(52, 10, 83, 0.9), rgba(21, 0, 51, 0.9));
-  border: 2px solid var(--secondary-blue);
-  border-top: none;
-  border-radius: 0 0 var(--border-radius-lg) var(--border-radius-lg);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  width: 100%;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease-in-out, opacity 0.3s ease;
-  opacity: 0;
-  box-shadow: var(--shadow-lg);
-  display: flex;
-  flex-direction: column;
-}
-
-.user-info:hover .dropdown {
-  max-height: 200px;
-  opacity: 1;
-}
-
-.dropdown li {
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 100%;
-  transition: all var(--transition-medium);
-  border-bottom: 1px solid rgba(82, 15, 115, 0.3);
-  display: block;
-}
-
-  .dropdown li:last-child {
-    border-bottom: none;
-  }
-
-  .dropdown li:hover {
-    background-color: rgba(82, 15, 115, 0.3);
-  }
-
-  .dropdown li a {
-    text-decoration: none;
-    cursor: pointer;
-    color: white;
-    font-weight: 600;
-    text-align: center;
-    display: block;
-    width: 100%;
-    padding: var(--spacing-sm) var(--spacing-md) !important;
-  }
-
-    .dropdown li a:hover {
-      color: var(--secondary-blue);
-      transform: translateX(5px);
-    }
-
-    .dropdown li a::after {
-      display: none;
-    }
-
 /* Mobile menu toggle */
 .mobile-toggle {
   display: none;
@@ -136,18 +24,8 @@
 
 /* Active link styling lives in shared/navbar.css (.qt-nav__link--active). */
 
-/* Keep active style for dropdown items */
-.dropdown li a.active {
-  color: var(--secondary-blue) !important;
-  background-color: rgba(82, 15, 115, 0.3);
-}
-
 /* Responsive styles */
 @media (max-width: 1100px) {
-  .user-info {
-    display: none;
-  }
-
   .li-menu {
     display: none;
   }
@@ -235,23 +113,8 @@
         transition-delay: 0.35s;
       }
 
-  .user {
-    width: 80%;
-  }
-
-  .dropdown {
-    position: relative;
-    width: 80%;
-    margin: 0 auto;
-  }
-
-  .user-info:hover .dropdown {
-    position: relative;
-  }
-
-  nav ul.mobile-open li a.active {
-    color: var(--secondary-blue);
-    background-color: rgba(82, 15, 115, 0.4); /* Subtle background for active item in mobile menu */
+  nav ul.mobile-open li a.qt-nav__link--active {
+    background-color: rgba(82, 15, 115, 0.4); /* Subtle background for the active item */
   }
 }
 

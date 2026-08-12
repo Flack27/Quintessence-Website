@@ -1,5 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
-import { AuthService } from '../../services/auth.service';
+import { Component, HostListener } from '@angular/core';
 import { QUTIE_APPLY_URL } from '../../qutie.config';
 
 @Component({
@@ -7,25 +6,14 @@ import { QUTIE_APPLY_URL } from '../../qutie.config';
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.css']
 })
-export class NavComponent implements OnInit {
-  isDropdownVisible = false;
+// The navbar shows nothing about sign-in state. Admins reach /login directly, and
+// the signed-in controls live on the Codex page where publishing happens - so this
+// component no longer needs the auth service at all.
+export class NavComponent {
   isMobileMenuOpen = false;
-  user: any = null;
 
   // Apply lives on Qutie - the navbar links straight there (no intermediate page).
   readonly applyUrl = QUTIE_APPLY_URL;
-
-  constructor(public authService: AuthService) { }
-
-  ngOnInit(): void {
-    this.authService.user$.subscribe((user) => {
-      this.user = user;
-    });
-  }
-
-  toggleDropdown(): void {
-    this.isDropdownVisible = !this.isDropdownVisible;
-  }
 
   toggleMobileMenu(): void {
     this.isMobileMenuOpen = !this.isMobileMenuOpen;
@@ -38,12 +26,6 @@ export class NavComponent implements OnInit {
       this.isMobileMenuOpen = false;
       document.body.style.overflow = '';
     }
-  }
-
-  logout(): void {
-    this.authService.logout();
-    this.isDropdownVisible = false;
-    this.closeMobileMenu();
   }
 
   // Close mobile menu when window is resized to desktop size

@@ -1,8 +1,8 @@
 <!--
   Structure and class names are shared with the Codex's navbar and styled by
   ../../../../shared/navbar.css. Keep the two in step: anything visual belongs in
-  that file, not here. The user dropdown and the mobile toggle below are
-  Angular-only and keep their own classes.
+  that file, not here. The mobile toggle below is Angular-only and keeps its own
+  classes; nothing in this bar reflects sign-in state.
 -->
 <nav class="qt-nav">
   <div class="qt-nav__inner navbar-container">
@@ -28,19 +28,9 @@
            routerLink would hand it to the SPA router, which would miss and fall
            through to the '**' redirect back to home. -->
       <li><a class="qt-nav__link" href="/guides/" (click)="closeMobileMenu()">Codex</a></li>
-      <!-- No login link: admins use the hidden /login route -->
-      <!-- User Dropdown (only ever visible to logged-in admins) -->
-      <li class="user-info" *ngIf="user?.isAuthenticated">
-        <div class="user" (click)="toggleDropdown()">
-          <img [src]="user?.claims?.avatar_url"
-               alt="User Avatar"
-               class="avatar" />
-          <span>{{ user?.claims?.display_name }}</span>
-        </div>
-        <ul class="dropdown">
-          <li><a (click)="logout(); closeMobileMenu()">Logout</a></li>
-        </ul>
-      </li>
+      <!-- Nothing here reflects sign-in state. Admins reach /login directly, and the
+           only signed-in controls live on the Codex page, which is where publishing
+           happens. The session itself is site-wide either way. -->
     </ul>
   </div>
 </nav>
