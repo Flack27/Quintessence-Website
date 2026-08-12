@@ -262,7 +262,7 @@ export function PublishPage() {
             .split(",")
             .map((tag) => tag.trim())
             .filter(Boolean),
-          images: images.map((img) => ({ filename: img.filename, content: img.dataUrl })),
+          images: images.map((img) => ({ filename: img.filename, data: img.dataUrl })),
         }),
       });
 
