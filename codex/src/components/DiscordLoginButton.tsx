@@ -50,7 +50,7 @@ export function DiscordLoginButton() {
         <span className="leading-none">{user?.username}</span>
         {role !== "none" && (
           <span className="rounded-full bg-[rgba(236,77,174,0.14)] px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-[#ec4dae]">
-            {role === "moderator" ? "Manager" : "Author"}
+            {role === "moderator" ? "Admin" : "Author"}
           </span>
         )}
       </span>
