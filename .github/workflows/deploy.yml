@@ -1,0 +1,58 @@
+name: build-publish
+
+# On every push to main: build the two images and push them to GHCR.
+# Watchtower on the home server polls GHCR every 5 min, pulls :latest and
+# redeploys. There is no test job yet (no test projects in this repo); add one
+# here as a `needs:` dependency of build-push when there is something to run.
+on:
+  push:
+    branches: [main]
+    paths:                  # only rebuild when something in an image changes
+      - 'QT_API/**'
+      - 'QT_FrontEnd/**'
+      - 'codex/**'
+      - 'shared/**'         # stylesheets baked into both frontends
+      - '.dockerignore'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:        # manual trigger anytime
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: flack27           # GHCR namespace (lowercased owner of Flack27/Quintessence-Website)
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write       # push to GHCR using the built-in token
+    strategy:
+      matrix:
+        include:
+          # Both contexts are the repo root: the API bakes codex/contents as guide
+          # seed data, and the frontend image builds Angular + the Codex together.
+          - name: quintessence-api
+            dockerfile: QT_API/Quintessence Website/Dockerfile
+            build-args: ""
+          - name: quintessence-frontend
+            dockerfile: QT_FrontEnd/QT_FrontEnd/Dockerfile
+            build-args: BYPASS_BUDGET=true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          build-args: ${{ matrix.build-args }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.name }}:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/${{ matrix.name }}:${{ github.sha }}

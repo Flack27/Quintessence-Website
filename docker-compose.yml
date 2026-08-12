@@ -1,10 +1,18 @@
-# Quintessence guild site — home server, fronted by Cloudflare Tunnel.
+# Quintessence guild site, home server, fronted by Cloudflare Tunnel.
 # frontend (Angular/nginx) is the public entry; it proxies /api to the .NET API.
-# Local-build stack (no CI/CD), updated by hand:  docker compose up -d --build
+#
+# Auto-deploy: pushing to main builds both images in CI (.github/workflows/deploy.yml)
+# and pushes them to GHCR; the box-wide watchtower (in the qutie stack) pulls :latest
+# within ~5 min and recreates the containers. Nothing to run by hand.
+#
+# The `build:` blocks are kept so a local build still works for dev:
+#   docker compose up -d --build     builds locally and tags it as the GHCR name
+#   docker compose pull && up -d     takes whatever CI last published
 name: quintessence
 
 services:
   api:
+    image: ghcr.io/flack27/quintessence-api:latest
     build:
       # Repo root, not ./QT_API: the image also ships codex/contents as seed data for
       # the guides store, so the build needs to see outside the API folder.
@@ -30,6 +38,7 @@ services:
     networks: [quintessence-net, qutie-net]
 
   frontend:
+    image: ghcr.io/flack27/quintessence-frontend:latest
     build:
       # Context is the repo root, not the Angular folder: one nginx image serves
       # both the Angular site (/) and the Codex (/guides), so the build needs to
