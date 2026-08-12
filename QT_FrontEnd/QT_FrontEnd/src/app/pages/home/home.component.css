@@ -231,6 +231,35 @@
   opacity: 0;
 }
 
+/* On a phone she is width-led at ~350px, so only ~237px tall - but the panel was
+   still a full viewport, leaving ~600px of empty space under her with the copy
+   pinned to the bottom of it. Let the panel follow its content instead and stack
+   the wordmark under her, overlapping her hem slightly. */
+@media (max-width: 768px) {
+  .hero-section {
+    height: auto;
+    min-height: 0;
+    padding-bottom: var(--spacing-lg);
+  }
+
+  .hero-art {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin-inline: auto;
+  }
+
+  .hero-content {
+    position: static;
+    margin-top: -26px;
+  }
+
+  .scroll-indicator {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-art > img,
   .hero-flame,
@@ -1042,15 +1071,12 @@
     font-size: 90%;
   }
 
-  /* Hero Section Improvements */
-  .hero-section {
-    min-height: 100vh;
-  }
+  /* Hero height is handled by the mobile branch further up: the panel follows its
+     content on a phone rather than filling the viewport, because she is only ~230px
+     tall at that width. Forcing 100vh here left ~500px of dead space beneath her.
 
-  .hero-logo {
-    max-width: min(300px, 80%);
-    height: auto;
-  }
+     .hero-logo no longer exists - the flame is .hero-flame, sized as a share of the
+     artwork, so it scales with her and needs no override. */
 
   .hero-content {
     width: 100%;

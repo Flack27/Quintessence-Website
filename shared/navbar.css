@@ -159,3 +159,38 @@
 .qt-nav__link--active {
   color: var(--accent);
 }
+
+/* ---------------------------------------------------------------------------
+   Narrow screens. Five links plus the wordmark do not fit a phone: at 390px the
+   link list alone measured 486px inside a 380px bar, which pushed the whole page
+   into horizontal scroll.
+
+   The Angular site has a hamburger and its own scoped rules for `nav ul`, which
+   outrank these and keep that behaviour. The Codex has no toggle, so it gets a
+   compact strip instead: the wordmark drops (the logo still links home), the
+   links shrink, and anything still over the edge scrolls inside the bar rather
+   than dragging the page sideways.
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .qt-nav__wordmark {
+    display: none;
+  }
+
+  .qt-nav__links {
+    gap: 14px;
+    font-size: 0.9rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .qt-nav__links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .qt-nav__link {
+    padding: 5px 2px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+}
