@@ -3,7 +3,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
 
 export function DiscordLoginButton() {
-  const { loading, authenticated, canPublish, user, refresh } = useAuth();
+  const { loading, authenticated, canPublish, role, user, refresh } = useAuth();
 
   if (loading) return null;
 
@@ -11,7 +11,7 @@ export function DiscordLoginButton() {
     return (
       <a
         href={`${CODEX_API}/auth/login`}
-        className="flex items-center gap-2 rounded-full bg-quint-cta px-5 py-2.5 text-[1.0625rem] font-semibold text-white shadow-glow transition-transform hover:scale-[1.03] hover:opacity-95"
+        className="flex items-center gap-2 rounded-full border border-[rgba(236,77,174,0.4)] bg-gradient-to-r from-[#520f73] to-[#6b2d60] px-5 py-2 text-[0.95rem] font-semibold text-[#fdf6ff] transition-all hover:-translate-y-px hover:shadow-[0_10px_30px_-10px_rgba(236,77,174,0.6)]"
       >
         <DiscordIcon className="h-4 w-4" />
         Log in with Discord
@@ -24,22 +24,17 @@ export function DiscordLoginButton() {
     refresh();
   }
 
+  // Read left to right: who you are, then what you can do. The badge is a filled
+  // surface with no hover, the actions are outlined and do respond - so it is legible
+  // at a glance which of the three is a label and which two are buttons.
   return (
-    <div className="flex items-center gap-3 text-[1.0625rem]">
-      {canPublish && (
-        <Link
-          to="/publish"
-          className="rounded-full border border-[rgba(201,160,220,0.26)] px-4 py-1.5 font-semibold text-[#9c8fae] transition-colors hover:border-[rgba(201,160,220,0.5)] hover:text-[#e6dcef]"
-        >
-          Publish
-        </Link>
-      )}
-      <span className="flex items-center gap-2 rounded-full border border-[rgba(201,160,220,0.13)] bg-white/[0.03] py-1 pl-1 pr-3.5 text-[#9c8fae]">
+    <div className="flex flex-wrap items-center gap-2.5 text-[0.95rem]">
+      <span className="flex items-center gap-2.5 rounded-full border border-[rgba(201,160,220,0.18)] bg-[rgba(24,17,40,0.85)] py-1 pl-1 pr-4 font-semibold text-[#e6dcef]">
         {user?.avatar ? (
           <img
             src={user.avatar}
             alt=""
-            className="h-7 w-7 rounded-full border border-[rgba(201,160,220,0.26)] object-cover"
+            className="h-8 w-8 rounded-full border border-[rgba(201,160,220,0.3)] object-cover"
             // Discord serves no avatar for accounts still on the default; the claim
             // then points at a file that does not exist, so fall back to the initial.
             onError={(event) => { event.currentTarget.style.display = "none"; }}
@@ -47,17 +42,32 @@ export function DiscordLoginButton() {
         ) : (
           <span
             aria-hidden
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#520f73] to-[#6b2d60] text-xs font-bold text-[#e6dcef]"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#520f73] to-[#6b2d60] text-xs font-bold text-[#e6dcef]"
           >
             {(user?.username ?? "?").charAt(0).toUpperCase()}
           </span>
         )}
-        {user?.username}
+        <span className="leading-none">{user?.username}</span>
+        {role !== "none" && (
+          <span className="rounded-full bg-[rgba(236,77,174,0.14)] px-2 py-0.5 text-[0.7rem] font-bold uppercase tracking-[0.12em] text-[#ec4dae]">
+            {role === "moderator" ? "Manager" : "Author"}
+          </span>
+        )}
       </span>
+
+      {canPublish && (
+        <Link
+          to="/publish"
+          className="rounded-full border border-[rgba(236,77,174,0.4)] bg-gradient-to-r from-[#520f73] to-[#6b2d60] px-5 py-2 font-semibold text-[#fdf6ff] transition-all hover:-translate-y-px hover:shadow-[0_10px_30px_-10px_rgba(236,77,174,0.6)]"
+        >
+          Write a guide
+        </Link>
+      )}
+
       <button
         type="button"
         onClick={logout}
-        className="rounded-full border border-[rgba(201,160,220,0.26)] px-4 py-1.5 font-semibold text-[#9c8fae] transition-colors hover:border-[rgba(201,160,220,0.5)] hover:text-[#e6dcef]"
+        className="rounded-full border border-[rgba(201,160,220,0.3)] px-5 py-2 font-semibold text-[#c9a0dc] transition-colors hover:border-[rgba(201,160,220,0.55)] hover:bg-[rgba(201,160,220,0.08)] hover:text-[#e6dcef]"
       >
         Log out
       </button>
