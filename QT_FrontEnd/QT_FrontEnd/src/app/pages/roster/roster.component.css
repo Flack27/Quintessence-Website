@@ -8,6 +8,7 @@ body {
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
+  background-color: var(--void);
   position: relative;
 }
 body::after {
@@ -17,7 +18,7 @@ body::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at center, rgba(82, 15, 115, 0.4) 0%, rgba(21, 1, 51, 0.6) 100%);
+  background: var(--page-veil);
 }
 
 .container {
@@ -53,7 +54,7 @@ body::after {
   .item:hover {
     transform: translateY(-8px);
     border-color: var(--secondary-blue);
-    box-shadow: var(--shadow-md), 0 0 15px rgba(99, 193, 255, 0.2);
+    box-shadow: var(--shadow-md), 0 0 15px rgba(201, 160, 220, 0.2);
   }
 
     .item:hover .bottom-container {
@@ -87,7 +88,7 @@ body::after {
 .item:hover .item-icon {
   transform: scale(1.05);
   border: 3px solid var(--secondary-blue);
-  box-shadow: var(--shadow-md), 0 0 10px rgba(99, 193, 255, 0.5);
+  box-shadow: var(--shadow-md), 0 0 10px rgba(201, 160, 220, 0.5);
 }
 
 .name {
@@ -391,7 +392,7 @@ body::after {
 /* ---- role tier colors (main roster) ---- */
 .role-owner { color: var(--status-warning, #f5b942); }
 .role-admin { color: var(--secondary-pink, #eb2f8a); }
-.role-officer { color: var(--secondary-blue, #63c1ff); }
+.role-officer { color: var(--secondary-blue, var(--accent)); }
 .role-member { color: var(--text-faint, #b3a3d1); }
 
 /* ---- played-game tags on roster cards (matches Qutie's members-page game tags) ---- */
@@ -553,11 +554,11 @@ body::after {
   border-radius: 8px;
   border: 1px solid var(--border-soft, rgba(150, 69, 196, .3));
   background: rgba(11, 9, 22, .8);
-  color: var(--secondary-blue, #63c1ff);
+  color: var(--secondary-blue, var(--accent));
   font-size: .72rem;
   cursor: pointer;
 }
-.member-edit-btn:hover { border-color: var(--secondary-blue, #63c1ff); }
+.member-edit-btn:hover { border-color: var(--secondary-blue, var(--accent)); }
 
 .member-add {
   display: grid;
@@ -568,8 +569,8 @@ body::after {
   transition: border-color .2s, color .2s;
 }
 .member-add:hover {
-  border-color: var(--secondary-blue, #63c1ff);
-  background: rgba(99, 193, 255, .06);
+  border-color: var(--secondary-blue, var(--accent));
+  background: rgba(201, 160, 220, .06);
 }
 .member-add-inner {
   display: grid;
@@ -579,7 +580,7 @@ body::after {
   font-size: .82rem;
 }
 .member-add-inner .fa-plus { font-size: 1.6rem; }
-.member-add:hover .member-add-inner { color: var(--secondary-blue, #63c1ff); }
+.member-add:hover .member-add-inner { color: var(--secondary-blue, var(--accent)); }
 
 /* editor overlay (mirrors the games editor) */
 .editor-overlay {
@@ -630,7 +631,7 @@ body::after {
   font-weight: 400;
   width: 100%;
 }
-.editor-field input:focus { outline: 2px solid rgba(99, 193, 255, .5); outline-offset: 1px; }
+.editor-field input:focus { outline: 2px solid rgba(201, 160, 220, .5); outline-offset: 1px; }
 
 .game-chip-picker { display: flex; flex-wrap: wrap; gap: 8px; }
 .game-chip {
@@ -646,9 +647,9 @@ body::after {
   cursor: pointer;
 }
 .game-chip.selected {
-  border-color: var(--secondary-blue, #63c1ff);
+  border-color: var(--secondary-blue, var(--accent));
   color: #fff;
-  background: rgba(99, 193, 255, .14);
+  background: rgba(201, 160, 220, .14);
 }
 .game-chip-icon { width: 20px; height: 20px; border-radius: 5px; object-fit: cover; }
 
@@ -662,7 +663,7 @@ body::after {
   cursor: pointer;
 }
 .form-btn.primary {
-  background: var(--btn-gradient, linear-gradient(90deg, #63c1ff, #9645c4));
+  background: var(--btn-gradient, linear-gradient(90deg, var(--accent), #9645c4));
   color: #0b0916;
 }
 .form-btn.primary:disabled { opacity: .6; cursor: default; }
@@ -684,7 +685,7 @@ body::after {
 
 .gr-roles {
   font-size: .7rem;
-  color: var(--secondary-blue, #63c1ff);
+  color: var(--secondary-blue, var(--accent));
   margin-top: 5px;
   white-space: nowrap;
   overflow: hidden;

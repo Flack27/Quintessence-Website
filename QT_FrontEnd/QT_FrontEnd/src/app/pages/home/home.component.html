@@ -1,67 +1,46 @@
 <!-- Quintessence Guild Homepage -->
 <!-- Hero Section -->
 <head>
-  <link rel="preload" href="/assets/backgrounds/background-E.webp" as="image" type="image/jpeg">
-
-  <style>
-    .hero-section {
-      min-height: calc(100vh - 76px);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .hero-bg-img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      filter: brightness(0.4);
-    }
-
-    .hero-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: radial-gradient(circle at center, rgba(82, 15, 115, 0.6) 0%, rgba(21, 0, 51, 0.85) 100%);
-    }
-
-    .hero-content {
-      max-width: 1000px;
-      margin: 0 auto;
-      z-index: 1;
-      position: relative;
-      padding: 2rem;
-    }
-  </style>
+  <link rel="preload" href="/assets/hero-qutie.webp" as="image" type="image/webp">
 </head>
 
+<!--
+  Hero: the guild artwork carries the page, with the flame mark held in the clear span
+  between her chin and her hands. Artwork sits in its own grid row above the wordmark so
+  the type can never land on her face at any viewport width.
+-->
 <section class="hero-section">
-  <img src="/assets/backgrounds/background-E.webp"
-       alt=""
-       class="hero-bg-img"
-       width="1920"
-       height="1080"
-       fetchpriority="high"
-       decoding="async">
   <div class="hero-overlay"></div>
 
+  <div class="hero-art-row">
+    <div class="hero-art">
+      <img src="/assets/hero-qutie.webp"
+           alt="Quintessence guild artwork: a figure in a dark violet gown, hands cupped"
+           width="2000"
+           height="1353"
+           fetchpriority="high"
+           decoding="async">
+      <div class="hero-flame">
+        <span class="hero-flame-glow" aria-hidden="true"></span>
+        <img src="/assets/logo.png" alt="The Quintessence flame">
+      </div>
+    </div>
+  </div>
+
   <div class="hero-content">
-    <img src="/assets/logo.png" alt="Quintessence Guild Logo" class="hero-logo">
     <h1 class="guild-name">Quintessence</h1>
-    <p class="guild-tagline">Hardcore European MMO guild—a consolidation of community focus and competitive attitudes, with a sharp emphasis on PvP content.</p>
 
     <div class="hero-cta">
-      <a href="https://discord.com/invite/qte" target="_blank" class="cta-button cta-primary">
+      <a href="https://discord.com/invite/qte" target="_blank" rel="noopener" class="cta-button cta-primary">
         <i class="fab fa-discord"></i> Join Our Discord
+      </a>
+      <a [href]="applyUrl" target="_blank" rel="noopener" class="cta-button cta-secondary">
+        Apply to the guild
       </a>
     </div>
   </div>
 
-  <a href="#about" class="scroll-indicator">
+  <a href="#about" class="scroll-indicator" aria-label="Scroll to about">
     <i class="fas fa-chevron-down"></i>
   </a>
 </section>

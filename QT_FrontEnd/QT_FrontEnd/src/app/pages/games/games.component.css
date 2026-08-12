@@ -8,6 +8,7 @@ body {
   background-position: center;
   background-attachment: fixed;
   background-repeat: no-repeat;
+  background-color: var(--void);
   position: relative;
 }
 
@@ -18,7 +19,7 @@ body::after {
   left: 0;
   width: 100%;
   height: 100%;
-  background: radial-gradient(circle at center, rgba(82, 15, 115, 0.4) 0%, rgba(21, 1, 51, 0.6) 100%);
+  background: var(--page-veil);
 }
 
 .games-container {
@@ -170,9 +171,9 @@ body::after {
 }
 
 .status-upcoming {
-  background-color: rgba(99, 193, 255, 0.2);
+  background-color: rgba(201, 160, 220, 0.2);
   color: var(--secondary-blue);
-  border: 1px solid rgba(99, 193, 255, 0.3);
+  border: 1px solid rgba(201, 160, 220, 0.3);
 }
 
 .status-active {
@@ -182,9 +183,9 @@ body::after {
 }
 
 .status-completed {
-  background-color: rgba(235, 47, 138, 0.2);
+  background-color: rgba(236, 77, 174, 0.2);
   color: var(--secondary-pink);
-  border: 1px solid rgba(235, 47, 138, 0.3);
+  border: 1px solid rgba(236, 77, 174, 0.3);
 }
 
 .game-description {
@@ -442,7 +443,7 @@ body::after {
 }
 
   .modal-close:hover {
-    background: rgba(235, 47, 138, 0.6);
+    background: rgba(236, 77, 174, 0.6);
     transform: rotate(90deg);
   }
 
@@ -866,11 +867,11 @@ body::after {
   border-radius: 8px;
   border: 1px solid var(--border-soft, rgba(150, 69, 196, .3));
   background: rgba(11, 9, 22, .8);
-  color: var(--secondary-blue, #63c1ff);
+  color: var(--secondary-blue, var(--accent));
   font-size: .8rem;
   cursor: pointer;
 }
-.card-edit-btn:hover { border-color: var(--secondary-blue, #63c1ff); }
+.card-edit-btn:hover { border-color: var(--secondary-blue, var(--accent)); }
 
 .card-drag-handle {
   position: absolute;
@@ -892,8 +893,8 @@ body::after {
   transition: border-color .2s, color .2s;
 }
 .game-add-card:hover {
-  border-color: var(--secondary-blue, #63c1ff);
-  background: rgba(99, 193, 255, .06);
+  border-color: var(--secondary-blue, var(--accent));
+  background: rgba(201, 160, 220, .06);
 }
 .game-add-inner {
   display: grid;
@@ -903,7 +904,7 @@ body::after {
   font-size: .9rem;
 }
 .game-add-inner .fa-plus { font-size: 1.8rem; }
-.game-add-card:hover .game-add-inner { color: var(--secondary-blue, #63c1ff); }
+.game-add-card:hover .game-add-inner { color: var(--secondary-blue, var(--accent)); }
 
 .game-site-link {
   align-self: flex-start;
@@ -965,7 +966,7 @@ body::after {
   cursor: pointer;
 }
 .form-btn.primary {
-  background: var(--btn-gradient, linear-gradient(90deg, #63c1ff, #9645c4));
+  background: var(--btn-gradient, linear-gradient(90deg, var(--accent), #9645c4));
   color: #0b0916;
 }
 .form-btn.primary:disabled { opacity: .6; cursor: default; }
@@ -996,8 +997,8 @@ body::after {
   transition: border-color .2s, color .2s;
 }
 .dashed-add-btn:hover {
-  border-color: var(--secondary-blue, #63c1ff);
-  color: var(--secondary-blue, #63c1ff);
+  border-color: var(--secondary-blue, var(--accent));
+  color: var(--secondary-blue, var(--accent));
 }
 .timeline-admin { max-width: 680px; margin: 0 auto; }
 .timeline-admin .inline-form { margin-top: 14px; }
@@ -1021,10 +1022,10 @@ body::after {
   place-items: center;
 }
 .icon-picker button.selected {
-  border-color: var(--secondary-blue, #63c1ff);
-  color: var(--secondary-blue, #63c1ff);
-  background: rgba(99, 193, 255, .12);
-  box-shadow: var(--glow-soft, 0 0 10px rgba(99, 193, 255, .3));
+  border-color: var(--secondary-blue, var(--accent));
+  color: var(--secondary-blue, var(--accent));
+  background: rgba(201, 160, 220, .12);
+  box-shadow: var(--glow-soft, 0 0 10px rgba(201, 160, 220, .3));
 }
 
 /* ---- popup story text (plain text, blank line = paragraph) ---- */
@@ -1051,19 +1052,19 @@ body::after {
 }
 .graph-trend {
   fill: none;
-  stroke: var(--secondary-blue, #63c1ff);
+  stroke: var(--secondary-blue, var(--accent));
   stroke-width: 1.5;
   stroke-opacity: .4;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
-.graph-event-dot { fill: var(--secondary-blue, #63c1ff); }
+.graph-event-dot { fill: var(--secondary-blue, var(--accent)); }
 .graph-vod-dot {
   fill: var(--secondary-pink, #eb2f8a);
   stroke: #fff;
   stroke-width: 1.2;
   cursor: pointer;
-  filter: drop-shadow(0 0 5px rgba(235, 47, 138, .8));
+  filter: drop-shadow(0 0 5px rgba(236, 77, 174, .8));
 }
 
 /* ---- video overlay subtitle ---- */
@@ -1135,7 +1136,7 @@ body::after {
 }
 .editor-field input:focus,
 .editor-field textarea:focus {
-  outline: 2px solid rgba(99, 193, 255, .5);
+  outline: 2px solid rgba(201, 160, 220, .5);
   outline-offset: 1px;
 }
 .upload-drop {
@@ -1152,8 +1153,8 @@ body::after {
   display: block;
 }
 .upload-drop:hover {
-  border-color: var(--secondary-blue, #63c1ff);
-  color: var(--secondary-blue, #63c1ff);
+  border-color: var(--secondary-blue, var(--accent));
+  color: var(--secondary-blue, var(--accent));
 }
 .editor-divider {
   display: flex;
@@ -1185,7 +1186,7 @@ body::after {
 .editor-toggle-row input[type=checkbox] {
   width: 18px;
   height: 18px;
-  accent-color: var(--secondary-blue, #63c1ff);
+  accent-color: var(--secondary-blue, var(--accent));
   flex-shrink: 0;
 }
 .editor-toggle-title { font-size: .82rem; color: var(--text-body, #e8e0f5); font-weight: 500; }

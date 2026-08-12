@@ -155,18 +155,11 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
   }
 
   private setupAnimationListeners(): void {
-    const heroLogo = this.el.nativeElement.querySelector('.hero-logo');
+    // The hero logo used to need a JS-applied 'loaded' class to hand over from its
+    // entrance animation to a looping pulse. The flame in the new hero drives both
+    // from CSS alone (flameIn, then flameFloat/flameBreathe), so only the scroll
+    // indicator still needs this.
     const scrollIndicator = this.el.nativeElement.querySelector('.scroll-indicator');
-
-    if (heroLogo) {
-      heroLogo.addEventListener('animationend', (event: AnimationEvent) => {
-        // Use includes instead of exact match to handle Angular's name transformations
-        if (event.animationName.includes('fadeInUp')) {
-          console.log('Logo animation completed:', event.animationName);
-          this.renderer.addClass(heroLogo, 'loaded');
-        }
-      });
-    }
 
     if (scrollIndicator) {
       scrollIndicator.addEventListener('animationend', (event: AnimationEvent) => {
@@ -179,13 +172,6 @@ export class HomeComponent implements AfterViewInit, OnDestroy {
     }
 
     // Backup approach with timeouts - in case the event listeners fail
-    setTimeout(() => {
-      if (heroLogo && !heroLogo.classList.contains('loaded')) {
-        console.log('Adding loaded class to logo via timeout fallback');
-        this.renderer.addClass(heroLogo, 'loaded');
-      }
-    }, 2000); // Ensure this is longer than fadeInUp duration + delay
-
     setTimeout(() => {
       if (scrollIndicator && !scrollIndicator.classList.contains('loaded')) {
         console.log('Adding loaded class to scroll indicator via timeout fallback');

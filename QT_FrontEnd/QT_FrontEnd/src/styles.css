@@ -15,22 +15,40 @@
 
 /* ====================== DESIGN TOKENS ====================== */
 :root {
-  /* Primary purples (existing) */
-  --primary-dark: #150033;
-  --primary-medium: #520f73;
-  --primary-light: #9645c4;
-  /* Secondary accents (existing) */
-  --secondary-blue: #63c1ff;
-  --secondary-pink: #eb2f8a;
+  /* ---------------------------------------------------------------------
+     Palette sampled from the guild artwork (assets/hero-qutie.webp): almost
+     every saturated pixel in it sits between hue 280deg and 310deg. The old
+     --secondary-blue (#63c1ff) sat at 205deg, which is what made this site
+     read as a different product to the Codex at /guides. The accent is now
+     violet, and the ground matches the Codex's void-950.
+     --------------------------------------------------------------------- */
+
+  /* Ground + purples */
+  --void: #07050c;              /* shared page ground, same as the Codex */
+  --primary-dark: #120c1e;      /* raised surface (was #150033) */
+  --primary-medium: #520f73;    /* structural purple, unchanged */
+  --primary-light: #8b4fb0;     /* dimmed from #9645c4 */
+  --wine: #6b2d60;              /* sampled from the gown */
+
+  /* Accents */
+  --accent: #c9a0dc;            /* orchid - links, focus, hairlines */
+  --secondary-blue: var(--accent);  /* legacy alias; kept so old rules follow along */
+  --secondary-pink: #ec4dae;    /* ember - matches the Codex's quint.pink */
   --secondary-teal: #10cacd;
 
-  /* Gradients (existing + named) */
-  --bg-gradient: linear-gradient(135deg, #150033 0%, #250855 100%);
-  --card-gradient: linear-gradient(180deg, rgba(82, 15, 115, 0.3) 0%, rgba(11, 9, 22, 0.6) 100%);
-  --accent-gradient: linear-gradient(90deg, var(--secondary-blue), var(--secondary-pink));
-  --accent-gradient-tri: linear-gradient(90deg, var(--secondary-blue), var(--primary-medium), var(--secondary-pink));
-  --btn-gradient: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
-  --btn-gradient-hover: linear-gradient(90deg, var(--secondary-pink), var(--primary-medium));
+  /* Gradients */
+  --bg-gradient: linear-gradient(135deg, #07050c 0%, #150a28 100%);
+  --card-gradient: linear-gradient(180deg, rgba(82, 15, 115, 0.22) 0%, rgba(7, 5, 12, 0.72) 100%);
+  --accent-gradient: linear-gradient(90deg, var(--accent), var(--secondary-pink));
+  --accent-gradient-tri: linear-gradient(90deg, var(--accent), var(--primary-medium), var(--secondary-pink));
+  --btn-gradient: linear-gradient(100deg, var(--primary-medium), var(--wine));
+  --btn-gradient-hover: linear-gradient(100deg, var(--wine), var(--secondary-pink));
+
+  /* Veil laid over the fixed background photos on games / roster / home.
+     Much heavier than the old 0.4/0.6 pair - the source images are bright and
+     were fighting the dark scheme. */
+  --page-veil: radial-gradient(circle at 50% 42%, rgba(82, 15, 115, 0.42) 0%, rgba(7, 5, 12, 0.90) 100%);
+  --page-photo-filter: brightness(0.62) saturate(0.85) contrast(1.05);
 
   /* Radii (existing) */
   --border-radius-sm: 5px;
@@ -49,8 +67,8 @@
   --shadow-sm: 0 2px 5px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
   --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.4);
-  --glow: 0 0 15px rgba(99, 193, 255, 0.5);
-  --glow-soft: 0 0 10px rgba(99, 193, 255, 0.3);
+  --glow: 0 0 15px rgba(201, 160, 220, 0.42);
+  --glow-soft: 0 0 10px rgba(201, 160, 220, 0.26);
 
   /* Motion (existing) */
   --transition-fast: 0.2s ease;
@@ -58,23 +76,23 @@
   --transition-slow: 0.5s ease;
 
   /* ---- NEW semantic tokens (extend, don't replace) ---- */
-  --surface-panel: rgba(11, 9, 22, 0.8);     /* page cards / editor sections */
-  --surface-panel-2: rgba(43, 11, 74, 0.4);  /* admin panels */
-  --surface-inset: rgba(11, 9, 22, 0.6);     /* inputs, wells */
-  --surface-table-head: #2b0b4a;
-  --surface-row-alt: rgba(82, 15, 115, 0.12);   /* zebra stripe */
-  --surface-row-hover: rgba(150, 69, 196, 0.16);
-  --border-soft: rgba(150, 69, 196, 0.30);
-  --border-hairline: rgba(150, 69, 196, 0.15);
-  --text-body: #e8e0f5;
-  --text-muted: #b8a8d5;
-  --text-faint: #b3a3d1;
-  --text-disabled: #6b5a8a;
+  --surface-panel: rgba(9, 7, 16, 0.86);     /* page cards / editor sections */
+  --surface-panel-2: rgba(24, 17, 40, 0.66); /* admin panels */
+  --surface-inset: rgba(7, 5, 12, 0.72);     /* inputs, wells */
+  --surface-table-head: #1d1030;
+  --surface-row-alt: rgba(82, 15, 115, 0.14);   /* zebra stripe */
+  --surface-row-hover: rgba(201, 160, 220, 0.12);
+  --border-soft: rgba(201, 160, 220, 0.26);
+  --border-hairline: rgba(201, 160, 220, 0.13);
+  --text-body: #e6dcef;
+  --text-muted: #9c8fae;     /* haze - violet-biased neutral */
+  --text-faint: #8a7d9c;
+  --text-disabled: #6c6179;
   --status-success: #2ed573;
   --status-danger: #ff3860;
   --status-danger-deep: #dc3545;
   --status-warning: #f5b942;
-  --navbar-height: 76px;
+  --navbar-height: 62px;
 
   --container-padding-mobile: 1rem;
 }
@@ -286,7 +304,7 @@ select:not([multiple]) {
   cursor: pointer;
 }
 select:not([multiple]):focus {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2363c1ff' d='M1.41 0 6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23c9a0dc' d='M1.41 0 6 4.58 10.59 0 12 1.41l-6 6-6-6z'/%3E%3C/svg%3E");
 }
 select::-ms-expand { display: none; }
 
@@ -389,7 +407,7 @@ input[type="checkbox"], input[type="radio"] { width: 18px; height: 18px; accent-
 .success-indicator, .success-indicator i { color: var(--status-success); }
 .mini-spinner {
   display: inline-block; width: 14px; height: 14px;
-  border: 2px solid rgba(99, 193, 255, 0.3); border-top-color: var(--secondary-blue);
+  border: 2px solid rgba(201, 160, 220, 0.3); border-top-color: var(--secondary-blue);
   border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 .autosave-hint { text-align: center; font-size: 0.85rem; color: var(--text-faint); }

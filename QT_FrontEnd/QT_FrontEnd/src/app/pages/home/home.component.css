@@ -29,15 +29,15 @@
 
 @-webkit-keyframes pulse {
   from {
-    -webkit-filter: drop-shadow(0 0 15px rgba(99, 193, 255, 0.3));
-    filter: drop-shadow(0 0 15px rgba(99, 193, 255, 0.3));
+    -webkit-filter: drop-shadow(0 0 15px rgba(201, 160, 220, 0.3));
+    filter: drop-shadow(0 0 15px rgba(201, 160, 220, 0.3));
     -webkit-transform: scale(0.97);
     transform: scale(0.97);
   }
 
   to {
-    -webkit-filter: drop-shadow(0 0 25px rgba(235, 47, 138, 0.7));
-    filter: drop-shadow(0 0 25px rgba(235, 47, 138, 0.7));
+    -webkit-filter: drop-shadow(0 0 25px rgba(236, 77, 174, 0.7));
+    filter: drop-shadow(0 0 25px rgba(236, 77, 174, 0.7));
     -webkit-transform: scale(1.03);
     transform: scale(1.03);
   }
@@ -45,12 +45,12 @@
 
 @keyframes pulse {
   from {
-    filter: drop-shadow(0 0 15px rgba(99, 193, 255, 0.3));
+    filter: drop-shadow(0 0 15px rgba(201, 160, 220, 0.3));
     transform: scale(0.97);
   }
 
   to {
-    filter: drop-shadow(0 0 25px rgba(235, 47, 138, 0.7));
+    filter: drop-shadow(0 0 25px rgba(236, 77, 174, 0.7));
     transform: scale(1.03);
   }
 }
@@ -87,88 +87,157 @@
 }
 
 
+/* Artwork owns row 1, the wordmark owns row 2. Separate grid rows rather than a
+   centred stack, so the type can never collide with her face or the flame. */
 .hero-section {
-  min-height: calc(100vh - 76px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  min-height: calc(100vh - var(--navbar-height));
+  display: grid;
+  grid-template-rows: 1fr auto;
   text-align: center;
   position: relative;
-  padding: var(--spacing-xl) var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-md) var(--spacing-xl);
   overflow: hidden;
+  isolation: isolate;
 }
 
+/* The glow she stands above. Pooled low so it rim-lights the skirt rather than
+   washing the whole panel. */
 .hero-overlay {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(circle at center, rgba(82, 15, 115, 0.6) 0%, rgba(21, 0, 51, 0.85) 100%);
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(120% 72% at 50% 97%, rgba(82, 15, 115, 0.62), transparent 66%),
+    radial-gradient(80% 46% at 50% 0%, rgba(24, 17, 40, 0.9), transparent 74%),
+    var(--void);
 }
 
-.hero-content {
-  max-width: 1000px;
-  margin: 0 auto;
+.hero-art-row {
+  position: relative;
+  min-height: 300px;
   z-index: 1;
 }
 
-.hero-logo {
-  max-width: 300px;
-  margin-bottom: var(--spacing-xl);
-  filter: drop-shadow(0 0 15px rgba(99, 193, 255, 0.3));
-  -webkit-animation: fadeInUp 1s ease-out 0.4s forwards;
-  animation: fadeInUp 1s ease-out 0.4s forwards;
-  opacity: 0; /* Start invisible */
+/* Sized by height with the artwork's own aspect ratio, so the element box and the
+   painted image coincide - that is what keeps the flame on her, not drifting with
+   letterboxing. */
+.hero-art {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  height: 100%;
+  aspect-ratio: 2000 / 1353;
+  max-width: 100%;
+  pointer-events: none;
 }
 
-  .hero-logo.loaded {
-    -webkit-animation: pulse 3s infinite alternate;
-    animation: pulse 3s infinite alternate;
-    opacity: 1;
+  .hero-art > img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: bottom center;
+    display: block;
+    filter: brightness(0.94) saturate(1.1) drop-shadow(0 26px 60px rgba(0, 0, 0, 0.55));
+    animation: fadeInUp 1.1s ease-out both;
   }
 
-.guild-name {
-  font-size: 4rem;
-  font-weight: 800;
-  margin-bottom: var(--spacing-md);
-  background: linear-gradient(90deg, var(--secondary-blue), var(--secondary-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  animation: fadeInUp 1s ease-out both; /* No delay for guild name */
-  opacity: 0; /* Start invisible */
+/* Sits in the clear span between her chin (~32%) and her hands (~68%). */
+.hero-flame {
+  position: absolute;
+  left: 51%;
+  top: 50%;
+  width: 16%;
+  transform: translate(-50%, -50%);
+  animation: flameIn 1.4s cubic-bezier(0.2, 0.85, 0.3, 1) 0.35s both;
 }
 
-.guild-tagline {
-  font-size: 1.3rem;
-  color: white;
-  margin-bottom: var(--spacing-xl);
-  max-width: 800px;
-  line-height: 1.6;
-  animation: fadeInUp 1s ease-out 0.8s both;
-  opacity: 0; /* Start invisible */
+  .hero-flame img {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    display: block;
+    filter: drop-shadow(0 0 30px rgba(236, 77, 174, 0.7));
+    animation: flameFloat 6.5s ease-in-out infinite;
+  }
+
+.hero-flame-glow {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  width: 260%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(236, 77, 174, 0.38), rgba(82, 15, 115, 0.18) 40%, transparent 66%);
+  animation: flameBreathe 5.5s ease-in-out infinite;
+}
+
+@keyframes flameIn {
+  from { opacity: 0; transform: translate(-50%, -22%) scale(0.78); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes flameFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+@keyframes flameBreathe {
+  0%, 100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
+  50%      { opacity: 1;   transform: translate(-50%, -50%) scale(1.13); }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.guild-name {
+  font-size: clamp(2.3rem, 6.2vw, 4.3rem);
+  font-weight: 800;
+  margin: 0;
+  color: var(--text-body);
+  letter-spacing: 0.06em;
+  line-height: 0.94;
+  text-transform: uppercase;
+  text-shadow: 0 0 52px rgba(82, 15, 115, 0.8);
+  animation: fadeInUp 1s ease-out both;
+  opacity: 0;
 }
 
 .hero-cta {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: var(--spacing-lg);
-  animation: fadeInUp 1s ease-out 1.2s both;
-  opacity: 0; /* Start invisible */
+  gap: var(--spacing-sm) var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  animation: fadeInUp 1s ease-out 0.5s both;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-art > img,
+  .hero-flame,
+  .hero-flame img,
+  .hero-flame-glow,
+  .guild-name,
+  .hero-cta {
+    animation: none;
+    opacity: 1;
+  }
+
+  .hero-flame { transform: translate(-50%, -50%); }
 }
 
 .cta-button {
-  padding: var(--spacing-sm) var(--spacing-xl);
-  font-size: 1.1rem;
+  padding: 12px 26px;
+  font-size: 0.95rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  border-radius: var(--border-radius-lg);
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  border: 1px solid transparent;
   transition: all var(--transition-medium);
   cursor: pointer;
   position: relative;
@@ -194,30 +263,32 @@
   }
 
 .cta-primary {
-  background: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
-  box-shadow: 0 5px 15px rgba(99, 193, 255, 0.4);
-  width: 320px;
+  background: var(--btn-gradient);
+  border: 1px solid rgba(236, 77, 174, 0.4);
+  color: #fdf6ff;
 }
 
   .cta-primary::before {
-    background: linear-gradient(90deg, var(--primary-light), var(--secondary-blue));
+    background: var(--btn-gradient-hover);
     opacity: 0;
   }
 
+/* Ghost, not a second filled button - the two routes in are not equal weight, and two
+   solid gradients side by side fight each other. */
 .cta-secondary {
-  background: linear-gradient(90deg, var(--secondary-pink), var(--primary-medium));
-  box-shadow: 0 5px 15px rgba(235, 47, 138, 0.4);
-  width: 320px;
+  background: transparent;
+  border: 1px solid rgba(201, 160, 220, 0.3);
+  color: var(--accent);
 }
 
   .cta-secondary::before {
-    background: linear-gradient(90deg, var(--primary-medium), var(--secondary-pink));
+    background: rgba(201, 160, 220, 0.08);
     opacity: 0;
   }
 
 .cta-button:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(99, 193, 255, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px -10px rgba(236, 77, 174, 0.6);
 }
 
   .cta-button:hover::before {
@@ -343,14 +414,14 @@
   color: white;
   margin-bottom: var(--spacing-md);
   position: relative;
-  box-shadow: 0 0 15px rgba(99, 193, 255, 0.5);
+  box-shadow: 0 0 15px rgba(201, 160, 220, 0.5);
   transition: all var(--transition-medium);
   box-sizing: border-box;
 }
 
 .timeline-step:hover .step-number {
   transform: scale(1.1);
-  box-shadow: 0 0 25px rgba(99, 193, 255, 0.8);
+  box-shadow: 0 0 25px rgba(201, 160, 220, 0.8);
 }
 
 .step-content {
@@ -545,7 +616,7 @@
   .offering-card:hover {
     transform: translateY(-5px);
     border-color: var(--secondary-pink);
-    box-shadow: var(--shadow-md), 0 0 15px rgba(235, 47, 138, 0.3);
+    box-shadow: var(--shadow-md), 0 0 15px rgba(236, 77, 174, 0.3);
   }
 
 .offering-icon {
@@ -813,7 +884,7 @@
 /* Call to Action Section */
 .cta-section {
   padding: var(--spacing-xl) 0;
-  background: linear-gradient(135deg, rgba(82, 15, 115, 0.8), rgba(21, 0, 51, 0.9)), url('/assets/backgrounds/background-F.jpg');
+  background: linear-gradient(135deg, rgba(82, 15, 115, 0.62), rgba(7, 5, 12, 0.94)), url('/assets/backgrounds/background-F.jpg');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
@@ -841,7 +912,7 @@
 
 .cta-primary-discord {
   background: linear-gradient(90deg, var(--secondary-blue), var(--primary-light));
-  box-shadow: 0 5px 15px rgba(99, 193, 255, 0.4);
+  box-shadow: 0 5px 15px rgba(201, 160, 220, 0.4);
   width: 100%;
 }
 

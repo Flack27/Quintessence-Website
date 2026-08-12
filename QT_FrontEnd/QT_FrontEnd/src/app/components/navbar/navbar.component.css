@@ -1,14 +1,14 @@
 /* ==== ENHANCED NAVBAR ==== */
 nav {
-  background: linear-gradient(90deg, rgba(21, 0, 51, 0.95), rgba(82, 15, 115, 0.95));
-  padding: var(--spacing-sm) var(--spacing-md);
-  border-bottom: 2px solid var(--primary-medium);
+  background: linear-gradient(90deg, rgba(11, 8, 18, 0.92), rgba(82, 15, 115, 0.36));
+  padding: 0 var(--spacing-md);
+  border-bottom: 1px solid var(--border-soft);
   position: sticky;
   top: 0;
   z-index: 1000;
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-md);
-  height: 76px;
+  height: var(--navbar-height);
 }
 
   nav::before {
@@ -18,7 +18,7 @@ nav {
     left: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, rgba(99, 193, 255, 0.05), rgba(235, 47, 138, 0.05));
+    background: linear-gradient(90deg, rgba(201, 160, 220, 0.05), rgba(236, 77, 174, 0.05));
     z-index: -1;
   }
 
@@ -43,7 +43,7 @@ nav {
   }
 
   .logo img {
-    height: 75px;
+    height: 34px;
     transition: transform var(--transition-medium);
   }
 
@@ -58,12 +58,13 @@ nav ul {
   margin: 0;
   padding: 0;
   align-items: center;
-  font-size: 1.7rem;
+  font-size: 1rem;
+  gap: 26px;
   margin-left: auto; /* Push to the right edge */
 }
 
   nav ul li {
-    margin-left: var(--spacing-md);
+    margin-left: 0;
   }
 
     nav ul li:first-child {
@@ -71,7 +72,7 @@ nav ul {
     }
 
     nav ul li a {
-      color: white;
+      color: var(--text-muted);
       text-decoration: none;
       font-weight: 600;
       position: relative;
@@ -88,14 +89,14 @@ nav ul {
         left: 0;
         width: 0;
         height: 2px;
-        background: var(--secondary-blue);
+        background: var(--secondary-pink);
         transition: width var(--transition-medium);
         border-radius: 2px;
-        box-shadow: 0 0 8px rgba(99, 193, 255, 0.5);
+        box-shadow: 0 0 8px rgba(201, 160, 220, 0.5);
       }
 
       nav ul li a:hover {
-        color: var(--secondary-blue);
+        color: var(--text-body);
       }
 
         nav ul li a:hover::after {
@@ -266,7 +267,7 @@ nav ul li a.active {
     left: 0;
     width: 100%;
     flex-direction: column;
-    background: linear-gradient(180deg, rgba(21, 0, 51, 0.95), rgba(82, 15, 115, 0.95));
+    background: linear-gradient(180deg, rgba(11, 8, 18, 0.97), rgba(24, 17, 40, 0.97));
     max-height: 0;
     overflow: hidden;
     transition: max-height 0.5s ease, opacity 0.5s ease, transform 0.5s ease;
@@ -282,7 +283,7 @@ nav ul li a.active {
     nav ul.mobile-open {
       max-height: 500px;
       opacity: 1;
-      transform: translateY(76px); 
+      transform: translateY(var(--navbar-height)); 
       border-bottom: 2px solid var(--primary-medium);
       pointer-events: auto; 
     }
