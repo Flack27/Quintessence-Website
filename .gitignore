@@ -419,3 +419,11 @@ ssl/
 QT_FrontEnd/QT_FrontEnd/dist/
 codex/dist/
 .angular/
+
+# Guides seed staged for local dev; Docker copies codex/contents in at build time.
+QT_API/Quintessence Website/SeedContent/
+
+# Uploaded images written at runtime (game cards, guide images). Backed up with the
+# Docker volume, never committed - the seed copies live in codex/contents.
+QT_API/Quintessence Website/uploads/
+**/uploads/

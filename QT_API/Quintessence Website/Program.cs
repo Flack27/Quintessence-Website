@@ -99,8 +99,30 @@ builder.Services.AddAuthentication(options =>
         return Task.CompletedTask;
     };
 
+    // Browsers navigating to a protected page get sent to the site; XHR/fetch callers
+    // get a status code. Without this an unauthenticated POST to /api/... answered 302
+    // and the caller followed it into an HTML page, so "you need to sign in" surfaced
+    // as a JSON parse error instead.
     options.Events.OnRedirectToLogin = context =>
     {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        }
+
+        context.Response.Redirect(frontendUrl);
+        return Task.CompletedTask;
+    };
+
+    options.Events.OnRedirectToAccessDenied = context =>
+    {
+        if (context.Request.Path.StartsWithSegments("/api"))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        }
+
         context.Response.Redirect(frontendUrl);
         return Task.CompletedTask;
     };
@@ -153,6 +175,16 @@ builder.Services.AddSingleton(new JsonStore<GuildTimelineEntryDTO>(Path.Combine(
 
 builder.Services.AddScoped<IGamesDAL, GamesDAL>();
 builder.Services.AddScoped<ITimelineDAL, TimelineDAL>();
+
+// Codex guides are markdown files rather than a JSON list - same folder shape the Codex
+// repo uses for contents/, so a guide written by hand and one written through the publish
+// form are the same artifact. Seeded on first run from the guides shipped in the image.
+var guideStore = new GuideStore(
+    guidesDir: Path.Combine(dataDir, "guides"),
+    imagesDir: Path.Combine(builder.Environment.ContentRootPath, "uploads", "guides"),
+    seedDir: Path.Combine(builder.Environment.ContentRootPath, "SeedContent", "guides"));
+guideStore.SeedIfEmpty();
+builder.Services.AddSingleton(guideStore);
 
 // Server-side client for the Qutie public API. Base url in config ("Qutie:ApiBase"),
 // the read-only key in "Qutie:ApiKey" (user secrets / env / prod appsettings - never

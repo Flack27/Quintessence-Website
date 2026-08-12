@@ -6,8 +6,10 @@ name: quintessence
 services:
   api:
     build:
-      context: ./QT_API
-      dockerfile: "Quintessence Website/Dockerfile"
+      # Repo root, not ./QT_API: the image also ships codex/contents as seed data for
+      # the guides store, so the build needs to see outside the API folder.
+      context: .
+      dockerfile: "QT_API/Quintessence Website/Dockerfile"
     container_name: quintessence-api
     restart: unless-stopped
     environment:

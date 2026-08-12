@@ -12,11 +12,13 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Quintessence Website/Quintessence Website.csproj", "Quintessence Website/"]
-COPY ["BotWebsiteDAL/QuintessenceWebsiteDAL.csproj", "BotWebsiteDAL/"]
-COPY ["BotWebsiteInterface/QuintessenceWebsiteInterface.csproj", "BotWebsiteInterface/"]
+# Paths are relative to the repo root - see the api service's context in
+# docker-compose.yml, widened so codex/contents can be shipped as seed data.
+COPY ["QT_API/Quintessence Website/Quintessence Website.csproj", "Quintessence Website/"]
+COPY ["QT_API/BotWebsiteDAL/QuintessenceWebsiteDAL.csproj", "BotWebsiteDAL/"]
+COPY ["QT_API/BotWebsiteInterface/QuintessenceWebsiteInterface.csproj", "BotWebsiteInterface/"]
 RUN dotnet restore "./Quintessence Website/Quintessence Website.csproj"
-COPY . .
+COPY QT_API/ .
 WORKDIR "/src/Quintessence Website"
 RUN dotnet build "./Quintessence Website.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
@@ -29,6 +31,10 @@ RUN dotnet publish "./Quintessence Website.csproj" -c $BUILD_CONFIGURATION -o /a
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+# Guides shipped with the repo. GuideStore copies these into App_Data/guides on first
+# run only - after that the store on the volume is the source of truth, so editing a
+# guide through the site is not overwritten by the next deploy.
+COPY codex/contents/ ./SeedContent/guides/
 # The app writes its JSON data store (App_Data) and uploaded images (uploads) at
 # runtime, but runs as non-root ($APP_UID). Create those dirs owned by that user so
 # named volumes mounted here inherit writable ownership.
