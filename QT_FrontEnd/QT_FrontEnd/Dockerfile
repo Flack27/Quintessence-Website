@@ -7,14 +7,20 @@
 # All COPY paths below are therefore relative to the repo root.
 
 # ---- Stage 1: the Angular site ----
+# The working directory mirrors the repo layout (/repo/QT_FrontEnd/QT_FrontEnd)
+# rather than a flat /app, because src/styles.css reaches shared/ with a relative
+# path. Flattening it would resolve that path above the filesystem root and the
+# build would fail on the import.
 FROM node:18 AS angular-build
-WORKDIR /app
+WORKDIR /repo/QT_FrontEnd/QT_FrontEnd
 ARG BYPASS_BUDGET=false
 
 COPY QT_FrontEnd/QT_FrontEnd/package.json ./
 RUN npm install
 
 COPY QT_FrontEnd/QT_FrontEnd/ ./
+# Stylesheets shared with the Codex - see shared/navbar.css.
+COPY shared/ /repo/shared/
 
 # Optionally relax the Angular production budgets - the bundle trips them, and
 # docker-compose passes BYPASS_BUDGET=true.
@@ -33,12 +39,14 @@ RUN npm run build -- --configuration production
 # output already has the right shape and the right internal URLs - it drops
 # straight into the html root below with no rewriting.
 FROM node:18 AS codex-build
-WORKDIR /codex
+WORKDIR /repo/codex
 
 COPY codex/package.json codex/package-lock.json ./
 RUN npm ci
 
 COPY codex/ ./
+# Same shared stylesheets the Angular stage copies; src/index.css imports them.
+COPY shared/ /repo/shared/
 RUN npm run build
 
 # ---- Stage 3: nginx ----
@@ -46,8 +54,8 @@ RUN npm run build
 # image serves port 80 only - no certs, no SSL block.
 FROM nginx:alpine
 
-COPY --from=angular-build /app/dist/qt-front-end/browser /usr/share/nginx/html
-COPY --from=codex-build /codex/dist/guides /usr/share/nginx/html/guides
+COPY --from=angular-build /repo/QT_FrontEnd/QT_FrontEnd/dist/qt-front-end/browser /usr/share/nginx/html
+COPY --from=codex-build /repo/codex/dist/guides /usr/share/nginx/html/guides
 
 COPY QT_FrontEnd/QT_FrontEnd/nginx.conf /etc/nginx/conf.d/default.conf
 

@@ -1,0 +1,37 @@
+/* ============================================================================
+   SHARED SCROLLBAR — loaded by both frontends, same as shared/navbar.css.
+   The Codex had the browser default while the Angular site had a styled one,
+   which is very obvious moving between / and /guides.
+
+   The track is deliberately OPAQUE. It used to be --surface-inset, which is
+   semi-transparent, so it took its colour from the page behind it: the Angular
+   site's ground lifts toward #150a28 and the track read grey, while the Codex's
+   stays near-black and it read black. Painting the site's own black makes it the
+   same bar on both halves.
+
+   Depends on: --void  --primary-medium  --accent
+   ============================================================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--void);
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--primary-medium);
+  border-radius: 20px;
+  transition: background-color 0.3s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent);
+}
+
+/* Firefox has no ::-webkit pseudos; this is the closest equivalent. */
+* {
+  scrollbar-color: var(--primary-medium) var(--void);
+  scrollbar-width: thin;
+}

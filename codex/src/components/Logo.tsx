@@ -14,7 +14,7 @@ export function Logo({ className = "h-9 w-9" }: LogoProps) {
     <img
       src={publicAsset("/logo-quintessence-v1.png")}
       alt="Quintessence"
-      className={`${className} object-contain drop-shadow-[0_0_12px_rgba(236,77,174,0.45)]`}
+      className={`${className} object-contain`}
     />
   );
 }

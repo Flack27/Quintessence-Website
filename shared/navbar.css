@@ -1,0 +1,161 @@
+/* ============================================================================
+   SHARED NAVBAR — single source of truth for both frontends.
+
+   Loaded by the Angular site (src/styles.css) and by the Codex
+   (codex/src/index.css). Both render the same markup and class names, so the
+   bar is literally the same stylesheet in both halves rather than two
+   implementations kept in sync by hand — which is what kept drifting
+   (0.8px vs 1px borders, blur(12px) vs blur(10px), links with and without
+   padding, and so on).
+
+   Anything that belongs to only one app — the Angular user dropdown and mobile
+   menu, the Codex game switcher — stays in that app's own styles. Nothing in
+   here should reference either framework.
+
+   Depends on these tokens, which the Angular site defines globally and the
+   Codex mirrors at the top of its index.css:
+     --navbar-height  --content-width  --content-gutter
+     --border-soft  --text-body  --text-muted  --secondary-pink  --shadow-md
+   ============================================================================ */
+
+.qt-nav {
+  height: var(--navbar-height);
+  padding: 0;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  /* Solid ground under the gradient. Without it the bar was translucent, so it took
+     its colour from whatever sat behind it - the hero's violet wash on the home page
+     (reading grey) versus flat dark on the Codex (reading black). Painting the site's
+     own black underneath makes it the same bar everywhere. */
+  background-color: var(--void);
+  background-image: linear-gradient(90deg, rgba(11, 8, 18, 0.92), rgba(82, 15, 115, 0.36));
+  border-bottom: 1px solid var(--border-soft);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Capped at the same measure the page content uses, with the gutter *inside* the
+   cap so the bar's content edge lines up with the sections beneath it. */
+/* Faint accent sheen across the bar. This lived only in the Angular component for a
+   while, which made the two bars read as slightly different colours even though every
+   measurable property matched - a pseudo-element does not show up in computed styles,
+   so it hid from the comparison. It belongs here with everything else visual. */
+.qt-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(201, 160, 220, 0.05), rgba(236, 77, 174, 0.05));
+  pointer-events: none;
+  z-index: -1;
+}
+
+.qt-nav__inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+  max-width: var(--content-width);
+  padding-inline: var(--content-gutter);
+  margin: 0 auto;
+}
+
+/* Left cluster: the brand lockup plus anything an app puts beside it (the Codex's
+   game switcher). The auto margin lives here rather than on the brand itself, so a
+   sibling stays next to the wordmark instead of being shoved to the far side. */
+.qt-nav__start {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-right: auto;
+  min-width: 0;
+}
+
+.qt-nav__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+}
+
+.qt-nav__logo {
+  height: 44px;
+  width: auto;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.qt-nav__brand:hover .qt-nav__logo {
+  transform: scale(1.05);
+}
+
+.qt-nav__wordmark {
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+/* Muted suffix, e.g. the Codex's "Quintessence Codex". */
+.qt-nav__wordmark-sub {
+  font-weight: 400;
+  color: var(--text-disabled);
+}
+
+.qt-nav__links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 1.0625rem;
+}
+
+.qt-nav__links li {
+  margin: 0;
+}
+
+.qt-nav__link {
+  position: relative;
+  display: inline-block;
+  padding: 5px 10px;
+  font-family: 'Poppins', Arial, sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+  transition: color 0.3s ease;
+}
+
+.qt-nav__link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--secondary-pink);
+  box-shadow: 0 0 8px rgba(201, 160, 220, 0.5);
+  transition: width 0.3s ease;
+}
+
+.qt-nav__link:hover {
+  color: var(--text-body);
+}
+
+.qt-nav__link:hover::after,
+.qt-nav__link--active::after {
+  width: 100%;
+}
+
+.qt-nav__link--active {
+  color: var(--accent);
+}

@@ -1,107 +1,11 @@
-/* ==== ENHANCED NAVBAR ==== */
-nav {
-  background: linear-gradient(90deg, rgba(11, 8, 18, 0.92), rgba(82, 15, 115, 0.36));
-  padding: 0 var(--spacing-md);
-  border-bottom: 1px solid var(--border-soft);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-  backdrop-filter: blur(10px);
-  box-shadow: var(--shadow-md);
-  height: var(--navbar-height);
-}
+/* ==== NAVBAR — Angular-only pieces ====
+   The bar itself, the brand lockup and the links are styled by
+   ../../../../shared/navbar.css, which the Codex loads too. Do NOT restate those
+   here: component styles are scoped by Angular and outrank the global sheet, so a
+   stray declaration silently wins and the two navbars drift apart again.
 
-  nav::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, rgba(201, 160, 220, 0.05), rgba(236, 77, 174, 0.05));
-    z-index: -1;
-  }
-
-.navbar-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 100%;
-  width: 100%;
-}
-
-/* Logo styles */
-.logo {
-  display: flex;
-  align-items: center;
-  margin-right: auto; /* Push everything else to the right */
-  padding-left: 0; /* Ensure logo sits flush with the left edge */
-}
-
-  .logo a {
-    display: flex;
-  }
-
-  .logo img {
-    height: 34px;
-    transition: transform var(--transition-medium);
-  }
-
-  .logo:hover img {
-    transform: scale(1.05);
-  }
-
-/* Main navigation list */
-nav ul {
-  list-style: none;
-  display: flex;
-  margin: 0;
-  padding: 0;
-  align-items: center;
-  font-size: 1rem;
-  gap: 26px;
-  margin-left: auto; /* Push to the right edge */
-}
-
-  nav ul li {
-    margin-left: 0;
-  }
-
-    nav ul li:first-child {
-      margin-left: 0; /* Remove margin from the first menu item */
-    }
-
-    nav ul li a {
-      color: var(--text-muted);
-      text-decoration: none;
-      font-weight: 600;
-      position: relative;
-      padding: var(--spacing-xs) var(--spacing-sm);
-      transition: all var(--transition-medium);
-      text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-      display: inline-block;
-    }
-
-      nav ul li a::after {
-        content: '';
-        position: absolute;
-        bottom: 0px;
-        left: 0;
-        width: 0;
-        height: 2px;
-        background: var(--secondary-pink);
-        transition: width var(--transition-medium);
-        border-radius: 2px;
-        box-shadow: 0 0 8px rgba(201, 160, 220, 0.5);
-      }
-
-      nav ul li a:hover {
-        color: var(--text-body);
-      }
-
-        nav ul li a:hover::after {
-          width: 100%;
-        }
+   What belongs here: the admin user dropdown and the mobile menu, neither of which
+   the Codex has. */
 
 /* User info styling */
 .user-info {
@@ -230,14 +134,7 @@ nav ul {
   }
 
 
-/* Active link styling */
-nav ul li a.active {
-  color: var(--secondary-blue);
-}
-
-  nav ul li a.active::after {
-    width: 100%;
-  }
+/* Active link styling lives in shared/navbar.css (.qt-nav__link--active). */
 
 /* Keep active style for dropdown items */
 .dropdown li a.active {

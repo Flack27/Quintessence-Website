@@ -11,7 +11,7 @@ export function DiscordLoginButton() {
     return (
       <a
         href={`${CODEX_API}/auth/login`}
-        className="flex items-center gap-2 rounded-full bg-quint-cta px-5 py-2.5 text-sm font-bold text-white shadow-glow transition-transform hover:scale-[1.03] hover:opacity-95"
+        className="flex items-center gap-2 rounded-full bg-quint-cta px-5 py-2.5 text-[1.0625rem] font-semibold text-white shadow-glow transition-transform hover:scale-[1.03] hover:opacity-95"
       >
         <DiscordIcon className="h-4 w-4" />
         Log in with Discord
@@ -25,16 +25,16 @@ export function DiscordLoginButton() {
   }
 
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-3 text-[1.0625rem]">
       {canPublish && (
         <Link
           to="/publish"
-          className="rounded-full border border-white/15 px-4 py-1.5 font-semibold text-slate-200 transition-colors hover:border-quint-purple/50 hover:text-white"
+          className="rounded-full border border-[rgba(201,160,220,0.26)] px-4 py-1.5 font-semibold text-[#9c8fae] transition-colors hover:border-[rgba(201,160,220,0.5)] hover:text-[#e6dcef]"
         >
           Publish
         </Link>
       )}
-      <span className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-slate-300">
+      <span className="rounded-full border border-[rgba(201,160,220,0.13)] bg-white/[0.03] px-3 py-1.5 text-[#9c8fae]">
         {user?.username}
       </span>
       <button

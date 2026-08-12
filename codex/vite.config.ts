@@ -16,6 +16,11 @@ export default defineConfig(({ command }) => ({
     outDir: "dist/guides",
     emptyOutDir: true,
   },
+  // shared/navbar.css lives one level above this project, so the dev server has to
+  // be allowed to read outside the root. The production build inlines it regardless.
+  server: {
+    fs: { allow: [".", ".."] },
+  },
   resolve: {
     alias: {
       "@": "/src",

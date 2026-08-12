@@ -13,6 +13,11 @@
    Tables with sticky headers/cols MUST keep border-collapse: separate.
    ============================================================================ */
 
+/* The navbar is styled by a single stylesheet shared with the Codex so the two
+   halves of the site cannot drift apart. See shared/navbar.css. */
+@import "../../../shared/navbar.css";
+@import "../../../shared/scrollbar.css";
+
 /* ====================== DESIGN TOKENS ====================== */
 :root {
   /* ---------------------------------------------------------------------
@@ -92,9 +97,15 @@
   --status-danger: #ff3860;
   --status-danger-deep: #dc3545;
   --status-warning: #f5b942;
-  --navbar-height: 62px;
+  --navbar-height: 72px;
 
   --container-padding-mobile: 1rem;
+
+  /* One measure for the whole site. The navbar and every page container derive from
+     these, so their content edges line up - previously the bar sat 20px wider on each
+     side than the sections beneath it. */
+  --content-width: 1200px;
+  --content-gutter: var(--spacing-md);
 }
 
 /* ====================== BASE (existing, kept) ====================== */
@@ -151,11 +162,7 @@ textarea { font-family: "Poppins", Arial, sans-serif; }
 .field-hint { display: block; margin-top: 4px; font-size: 0.8rem; line-height: 1.35; font-weight: 400; color: var(--text-faint); }
 .page-intro { margin: 0 auto 1.5rem; max-width: 760px; text-align: center; font-size: 0.9rem; line-height: 1.45; color: var(--text-faint); }
 
-/* Scrollbar (existing) */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--surface-inset); }
-::-webkit-scrollbar-thumb { background-color: var(--primary-medium); border-radius: var(--border-radius-lg); transition: background-color var(--transition-medium); }
-::-webkit-scrollbar-thumb:hover { background-color: var(--secondary-blue); }
+/* Scrollbar lives in shared/scrollbar.css, loaded above. */
 
 /* Pagination (existing) */
 .pagination-controls { display: flex; justify-content: center; align-items: center; margin-top: var(--spacing-lg); gap: var(--spacing-sm); }

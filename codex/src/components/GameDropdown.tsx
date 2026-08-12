@@ -37,7 +37,7 @@ export function GameDropdown() {
         onClick={() => setOpen((value) => !value)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] py-2 pl-2 pr-3 text-sm font-medium text-slate-200 transition-colors hover:border-quint-purple/50 hover:text-white"
+        className="flex items-center gap-2 rounded-lg border border-[rgba(201,160,220,0.26)] bg-white/[0.03] py-1.5 pl-2 pr-3 text-[1.0625rem] font-semibold text-[#9c8fae] transition-colors hover:border-[rgba(201,160,220,0.5)] hover:text-[#e6dcef]"
       >
         <img src={publicAsset("/aion-2.png")} alt="" className="h-5 w-5 rounded object-contain" />
         <span>Aion 2</span>
@@ -54,12 +54,12 @@ export function GameDropdown() {
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-void-900 shadow-card-hover"
+          className="absolute left-0 top-full z-50 mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-[#0b0812] shadow-card-hover"
         >
           <div
             role="option"
             aria-selected="true"
-            className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-white"
+            className="flex items-center gap-3 px-3 py-2.5 text-[1.0625rem] font-semibold text-[#e6dcef]"
           >
             <img src={publicAsset("/aion-2.png")} alt="" className="h-5 w-5 rounded object-contain" />
             Aion 2
@@ -67,7 +67,7 @@ export function GameDropdown() {
               <path d="M4 10.5L8 14.5L16 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <div className="border-t border-white/10 px-3 py-2.5 text-xs text-slate-500">
+          <div className="border-t border-[rgba(201,160,220,0.13)] px-3 py-2.5 text-xs text-[#6c6179]">
             More games coming soon
           </div>
         </div>

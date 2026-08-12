@@ -1,9 +1,16 @@
-<nav>
-  <div class="navbar-container">
+<!--
+  Structure and class names are shared with the Codex's navbar and styled by
+  ../../../../shared/navbar.css. Keep the two in step: anything visual belongs in
+  that file, not here. The user dropdown and the mobile toggle below are
+  Angular-only and keep their own classes.
+-->
+<nav class="qt-nav">
+  <div class="qt-nav__inner navbar-container">
     <!-- Logo on the left -->
-    <div class="logo">
-      <a routerLink="/">
-        <img src="/assets/logo.png" alt="Quintessence Logo" />
+    <div class="qt-nav__start logo">
+      <a routerLink="/" class="qt-nav__brand">
+        <img src="/assets/logo.png" alt="Quintessence Logo" class="qt-nav__logo" />
+        <span class="qt-nav__wordmark">Quintessence</span>
       </a>
     </div>
     <!-- Mobile Menu Toggle -->
@@ -11,17 +18,16 @@
       <i class="fas" [ngClass]="isMobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
     </div>
     <!-- Navigation Links - right aligned -->
-    <ul [ngClass]="{'mobile-open': isMobileMenuOpen}">
-      <li><a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileMenu()">Home</a></li>
-      <li><a [href]="applyUrl" target="_blank" rel="noopener" (click)="closeMobileMenu()">Apply</a></li>
-      <li><a routerLink="/games" routerLinkActive="active" (click)="closeMobileMenu()">Games</a></li>
-      <li><a routerLink="/roster" routerLinkActive="active" (click)="closeMobileMenu()">Roster</a></li>
-      <!-- The Codex (guild guides) is a separate app on /guides, not an Angular route:
-           a Cloudflare Worker forwards quintessence-eu.com/guides* to its own deployment
-           before the request ever reaches this container. So this must stay a plain href
-           (a full page load) - routerLink would hand it to the SPA router, which would
-           miss and fall through to the '**' redirect back to home. -->
-      <li><a href="/guides/" (click)="closeMobileMenu()">Guides</a></li>
+    <ul class="qt-nav__links" [ngClass]="{'mobile-open': isMobileMenuOpen}">
+      <li><a class="qt-nav__link" routerLink="/" routerLinkActive="qt-nav__link--active" [routerLinkActiveOptions]="{exact: true}" (click)="closeMobileMenu()">Home</a></li>
+      <li><a class="qt-nav__link" [href]="applyUrl" target="_blank" rel="noopener" (click)="closeMobileMenu()">Apply</a></li>
+      <li><a class="qt-nav__link" routerLink="/games" routerLinkActive="qt-nav__link--active" (click)="closeMobileMenu()">Games</a></li>
+      <li><a class="qt-nav__link" routerLink="/roster" routerLinkActive="qt-nav__link--active" (click)="closeMobileMenu()">Roster</a></li>
+      <!-- The Codex is a separate app served at /guides by the same nginx, not an
+           Angular route - so this must stay a plain href (a real page load).
+           routerLink would hand it to the SPA router, which would miss and fall
+           through to the '**' redirect back to home. -->
+      <li><a class="qt-nav__link" href="/guides/" (click)="closeMobileMenu()">Codex</a></li>
       <!-- No login link: admins use the hidden /login route -->
       <!-- User Dropdown (only ever visible to logged-in admins) -->
       <li class="user-info" *ngIf="user?.isAuthenticated">
