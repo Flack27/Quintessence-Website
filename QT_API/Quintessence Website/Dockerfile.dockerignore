@@ -1,0 +1,36 @@
+# Build context for the `api` service is the repo root (docker-compose.yml), the
+# same as the frontend's. BuildKit prefers this <dockerfile>.dockerignore over the
+# root .dockerignore for THIS build only, which is what we need: the root file
+# excludes QT_API/ (correct for the frontend image, fatal here - the API builds
+# from it), while this build also needs codex/contents/ for the guides seed data.
+#
+# Secrets are still excluded below, exactly as at the root.
+
+# Production secrets - mounted at runtime by docker-compose, never baked in.
+**/appsettings.Production.json
+.env
+
+# Runtime data and uploads (server-side only, never built)
+**/App_Data/
+**/uploads/
+
+# Dependencies and build output - reinstalled/rebuilt inside the image
+**/node_modules/
+**/dist/
+**/.angular/
+**/bin/
+**/obj/
+
+# TLS material - Cloudflare terminates TLS, nothing here needs certs
+**/ssl/
+*.pem
+*.key
+
+# Tooling / editor noise
+.git/
+.github/
+.vs/
+.vscode/
+**/*.user
+Thumbs.db
+desktop.ini

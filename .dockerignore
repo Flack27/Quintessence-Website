@@ -1,11 +1,15 @@
-# Build context for the `frontend` service is the repo root (docker-compose.yml),
-# so everything below would otherwise be shipped to the Docker daemon on every
-# build. The frontend image only needs QT_FrontEnd/ and codex/.
+# This file governs the `frontend` build only. Both services now use the repo
+# root as their build context (docker-compose.yml), so everything below would
+# otherwise be shipped to the Docker daemon on every build. The frontend image
+# only needs QT_FrontEnd/, codex/ and shared/.
 #
-# The `api` service has its own context (./QT_API) and its own .dockerignore.
+# The `api` service builds from the root too, but it needs QT_API/ (excluded
+# here), so it carries its own ignore list at
+# "QT_API/Quintessence Website/Dockerfile.dockerignore". BuildKit prefers a
+# <dockerfile>.dockerignore over this file for that build. Keep the two in sync
+# when adding an exclusion that applies to both.
 
-# The API is not part of the frontend build - and this is what keeps the
-# production secrets out of the frontend build context.
+# The API is not part of the frontend build.
 QT_API/
 **/appsettings.Production.json
 .env
