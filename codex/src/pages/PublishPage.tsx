@@ -1,11 +1,11 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, useEffect} from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost, resolveAssetUrl } from "@/lib/content";
+import { fetchPost, resolveAssetUrl, parseImageSize } from "@/lib/content";
 import type { Post } from "@/types/post";
 
 const inputClass =
@@ -164,7 +164,6 @@ export function PublishPage() {
   const [imageError, setImageError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<{ url: string; commitUrl: string } | null>(null);
   const [showImageMenu, setShowImageMenu] = useState(false);
   const [bodyView, setBodyView] = useState<"editor" | "preview">("editor");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -240,8 +239,15 @@ export function PublishPage() {
     setForm((prev) => (prev.cover === filename ? { ...prev, cover: "" } : prev));
   }
 
-  function insertImageMarkdown(filename: string) {
-    const markdown = `![](${filename})`;
+  /** Asks for an explicit pixel size to pin on an inserted image; blank/cancel keeps the original size. */
+  function promptImageSize(): string | undefined {
+    const input = window.prompt('Pin a size in pixels? e.g. "400" or "400x250" — leave blank for original size', "");
+    const trimmed = input?.trim();
+    return trimmed && /^\d+(x\d+)?$/.test(trimmed) ? trimmed : undefined;
+  }
+
+  function insertImageMarkdown(filename: string, size?: string) {
+    const markdown = size ? `![](${filename} "${size}")` : `![](${filename})`;
     const textarea = bodyRef.current;
 
     if (!textarea) {
@@ -351,7 +357,6 @@ export function PublishPage() {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
-    setResult(null);
 
     try {
       // REST now: POST /guides to create, PUT /guides/<slug> to edit.
@@ -378,11 +383,7 @@ export function PublishPage() {
         throw new Error(data.error ?? "Failed to publish.");
       }
 
-      setResult({ url: data.url, commitUrl: data.commitUrl });
-      if (!isEditing) {
-        setForm(initialForm);
-        setImages([]);
-      }
+      window.location.href = "https://quintessence-eu.com/guides/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to publish.");
     } finally {
@@ -577,7 +578,7 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => insertImageMarkdown(img.filename)}
+                    onClick={() => insertImageMarkdown(img.filename, promptImageSize())}
                     className="block w-full text-left"
                     title="Insert into body"
                   >
@@ -710,7 +711,7 @@ export function PublishPage() {
                         key={img.filename}
                         type="button"
                         onClick={() => {
-                          insertImageMarkdown(img.filename);
+                          insertImageMarkdown(img.filename, promptImageSize());
                           setShowImageMenu(false);
                         }}
                         className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
@@ -743,7 +744,7 @@ export function PublishPage() {
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSlug]}
                   components={{
-                    img: ({ src, alt }) => {
+                    img: ({ src, alt, title }) => {
                       const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
                       // Staged (not-yet-saved) uploads live only as local data URLs; anything
                       // else — already-saved images when editing — is fetched from the API.
@@ -751,7 +752,16 @@ export function PublishPage() {
                       const resolved = staged
                         ? staged.dataUrl
                         : resolveAssetUrl(form.slug || "preview", filename) ?? filename;
-                      return <img src={resolved} alt={alt ?? ""} loading="lazy" />;
+                      const { width, height } = parseImageSize(title);
+                      return (
+                        <img
+                          src={resolved}
+                          alt={alt ?? ""}
+                          title={width ? undefined : title}
+                          style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                          loading="lazy"
+                        />
+                      );
                     },
                     table: ({ children }) => (
                       <div className="my-6 overflow-x-auto rounded-xl border border-white/10">{children}</div>
@@ -768,18 +778,6 @@ export function PublishPage() {
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
-        {result && (
-          <p className="text-sm text-emerald-400">
-            Committed. Once the deploy finishes:{" "}
-            <Link to={result.url} className="underline">
-              view the guide
-            </Link>{" "}
-            &middot;{" "}
-            <a href={result.commitUrl} target="_blank" rel="noreferrer" className="underline">
-              view the commit
-            </a>
-          </p>
-        )}
 
         <button
           type="submit"

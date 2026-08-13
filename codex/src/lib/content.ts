@@ -94,3 +94,15 @@ export function resolveAssetUrl(slug: string, relativePath: string): string | un
   const cleaned = relativePath.replace(/^\.\//, "");
   return `${CODEX_API}/guides/${encodeURIComponent(slug)}/images/${encodeURIComponent(cleaned)}`;
 }
+
+/**
+ * Reads an explicit pixel size off a markdown image's title, e.g.
+ * `![alt](file.png "400")` or `![alt](file.png "400x250")`. Lets an author pin an
+ * image's size without touching CSS; anything else in the title is left alone so it
+ * still works as a normal tooltip.
+ */
+export function parseImageSize(title?: string | null): { width?: number; height?: number } {
+  const match = title?.match(/^(\d+)(?:x(\d+))?$/);
+  if (!match) return {};
+  return { width: Number(match[1]), height: match[2] ? Number(match[2]) : undefined };
+}

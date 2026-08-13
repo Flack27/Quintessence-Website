@@ -117,7 +117,7 @@ h6 {
 }
 
 .prose-codex img {
-  @apply my-6 w-full rounded-xl border border-white/10;
+  @apply my-6 block max-w-full h-auto mx-auto rounded-xl border border-white/10;
 }
 
 .prose-codex hr {
