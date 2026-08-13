@@ -1,7 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import { resolveAssetUrl, parseImageSize } from "@/lib/content";
+import { resolveAssetUrl, parseImageMeta } from "@/lib/content";
 
 interface MarkdownRendererProps {
   slug: string;
@@ -17,12 +17,14 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
         components={{
           img: ({ src, alt, title }) => {
             const resolved = typeof src === "string" ? resolveAssetUrl(slug, src) ?? src : src;
-            const { width, height } = parseImageSize(title);
+            const { width, height, position } = parseImageMeta(title);
+            const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
             return (
               <img
                 src={resolved}
                 alt={alt ?? ""}
-                title={width ? undefined : title}
+                title={width || position ? undefined : title}
+                className={floatClass}
                 style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                 loading="lazy"
               />

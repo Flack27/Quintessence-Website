@@ -96,13 +96,26 @@ export function resolveAssetUrl(slug: string, relativePath: string): string | un
 }
 
 /**
- * Reads an explicit pixel size off a markdown image's title, e.g.
- * `![alt](file.png "400")` or `![alt](file.png "400x250")`. Lets an author pin an
- * image's size without touching CSS; anything else in the title is left alone so it
- * still works as a normal tooltip.
+ * Reads an explicit pixel size and/or left/right placement off a markdown image's
+ * title, e.g. `![alt](file.png "400")`, `![alt](file.png "400x250 left")`, or
+ * `![alt](file.png "right")`. Lets an author pin an image's size and float it beside
+ * the text without touching CSS; anything else in the title is left alone so it still
+ * works as a normal tooltip.
  */
-export function parseImageSize(title?: string | null): { width?: number; height?: number } {
-  const match = title?.match(/^(\d+)(?:x(\d+))?$/);
-  if (!match) return {};
-  return { width: Number(match[1]), height: match[2] ? Number(match[2]) : undefined };
+export function parseImageMeta(
+  title?: string | null
+): { width?: number; height?: number; position?: "left" | "right" } {
+  const result: { width?: number; height?: number; position?: "left" | "right" } = {};
+  for (const token of title?.trim().split(/\s+/) ?? []) {
+    if (token === "left" || token === "right") {
+      result.position = token;
+      continue;
+    }
+    const sizeMatch = token.match(/^(\d+)(?:x(\d+))?$/);
+    if (sizeMatch) {
+      result.width = Number(sizeMatch[1]);
+      result.height = sizeMatch[2] ? Number(sizeMatch[2]) : undefined;
+    }
+  }
+  return result;
 }

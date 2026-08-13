@@ -5,7 +5,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost, resolveAssetUrl, parseImageSize } from "@/lib/content";
+import { fetchPost, resolveAssetUrl, parseImageMeta } from "@/lib/content";
 import type { Post } from "@/types/post";
 
 const inputClass =
@@ -246,8 +246,25 @@ export function PublishPage() {
     return trimmed && /^\d+(x\d+)?$/.test(trimmed) ? trimmed : undefined;
   }
 
-  function insertImageMarkdown(filename: string, size?: string) {
-    const markdown = size ? `![](${filename} "${size}")` : `![](${filename})`;
+  /** Asks whether the image should float left/right of the text; blank/cancel keeps it inline. */
+  function promptImagePosition(): "left" | "right" | undefined {
+    const input = window.prompt(
+      'Place the image to the "left" or "right" of the text, with the text wrapping on the other side? Leave blank to keep it inline (full width)',
+      ""
+    );
+    const trimmed = input?.trim().toLowerCase();
+    return trimmed === "left" || trimmed === "right" ? trimmed : undefined;
+  }
+
+  /** Asks for size and left/right placement, combined into the title markdown images pin metadata to. */
+  function promptImageOptions(): string | undefined {
+    const size = promptImageSize();
+    const position = promptImagePosition();
+    return [size, position].filter(Boolean).join(" ") || undefined;
+  }
+
+  function insertImageMarkdown(filename: string, meta?: string) {
+    const markdown = meta ? `![](${filename} "${meta}")` : `![](${filename})`;
     const textarea = bodyRef.current;
 
     if (!textarea) {
@@ -578,7 +595,7 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => insertImageMarkdown(img.filename, promptImageSize())}
+                    onClick={() => insertImageMarkdown(img.filename, promptImageOptions())}
                     className="block w-full text-left"
                     title="Insert into body"
                   >
@@ -711,7 +728,7 @@ export function PublishPage() {
                         key={img.filename}
                         type="button"
                         onClick={() => {
-                          insertImageMarkdown(img.filename, promptImageSize());
+                          insertImageMarkdown(img.filename, promptImageOptions());
                           setShowImageMenu(false);
                         }}
                         className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
@@ -752,12 +769,15 @@ export function PublishPage() {
                       const resolved = staged
                         ? staged.dataUrl
                         : resolveAssetUrl(form.slug || "preview", filename) ?? filename;
-                      const { width, height } = parseImageSize(title);
+                      const { width, height, position } = parseImageMeta(title);
+                      const floatClass =
+                        position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
                       return (
                         <img
                           src={resolved}
                           alt={alt ?? ""}
-                          title={width ? undefined : title}
+                          title={width || position ? undefined : title}
+                          className={floatClass}
                           style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                           loading="lazy"
                         />

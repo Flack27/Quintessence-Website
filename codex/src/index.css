@@ -76,6 +76,10 @@ h6 {
   @apply text-slate-300 leading-relaxed;
 }
 
+.prose-codex h1 {
+  @apply mt-10 mb-5 text-3xl font-bold text-white scroll-mt-24;
+}
+
 .prose-codex h2 {
   @apply mt-12 mb-4 text-2xl font-semibold text-white scroll-mt-24;
 }
@@ -118,6 +122,24 @@ h6 {
 
 .prose-codex img {
   @apply my-6 block max-w-full h-auto mx-auto rounded-xl border border-white/10;
+}
+
+/* Floated beside text (set from the "left"/"right" option when inserting an
+   image). Stacked full-width on small screens, where there isn't room to wrap
+   text beside the image without squeezing both. */
+.prose-codex img.img-float-left,
+.prose-codex img.img-float-right {
+  @apply mx-0 mt-1 mb-4;
+}
+
+@media (min-width: 640px) {
+  .prose-codex img.img-float-left {
+    @apply float-left mr-7 max-w-[45%];
+  }
+
+  .prose-codex img.img-float-right {
+    @apply float-right ml-7 max-w-[45%];
+  }
 }
 
 .prose-codex hr {
