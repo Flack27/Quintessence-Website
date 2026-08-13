@@ -1,8 +1,11 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, useEffect} from "react";
 import { Link, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost } from "@/lib/content";
+import { fetchPost, resolveAssetUrl } from "@/lib/content";
 import type { Post } from "@/types/post";
 
 const inputClass =
@@ -14,6 +17,8 @@ const selectClass = `${inputClass} appearance-none bg-void-950 pr-10`;
 // spelled out), so the dropdown list matches the closed field instead of falling back to white.
 const optionClass = "bg-void-950 text-slate-100";
 const labelClass = "mb-1.5 block text-sm font-medium text-slate-300";
+const toolbarButtonClass =
+  "rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/60 hover:bg-white/[0.08] hover:text-white";
 
 function SelectChevron() {
   return (
@@ -160,7 +165,22 @@ export function PublishPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ url: string; commitUrl: string } | null>(null);
+  const [showImageMenu, setShowImageMenu] = useState(false);
+  const [bodyView, setBodyView] = useState<"editor" | "preview">("editor");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const imageMenuRef = useRef<HTMLDivElement>(null);
+
+  // Closes the toolbar's image dropdown on an outside click, same as a native <select>.
+  useEffect(() => {
+    if (!showImageMenu) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (imageMenuRef.current && !imageMenuRef.current.contains(event.target as Node)) {
+        setShowImageMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showImageMenu]);
 
   const existingCover = existingPost?.frontmatter.cover;
   const canEditThis = isEditing && Boolean(canModerate || (user && user.id === existingPost?.frontmatter.authorId));
@@ -230,6 +250,93 @@ export function PublishPage() {
     }
 
     const { selectionStart, selectionEnd, value } = textarea;
+    const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
+    update("body", nextBody);
+
+    const cursor = selectionStart + markdown.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  /** Wraps the selection in `before`/`after` (e.g. "**bold**"), or inserts a placeholder. */
+  function applyInline(before: string, after: string, placeholder: string) {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, value } = textarea;
+    const selected = value.slice(selectionStart, selectionEnd) || placeholder;
+    const nextBody = `${value.slice(0, selectionStart)}${before}${selected}${after}${value.slice(selectionEnd)}`;
+    update("body", nextBody);
+
+    const start = selectionStart + before.length;
+    const end = start + selected.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start, end);
+    });
+  }
+
+  /** Sets the current line's heading level, replacing any marker it already has (toggles off on repeat). */
+  function applyHeading(level: number) {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, value } = textarea;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineEnd = value.indexOf("\n", selectionEnd) === -1 ? value.length : value.indexOf("\n", selectionEnd);
+
+    const line = value.slice(lineStart, lineEnd);
+    const match = line.match(/^(#{1,6})\s+/);
+    const stripped = match ? line.slice(match[0].length) : line;
+    const isSameLevel = Boolean(match && match[1].length === level);
+    const nextLine = isSameLevel ? stripped : `${"#".repeat(level)} ${stripped}`;
+
+    const nextBody = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`;
+    update("body", nextBody);
+
+    const delta = nextLine.length - line.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(lineStart, lineEnd + delta);
+    });
+  }
+
+  /** Toggles a per-line prefix (e.g. "- ") across every line the selection touches. */
+  function applyLinePrefix(prefix: string) {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, value } = textarea;
+    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+    const lineEnd = value.indexOf("\n", selectionEnd) === -1 ? value.length : value.indexOf("\n", selectionEnd);
+
+    const block = value.slice(lineStart, lineEnd);
+    const lines = block.split("\n");
+    const alreadyApplied = lines.every((line) => line.startsWith(prefix));
+    const nextBlock = lines.map((line) => (alreadyApplied ? line.slice(prefix.length) : `${prefix}${line}`)).join("\n");
+
+    const nextBody = `${value.slice(0, lineStart)}${nextBlock}${value.slice(lineEnd)}`;
+    update("body", nextBody);
+
+    const delta = nextBlock.length - block.length;
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(lineStart, lineEnd + delta);
+    });
+  }
+
+  function insertLink() {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+
+    const { selectionStart, selectionEnd, value } = textarea;
+    const url = window.prompt("Link URL", "https://");
+    if (!url) return;
+
+    const selected = value.slice(selectionStart, selectionEnd) || "link text";
+    const markdown = `[${selected}](${url})`;
     const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
     update("body", nextBody);
 
@@ -525,6 +632,100 @@ export function PublishPage() {
           <label className={labelClass} htmlFor="body">
             Body
           </label>
+          <div className="mb-2 flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setBodyView("editor")}
+              className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                bodyView === "editor"
+                  ? "border-white/10 bg-white/[0.06] text-white"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Editor
+            </button>
+            <button
+              type="button"
+              onClick={() => setBodyView("preview")}
+              className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
+                bodyView === "preview"
+                  ? "border-white/10 bg-white/[0.06] text-white"
+                  : "border-transparent text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              Preview
+            </button>
+          </div>
+          {bodyView === "editor" ? (
+          <>
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <button type="button" onClick={() => applyHeading(1)} className={toolbarButtonClass} title="Heading 1">
+              H1
+            </button>
+            <button type="button" onClick={() => applyHeading(2)} className={toolbarButtonClass} title="Heading 2">
+              H2
+            </button>
+            <button type="button" onClick={() => applyHeading(3)} className={toolbarButtonClass} title="Heading 3">
+              H3
+            </button>
+            <span className="mx-1 h-5 w-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => applyInline("**", "**", "bold text")}
+              className={`${toolbarButtonClass} font-bold`}
+              title="Bold"
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() => applyInline("_", "_", "italic text")}
+              className={`${toolbarButtonClass} italic`}
+              title="Italic"
+            >
+              I
+            </button>
+            <span className="mx-1 h-5 w-px bg-white/10" />
+            <button type="button" onClick={insertLink} className={toolbarButtonClass} title="Link">
+              🔗 Link
+            </button>
+            <div ref={imageMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowImageMenu((prev) => !prev)}
+                className={toolbarButtonClass}
+                title="Image"
+              >
+                🖼 Image
+              </button>
+              {showImageMenu && (
+                <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
+                  {images.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-slate-400">
+                      No images uploaded yet — add one in the Images section below.
+                    </p>
+                  ) : (
+                    images.map((img) => (
+                      <button
+                        key={img.filename}
+                        type="button"
+                        onClick={() => {
+                          insertImageMarkdown(img.filename);
+                          setShowImageMenu(false);
+                        }}
+                        className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
+                      >
+                        {img.filename}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <button type="button" onClick={() => applyLinePrefix("- ")} className={toolbarButtonClass} title="Bullet list">
+              • List
+            </button>
+          </div>
           <textarea
             id="body"
             ref={bodyRef}
@@ -534,6 +735,36 @@ export function PublishPage() {
             onChange={(e) => update("body", e.target.value)}
             className={`${inputClass} font-mono`}
           />
+          </>
+          ) : (
+            <div className={`${inputClass} prose-codex min-h-[24rem] overflow-y-auto`}>
+              {form.body.trim() ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeSlug]}
+                  components={{
+                    img: ({ src, alt }) => {
+                      const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
+                      // Staged (not-yet-saved) uploads live only as local data URLs; anything
+                      // else — already-saved images when editing — is fetched from the API.
+                      const staged = images.find((img) => img.filename === filename);
+                      const resolved = staged
+                        ? staged.dataUrl
+                        : resolveAssetUrl(form.slug || "preview", filename) ?? filename;
+                      return <img src={resolved} alt={alt ?? ""} loading="lazy" />;
+                    },
+                    table: ({ children }) => (
+                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10">{children}</div>
+                    ),
+                  }}
+                >
+                  {form.body}
+                </ReactMarkdown>
+              ) : (
+                <p className="text-sm text-slate-500">Nothing to preview yet — switch back to Editor and start writing.</p>
+              )}
+            </div>
+          )}
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}
