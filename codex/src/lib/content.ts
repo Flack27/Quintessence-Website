@@ -32,6 +32,8 @@ interface GuideResponse {
   content?: string | null;
   /** Stripped body, sent on the index where `content` is omitted. */
   searchText?: string | null;
+  /** Filenames already uploaded for this guide. Sent on the single-guide read only. */
+  images?: string[];
 }
 
 function toPost(dto: GuideResponse): Post {
@@ -55,6 +57,7 @@ function toPost(dto: GuideResponse): Post {
     content: dto.content ?? "",
     searchText: (dto.searchText ?? dto.content ?? "").toLowerCase(),
     coverUrl: frontmatter.cover ? resolveAssetUrl(dto.slug, frontmatter.cover) : undefined,
+    images: dto.images,
   };
 }
 

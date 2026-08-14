@@ -145,6 +145,7 @@ export function PublishPage() {
   const { loading, authenticated, user, canPublish, canModerate } = useAuth();
   const [form, setForm] = useState<FormState>(initialForm);
   const [existingPost, setExistingPost] = useState<Post | null | undefined>(undefined);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
 
   // Editing loads the guide from the API rather than the bundle, so the form fills in
   // once it arrives instead of being seeded synchronously at first render.
@@ -156,6 +157,7 @@ export function PublishPage() {
       if (cancelled) return;
       setExistingPost(post);
       setForm(formFromPost(editSlug, post));
+      setExistingImages(post?.images ?? []);
     });
 
     return () => { cancelled = true; };
@@ -183,6 +185,20 @@ export function PublishPage() {
 
   const existingCover = existingPost?.frontmatter.cover;
   const canEditThis = isEditing && Boolean(canModerate || (user && user.id === existingPost?.frontmatter.authorId));
+
+  // Images already saved on the guide (from a previous session) plus whatever is staged
+  // for upload in this one. A freshly staged file with the same name wins the display slot,
+  // since it's the version that will actually be saved.
+  const allImages = [
+    ...existingImages
+      .filter((filename) => !images.some((img) => img.filename === filename))
+      .map((filename) => ({
+        filename,
+        previewUrl: resolveAssetUrl(editSlug ?? "", filename) ?? filename,
+        removable: false,
+      })),
+    ...images.map((img) => ({ filename: img.filename, previewUrl: img.dataUrl, removable: true })),
+  ];
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -586,9 +602,9 @@ export function PublishPage() {
           />
           {imageError && <p className="mt-2 text-sm text-red-400">{imageError}</p>}
 
-          {images.length > 0 && (
+          {allImages.length > 0 && (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {images.map((img) => (
+              {allImages.map((img) => (
                 <div
                   key={img.filename}
                   className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
@@ -599,17 +615,19 @@ export function PublishPage() {
                     className="block w-full text-left"
                     title="Insert into body"
                   >
-                    <img src={img.dataUrl} alt={img.filename} className="h-24 w-full object-cover" />
+                    <img src={img.previewUrl} alt={img.filename} className="h-24 w-full object-cover" />
                     <p className="truncate px-2 py-1.5 text-xs text-slate-300">{img.filename}</p>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => removeImage(img.filename)}
-                    className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
-                    title="Remove"
-                  >
-                    ✕
-                  </button>
+                  {img.removable && (
+                    <button
+                      type="button"
+                      onClick={() => removeImage(img.filename)}
+                      className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -625,18 +643,18 @@ export function PublishPage() {
               id="cover"
               value={form.cover}
               onChange={(e) => update("cover", e.target.value)}
-              disabled={images.length === 0 && !existingCover}
+              disabled={allImages.length === 0 && !existingCover}
               className={`${selectClass} disabled:opacity-50`}
             >
               <option value="" className={optionClass}>
                 None
               </option>
-              {existingCover && !images.some((img) => img.filename === existingCover) && (
+              {existingCover && !allImages.some((img) => img.filename === existingCover) && (
                 <option value={existingCover} className={optionClass}>
                   {existingCover} (current)
                 </option>
               )}
-              {images.map((img) => (
+              {allImages.map((img) => (
                 <option key={img.filename} value={img.filename} className={optionClass}>
                   {img.filename}
                 </option>
@@ -718,12 +736,12 @@ export function PublishPage() {
               </button>
               {showImageMenu && (
                 <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
-                  {images.length === 0 ? (
+                  {allImages.length === 0 ? (
                     <p className="px-2 py-1.5 text-xs text-slate-400">
                       No images uploaded yet — add one in the Images section below.
                     </p>
                   ) : (
-                    images.map((img) => (
+                    allImages.map((img) => (
                       <button
                         key={img.filename}
                         type="button"

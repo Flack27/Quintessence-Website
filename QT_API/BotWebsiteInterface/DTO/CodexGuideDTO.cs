@@ -40,6 +40,12 @@ namespace QuintessenceWebsiteInterface.DTO
         /// </summary>
         public string? SearchText { get; set; }
 
+        /// <summary>
+        /// Filenames already uploaded for this guide, so the editor can re-list them when
+        /// reopening. Populated only on the single-guide read, not the index.
+        /// </summary>
+        public List<string> Images { get; set; } = new();
+
         /// <summary>Last write time, for sorting when no date is set.</summary>
         public DateTime UpdatedUtc { get; set; }
     }

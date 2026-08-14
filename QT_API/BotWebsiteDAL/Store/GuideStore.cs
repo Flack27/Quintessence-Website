@@ -130,6 +130,23 @@ namespace QuintessenceWebsiteDAL.Store
         public string ImagePath(string slug, string fileName) =>
             Path.Combine(_imagesDir, slug, fileName);
 
+        /// <summary>Filenames already uploaded for a guide, so an editor can re-list them.</summary>
+        public List<string> ListImages(string slug)
+        {
+            lock (_lock)
+            {
+                var dir = Path.Combine(_imagesDir, slug);
+                if (!Directory.Exists(dir)) return new List<string>();
+
+                return Directory.EnumerateFiles(dir)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .Select(name => name!)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
+
         private string PathFor(string slug) => Path.Combine(_guidesDir, slug, "index.md");
 
         private CodexGuideDTO? ReadUnlocked(string slug, bool includeBody)

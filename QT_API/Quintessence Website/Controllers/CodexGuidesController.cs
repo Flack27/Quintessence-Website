@@ -58,7 +58,8 @@ namespace Quintessence_Website.Controllers
         [HttpGet("{slug}")]
         public async Task<IActionResult> Get(string slug, CancellationToken ct)
         {
-            var guide = _store.Read(SafeSlug(slug));
+            var safeSlug = SafeSlug(slug);
+            var guide = _store.Read(safeSlug);
             if (guide is null) return NotFound(new { error = "No such guide." });
 
             if (guide.Draft)
@@ -68,6 +69,7 @@ namespace Quintessence_Website.Controllers
                     return NotFound(new { error = "No such guide." });
             }
 
+            guide.Images = _store.ListImages(safeSlug);
             return Ok(guide);
         }
 

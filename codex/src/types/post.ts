@@ -26,4 +26,6 @@ export interface Post {
   searchText: string;
   /** Resolved absolute URL for `frontmatter.cover`, if it exists on disk. */
   coverUrl?: string;
+  /** Filenames already uploaded for this guide, present when fetched via `fetchPost`. */
+  images?: string[];
 }
