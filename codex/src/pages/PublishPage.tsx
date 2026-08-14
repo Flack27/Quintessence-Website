@@ -5,7 +5,8 @@ import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost, resolveAssetUrl, parseImageMeta } from "@/lib/content";
+import { fetchPost, resolveAssetUrl, parseImageMeta, parseHoverPayload } from "@/lib/content";
+import { HoverPopup } from "@/components/HoverPopup";
 import type { Post } from "@/types/post";
 
 const inputClass =
@@ -19,6 +20,16 @@ const optionClass = "bg-void-950 text-slate-100";
 const labelClass = "mb-1.5 block text-sm font-medium text-slate-300";
 const toolbarButtonClass =
   "rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/60 hover:bg-white/[0.08] hover:text-white";
+const menuInputClass =
+  "w-full rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors focus:border-quint-purple/60";
+const menuSelectClass = `${menuInputClass} appearance-none bg-void-950`;
+function kindToggleClass(active: boolean) {
+  return `flex-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors ${
+    active
+      ? "border-quint-purple/60 bg-white/[0.08] text-white"
+      : "border-white/10 bg-white/[0.02] text-slate-400 hover:text-slate-200"
+  }`;
+}
 
 function SelectChevron() {
   return (
@@ -171,6 +182,16 @@ export function PublishPage() {
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageMenuRef = useRef<HTMLDivElement>(null);
 
+  const [showHoverMenu, setShowHoverMenu] = useState(false);
+  const [hoverTriggerKind, setHoverTriggerKind] = useState<"text" | "image">("text");
+  const [hoverTriggerText, setHoverTriggerText] = useState("");
+  const [hoverTriggerImage, setHoverTriggerImage] = useState("");
+  const [hoverPopupKind, setHoverPopupKind] = useState<"text" | "image">("text");
+  const [hoverPopupText, setHoverPopupText] = useState("");
+  const [hoverPopupImage, setHoverPopupImage] = useState("");
+  const [hoverFormError, setHoverFormError] = useState<string | null>(null);
+  const hoverMenuRef = useRef<HTMLDivElement>(null);
+
   // Closes the toolbar's image dropdown on an outside click, same as a native <select>.
   useEffect(() => {
     if (!showImageMenu) return;
@@ -182,6 +203,18 @@ export function PublishPage() {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showImageMenu]);
+
+  // Same for the hover-popup form.
+  useEffect(() => {
+    if (!showHoverMenu) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (hoverMenuRef.current && !hoverMenuRef.current.contains(event.target as Node)) {
+        setShowHoverMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showHoverMenu]);
 
   const existingCover = existingPost?.frontmatter.cover;
   const canEditThis = isEditing && Boolean(canModerate || (user && user.id === existingPost?.frontmatter.authorId));
@@ -255,6 +288,26 @@ export function PublishPage() {
     setForm((prev) => (prev.cover === filename ? { ...prev, cover: "" } : prev));
   }
 
+  /**
+   * Resolves an image filename for the preview. Staged (not-yet-saved) uploads live
+   * only as local data URLs; anything else — already-saved images when editing — is
+   * fetched from the API.
+   */
+  function resolvePreviewImageSrc(filename: string): string {
+    const staged = images.find((img) => img.filename === filename);
+    if (staged) return staged.dataUrl;
+    return resolveAssetUrl(form.slug || "preview", filename) ?? filename;
+  }
+
+  /** Renders a hover payload (image or text) as popup content for the preview. */
+  function renderHoverPreviewContent(payload: string) {
+    const { type, value } = parseHoverPayload(payload);
+    if (type === "image") {
+      return <img src={resolvePreviewImageSrc(value)} alt="" className="max-h-48 w-auto rounded-lg" />;
+    }
+    return <span>{value}</span>;
+  }
+
   /** Asks for an explicit pixel size to pin on an inserted image; blank/cancel keeps the original size. */
   function promptImageSize(): string | undefined {
     const input = window.prompt('Pin a size in pixels? e.g. "400" or "400x250" — leave blank for original size', "");
@@ -279,8 +332,8 @@ export function PublishPage() {
     return [size, position].filter(Boolean).join(" ") || undefined;
   }
 
-  function insertImageMarkdown(filename: string, meta?: string) {
-    const markdown = meta ? `![](${filename} "${meta}")` : `![](${filename})`;
+  /** Inserts markdown at the cursor (or appends it, if the body textarea isn't mounted yet). */
+  function insertAtCursor(markdown: string) {
     const textarea = bodyRef.current;
 
     if (!textarea) {
@@ -297,6 +350,50 @@ export function PublishPage() {
       textarea.focus();
       textarea.setSelectionRange(cursor, cursor);
     });
+  }
+
+  function insertImageMarkdown(filename: string, meta?: string) {
+    insertAtCursor(meta ? `![](${filename} "${meta}")` : `![](${filename})`);
+  }
+
+  /** Quotes can't appear literally inside a markdown title, so swap them for the closest safe character. */
+  function escapeMarkdownTitle(value: string): string {
+    return value.replace(/"/g, "'");
+  }
+
+  /** Builds the `hover "…"` / `hover:…` markdown for a hover-popup insertion and drops it at the cursor. */
+  function insertHoverPopup(
+    trigger: { kind: "text"; value: string } | { kind: "image"; value: string },
+    popup: { kind: "text"; value: string } | { kind: "image"; value: string }
+  ) {
+    const payload = escapeMarkdownTitle(popup.kind === "image" ? `img:${popup.value}` : popup.value);
+    const markdown =
+      trigger.kind === "text"
+        ? `[${trigger.value}](hover "${payload}")`
+        : `![](${trigger.value} "hover:${payload}")`;
+    insertAtCursor(markdown);
+  }
+
+  /** Reads the hover-popup form, validates it, and inserts the markdown it describes. */
+  function submitHoverPopup() {
+    const triggerValue = hoverTriggerKind === "text" ? hoverTriggerText.trim() : hoverTriggerImage;
+    const popupValue = hoverPopupKind === "text" ? hoverPopupText.trim() : hoverPopupImage;
+
+    if (!triggerValue || !popupValue) {
+      setHoverFormError("Fill in (or pick an image for) both the trigger and the popup content.");
+      return;
+    }
+
+    insertHoverPopup({ kind: hoverTriggerKind, value: triggerValue }, { kind: hoverPopupKind, value: popupValue });
+
+    setShowHoverMenu(false);
+    setHoverFormError(null);
+    setHoverTriggerKind("text");
+    setHoverTriggerText("");
+    setHoverTriggerImage("");
+    setHoverPopupKind("text");
+    setHoverPopupText("");
+    setHoverPopupImage("");
   }
 
   /** Wraps the selection in `before`/`after` (e.g. "**bold**"), or inserts a placeholder. */
@@ -758,6 +855,116 @@ export function PublishPage() {
                 </div>
               )}
             </div>
+            <div ref={hoverMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setHoverFormError(null);
+                  setShowHoverMenu((prev) => !prev);
+                }}
+                className={toolbarButtonClass}
+                title="Hover popup"
+              >
+                💬 Hover
+              </button>
+              {showHoverMenu && (
+                <div className="absolute left-0 top-full z-10 mt-1 w-72 space-y-3 rounded-lg border border-white/10 bg-void-950 p-3 shadow-xl">
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-slate-300">What gets hovered</p>
+                    <div className="mb-1.5 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setHoverTriggerKind("text")}
+                        className={kindToggleClass(hoverTriggerKind === "text")}
+                      >
+                        Text
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHoverTriggerKind("image")}
+                        className={kindToggleClass(hoverTriggerKind === "image")}
+                      >
+                        Image
+                      </button>
+                    </div>
+                    {hoverTriggerKind === "text" ? (
+                      <input
+                        value={hoverTriggerText}
+                        onChange={(e) => setHoverTriggerText(e.target.value)}
+                        placeholder="Word or phrase to hover"
+                        className={menuInputClass}
+                      />
+                    ) : (
+                      <select
+                        value={hoverTriggerImage}
+                        onChange={(e) => setHoverTriggerImage(e.target.value)}
+                        className={menuSelectClass}
+                      >
+                        <option value="" className={optionClass}>
+                          Select an image…
+                        </option>
+                        {allImages.map((img) => (
+                          <option key={img.filename} value={img.filename} className={optionClass}>
+                            {img.filename}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-xs font-semibold text-slate-300">Popup content (shown on hover)</p>
+                    <div className="mb-1.5 flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setHoverPopupKind("text")}
+                        className={kindToggleClass(hoverPopupKind === "text")}
+                      >
+                        Text
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setHoverPopupKind("image")}
+                        className={kindToggleClass(hoverPopupKind === "image")}
+                      >
+                        Image
+                      </button>
+                    </div>
+                    {hoverPopupKind === "text" ? (
+                      <textarea
+                        value={hoverPopupText}
+                        onChange={(e) => setHoverPopupText(e.target.value)}
+                        rows={2}
+                        placeholder="Text to show in the popup"
+                        className={menuInputClass}
+                      />
+                    ) : (
+                      <select
+                        value={hoverPopupImage}
+                        onChange={(e) => setHoverPopupImage(e.target.value)}
+                        className={menuSelectClass}
+                      >
+                        <option value="" className={optionClass}>
+                          Select an image…
+                        </option>
+                        {allImages.map((img) => (
+                          <option key={img.filename} value={img.filename} className={optionClass}>
+                            {img.filename}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                  {hoverFormError && <p className="text-xs text-red-400">{hoverFormError}</p>}
+                  <button
+                    type="button"
+                    onClick={submitHoverPopup}
+                    className="w-full rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                  >
+                    Insert
+                  </button>
+                </div>
+              )}
+            </div>
             <button type="button" onClick={() => applyLinePrefix("- ")} className={toolbarButtonClass} title="Bullet list">
               • List
             </button>
@@ -779,27 +986,38 @@ export function PublishPage() {
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSlug]}
                   components={{
+                    a: ({ href, title, children }) => {
+                      if (href === "hover") {
+                        return (
+                          <HoverPopup
+                            trigger={<span className="border-b border-dashed border-slate-400">{children}</span>}
+                            content={renderHoverPreviewContent(title ?? "")}
+                          />
+                        );
+                      }
+                      return (
+                        <a href={href} title={title}>
+                          {children}
+                        </a>
+                      );
+                    },
                     img: ({ src, alt, title }) => {
                       const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
-                      // Staged (not-yet-saved) uploads live only as local data URLs; anything
-                      // else — already-saved images when editing — is fetched from the API.
-                      const staged = images.find((img) => img.filename === filename);
-                      const resolved = staged
-                        ? staged.dataUrl
-                        : resolveAssetUrl(form.slug || "preview", filename) ?? filename;
-                      const { width, height, position } = parseImageMeta(title);
+                      const resolved = resolvePreviewImageSrc(filename);
+                      const { width, height, position, hover } = parseImageMeta(title);
                       const floatClass =
                         position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
-                      return (
+                      const image = (
                         <img
                           src={resolved}
                           alt={alt ?? ""}
-                          title={width || position ? undefined : title}
+                          title={width || position || hover ? undefined : title}
                           className={floatClass}
                           style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                           loading="lazy"
                         />
                       );
+                      return hover ? <HoverPopup trigger={image} content={renderHoverPreviewContent(hover)} /> : image;
                     },
                     table: ({ children }) => (
                       <div className="my-6 overflow-x-auto rounded-xl border border-white/10">{children}</div>

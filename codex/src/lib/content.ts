@@ -104,12 +104,21 @@ export function resolveAssetUrl(slug: string, relativePath: string): string | un
  * `![alt](file.png "right")`. Lets an author pin an image's size and float it beside
  * the text without touching CSS; anything else in the title is left alone so it still
  * works as a normal tooltip.
+ *
+ * A trailing `hover:<payload>` (e.g. `![alt](thumb.png "hover:big.png")`) marks the
+ * image as a hover trigger - see `parseHoverPayload` for what the payload means. It's
+ * pulled out first since its payload may itself contain spaces.
  */
 export function parseImageMeta(
   title?: string | null
-): { width?: number; height?: number; position?: "left" | "right" } {
-  const result: { width?: number; height?: number; position?: "left" | "right" } = {};
-  for (const token of title?.trim().split(/\s+/) ?? []) {
+): { width?: number; height?: number; position?: "left" | "right"; hover?: string } {
+  const result: { width?: number; height?: number; position?: "left" | "right"; hover?: string } = {};
+  const raw = title ?? "";
+  const hoverMatch = raw.match(/(?:^|\s)hover:(.*)$/i);
+  const metaPart = hoverMatch ? raw.slice(0, hoverMatch.index).trim() : raw;
+  if (hoverMatch) result.hover = hoverMatch[1].trim();
+
+  for (const token of metaPart.trim().split(/\s+/).filter(Boolean)) {
     if (token === "left" || token === "right") {
       result.position = token;
       continue;
@@ -121,4 +130,16 @@ export function parseImageMeta(
     }
   }
   return result;
+}
+
+/**
+ * Decodes a hover popup's payload - either a link's title when its href is the
+ * `hover` sentinel, or the `hover:` value pulled out by `parseImageMeta`. An
+ * `img:` prefix means "resolve this as an uploaded image filename"; anything else
+ * is shown as plain text.
+ */
+export function parseHoverPayload(payload: string): { type: "image" | "text"; value: string } {
+  const trimmed = payload.trim();
+  const imgMatch = trimmed.match(/^img:(.*)$/i);
+  return imgMatch ? { type: "image", value: imgMatch[1].trim() } : { type: "text", value: trimmed };
 }
