@@ -990,7 +990,11 @@ export function PublishPage() {
                       if (href === "hover") {
                         return (
                           <HoverPopup
-                            trigger={<span className="border-b border-dashed border-slate-400">{children}</span>}
+                            trigger={
+                              <span className="border-b border-dashed border-slate-400 transition-colors group-hover:border-white group-hover:text-white">
+                                {children}
+                              </span>
+                            }
                             content={renderHoverPreviewContent(title ?? "")}
                           />
                         );
@@ -1007,12 +1011,15 @@ export function PublishPage() {
                       const { width, height, position, hover } = parseImageMeta(title);
                       const floatClass =
                         position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+                      const hoverClass = hover
+                        ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110"
+                        : undefined;
                       const image = (
                         <img
                           src={resolved}
                           alt={alt ?? ""}
                           title={width || position || hover ? undefined : title}
-                          className={floatClass}
+                          className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
                           style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                           loading="lazy"
                         />

@@ -14,7 +14,7 @@ export function HoverPopup({ trigger, content }: HoverPopupProps) {
 
   return (
     <span
-      className="relative inline-block cursor-help"
+      className="group relative inline-block cursor-help"
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
@@ -27,7 +27,7 @@ export function HoverPopup({ trigger, content }: HoverPopupProps) {
       {open && (
         <span
           role="tooltip"
-          className="absolute left-1/2 top-full z-20 mt-2 w-max max-w-xs -translate-x-1/2 rounded-lg border border-white/10 bg-void-950 p-2 text-xs text-slate-200 shadow-xl"
+          className="absolute left-full top-1/2 z-20 ml-2 w-max max-w-xs -translate-y-1/2 rounded-lg border border-white/10 bg-void-950 p-2 text-xs text-slate-200 shadow-xl"
         >
           {content}
         </span>
