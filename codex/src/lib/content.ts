@@ -135,11 +135,22 @@ export function parseImageMeta(
 /**
  * Decodes a hover popup's payload - either a link's title when its href is the
  * `hover` sentinel, or the `hover:` value pulled out by `parseImageMeta`. An
- * `img:` prefix means "resolve this as an uploaded image filename"; anything else
- * is shown as plain text.
+ * `img:` prefix means "resolve this as an uploaded image filename", optionally
+ * followed by a size in the same `400` / `400x250` shape `parseImageMeta` uses
+ * (e.g. `img:big.png 400x250`); anything else is shown as plain text.
  */
-export function parseHoverPayload(payload: string): { type: "image" | "text"; value: string } {
+export function parseHoverPayload(
+  payload: string
+): { type: "image" | "text"; value: string; width?: number; height?: number } {
   const trimmed = payload.trim();
-  const imgMatch = trimmed.match(/^img:(.*)$/i);
-  return imgMatch ? { type: "image", value: imgMatch[1].trim() } : { type: "text", value: trimmed };
+  const imgMatch = trimmed.match(/^img:(\S+)(?:\s+(\d+)(?:x(\d+))?)?\s*$/i);
+  if (imgMatch) {
+    return {
+      type: "image",
+      value: imgMatch[1],
+      width: imgMatch[2] ? Number(imgMatch[2]) : undefined,
+      height: imgMatch[3] ? Number(imgMatch[3]) : undefined,
+    };
+  }
+  return { type: "text", value: trimmed };
 }

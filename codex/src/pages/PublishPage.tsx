@@ -189,6 +189,7 @@ export function PublishPage() {
   const [hoverPopupKind, setHoverPopupKind] = useState<"text" | "image">("text");
   const [hoverPopupText, setHoverPopupText] = useState("");
   const [hoverPopupImage, setHoverPopupImage] = useState("");
+  const [hoverPopupImageSize, setHoverPopupImageSize] = useState("");
   const [hoverFormError, setHoverFormError] = useState<string | null>(null);
   const hoverMenuRef = useRef<HTMLDivElement>(null);
 
@@ -301,9 +302,21 @@ export function PublishPage() {
 
   /** Renders a hover payload (image or text) as popup content for the preview. */
   function renderHoverPreviewContent(payload: string) {
-    const { type, value } = parseHoverPayload(payload);
+    const { type, value, width, height } = parseHoverPayload(payload);
     if (type === "image") {
-      return <img src={resolvePreviewImageSrc(value)} alt="" className="max-h-48 w-auto rounded-lg" />;
+      // `.prose-codex img` puts a 24px top/bottom margin on every guide image; that would
+      // inflate this popup's box and, since it's a child of that same wrapper, throw off
+      // the popup's positioning against its trigger. `!my-0` overrides it back to 0.
+      // Without an explicit size, max-h-80 keeps an oversized source image from blowing
+      // up the popup; an explicit size means the author asked for it, so it wins instead.
+      return (
+        <img
+          src={resolvePreviewImageSrc(value)}
+          alt=""
+          className={`${width ? "" : "max-h-80"} w-auto rounded-lg !my-0`}
+          style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+        />
+      );
     }
     return <span>{value}</span>;
   }
@@ -364,9 +377,11 @@ export function PublishPage() {
   /** Builds the `hover "…"` / `hover:…` markdown for a hover-popup insertion and drops it at the cursor. */
   function insertHoverPopup(
     trigger: { kind: "text"; value: string } | { kind: "image"; value: string },
-    popup: { kind: "text"; value: string } | { kind: "image"; value: string }
+    popup: { kind: "text"; value: string } | { kind: "image"; value: string; size?: string }
   ) {
-    const payload = escapeMarkdownTitle(popup.kind === "image" ? `img:${popup.value}` : popup.value);
+    const popupPayload =
+      popup.kind === "image" ? `img:${popup.value}${popup.size ? ` ${popup.size}` : ""}` : popup.value;
+    const payload = escapeMarkdownTitle(popupPayload);
     const markdown =
       trigger.kind === "text"
         ? `[${trigger.value}](hover "${payload}")`
@@ -384,7 +399,16 @@ export function PublishPage() {
       return;
     }
 
-    insertHoverPopup({ kind: hoverTriggerKind, value: triggerValue }, { kind: hoverPopupKind, value: popupValue });
+    const size = hoverPopupImageSize.trim();
+    if (hoverPopupKind === "image" && size && !/^\d+(x\d+)?$/.test(size)) {
+      setHoverFormError('Popup image size must look like "400" or "400x250".');
+      return;
+    }
+
+    insertHoverPopup(
+      { kind: hoverTriggerKind, value: triggerValue },
+      { kind: hoverPopupKind, value: popupValue, size: hoverPopupKind === "image" ? size || undefined : undefined }
+    );
 
     setShowHoverMenu(false);
     setHoverFormError(null);
@@ -394,6 +418,7 @@ export function PublishPage() {
     setHoverPopupKind("text");
     setHoverPopupText("");
     setHoverPopupImage("");
+    setHoverPopupImageSize("");
   }
 
   /** Wraps the selection in `before`/`after` (e.g. "**bold**"), or inserts a placeholder. */
@@ -938,20 +963,28 @@ export function PublishPage() {
                         className={menuInputClass}
                       />
                     ) : (
-                      <select
-                        value={hoverPopupImage}
-                        onChange={(e) => setHoverPopupImage(e.target.value)}
-                        className={menuSelectClass}
-                      >
-                        <option value="" className={optionClass}>
-                          Select an image…
-                        </option>
-                        {allImages.map((img) => (
-                          <option key={img.filename} value={img.filename} className={optionClass}>
-                            {img.filename}
+                      <div className="space-y-1.5">
+                        <select
+                          value={hoverPopupImage}
+                          onChange={(e) => setHoverPopupImage(e.target.value)}
+                          className={menuSelectClass}
+                        >
+                          <option value="" className={optionClass}>
+                            Select an image…
                           </option>
-                        ))}
-                      </select>
+                          {allImages.map((img) => (
+                            <option key={img.filename} value={img.filename} className={optionClass}>
+                              {img.filename}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          value={hoverPopupImageSize}
+                          onChange={(e) => setHoverPopupImageSize(e.target.value)}
+                          placeholder='Size in pixels, e.g. "400" or "400x250" (optional)'
+                          className={menuInputClass}
+                        />
+                      </div>
                     )}
                   </div>
                   {hoverFormError && <p className="text-xs text-red-400">{hoverFormError}</p>}
@@ -1012,7 +1045,7 @@ export function PublishPage() {
                       const floatClass =
                         position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
                       const hoverClass = hover
-                        ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110"
+                        ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
                         : undefined;
                       const image = (
                         <img

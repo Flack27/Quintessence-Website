@@ -12,9 +12,21 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
   /** Renders a hover payload (image or text) as popup content, resolving image filenames against this guide. */
   function renderHoverContent(payload: string) {
-    const { type, value } = parseHoverPayload(payload);
+    const { type, value, width, height } = parseHoverPayload(payload);
     if (type === "image") {
-      return <img src={resolveAssetUrl(slug, value) ?? value} alt="" className="max-h-48 w-auto rounded-lg" />;
+      // `.prose-codex img` puts a 24px top/bottom margin on every guide image; that would
+      // inflate this popup's box and, since it's a child of that same wrapper, throw off
+      // the popup's positioning against its trigger. `!my-0` overrides it back to 0.
+      // Without an explicit size, max-h-80 keeps an oversized source image from blowing
+      // up the popup; an explicit size means the author asked for it, so it wins instead.
+      return (
+        <img
+          src={resolveAssetUrl(slug, value) ?? value}
+          alt=""
+          className={`${width ? "" : "max-h-80"} w-auto rounded-lg !my-0`}
+          style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+        />
+      );
     }
     return <span>{value}</span>;
   }
@@ -48,7 +60,9 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
             const resolved = typeof src === "string" ? resolveAssetUrl(slug, src) ?? src : src;
             const { width, height, position, hover } = parseImageMeta(title);
             const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
-            const hoverClass = hover ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110" : undefined;
+            const hoverClass = hover
+              ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
+              : undefined;
             const image = (
               <img
                 src={resolved}
