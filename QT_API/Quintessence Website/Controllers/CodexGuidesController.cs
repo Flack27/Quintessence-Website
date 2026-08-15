@@ -11,10 +11,11 @@ namespace Quintessence_Website.Controllers
     /// <summary>
     /// Guides for the Codex at /guides.
     ///
-    /// Reading is public. Writing needs the Codex Author role; editing or removing
-    /// someone else's guide needs a manager role. Roles are resolved live from Discord
-    /// on each request (see CodexAccessService), not from the auth cookie, because
-    /// sessions here last a year.
+    /// Reading a guide needs the Discord role configured for its game (see guideaccess.json)
+    /// unless an admin has marked that guide public - guides are private by default. Writing
+    /// needs the Codex Author role; editing someone else's guide needs to be invited to it or
+    /// to hold a manager role. Roles are resolved live from Discord on each request (see
+    /// CodexAccessService), not from the auth cookie, because sessions here last a year.
     /// </summary>
     [Route("api/codex/guides")]
     [ApiController]
@@ -28,30 +29,36 @@ namespace Quintessence_Website.Controllers
 
         private readonly GuideStore _store;
         private readonly CodexAccessService _access;
+        private readonly GuideAccessPolicy _guideAccess;
+        private readonly ILogger<CodexGuidesController> _logger;
 
-        public CodexGuidesController(GuideStore store, CodexAccessService access)
+        public CodexGuidesController(
+            GuideStore store,
+            CodexAccessService access,
+            GuideAccessPolicy guideAccess,
+            ILogger<CodexGuidesController> logger)
         {
             _store = store;
             _access = access;
+            _guideAccess = guideAccess;
+            _logger = logger;
         }
 
         private string? DiscordId => User.FindFirst("id")?.Value;
 
-        /// <summary>Index for the homepage and search. Bodies omitted - they are large.</summary>
+        /// <summary>
+        /// Index for the homepage and search. Bodies omitted - they are large.
+        ///
+        /// One member lookup covers the whole list: CanView is a pure check against that
+        /// member, so filtering N guides costs one Discord call (cached), not N.
+        /// </summary>
         [HttpGet]
         public async Task<IActionResult> Index(CancellationToken ct)
         {
-            var access = await _access.GetAccessAsync(DiscordId, ct);
-            var guides = _store.ReadAll(includeBody: false);
-
-            // Drafts are only visible to someone who could edit them - which now includes anyone
-            // the owner has invited, or they could not work on a draft they were invited to.
-            if (!access.CanManage)
-            {
-                guides = guides
-                    .Where(g => !g.Draft || (DiscordId is not null && (g.AuthorId == DiscordId || g.Editors.Contains(DiscordId))))
-                    .ToList();
-            }
+            var member = await _access.GetMemberAsync(DiscordId, ct);
+            var guides = _store.ReadAll(includeBody: false)
+                .Where(g => CanView(g, member))
+                .ToList();
 
             return Ok(guides);
         }
@@ -63,7 +70,8 @@ namespace Quintessence_Website.Controllers
             var guide = _store.Read(safeSlug);
             if (guide is null) return NotFound(new { error = "No such guide." });
 
-            if (guide.Draft && !await MayEditAsync(guide, ct))
+            // 404 rather than 403: whether a members-only guide exists is itself not public.
+            if (!CanView(guide, await _access.GetMemberAsync(DiscordId, ct)))
                 return NotFound(new { error = "No such guide." });
 
             guide.Images = _store.ListImages(safeSlug);
@@ -153,6 +161,31 @@ namespace Quintessence_Website.Controllers
 
             _store.Delete(slug);
             return Ok(new { ok = true });
+        }
+
+        /// <summary>
+        /// Opens a guide to everyone, or puts it back behind its game's role.
+        ///
+        /// Admins only - not the guide's owner. Publishing something to the open internet is a
+        /// guild-wide call about what outsiders can read, not an authoring decision, and the
+        /// default has to be the safe one for "private by default" to mean anything.
+        /// </summary>
+        [HttpPut("{slug}/visibility")]
+        [Authorize(Policy = "CodexManager", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public IActionResult SetVisibility(string slug, [FromBody] CodexGuideVisibilityDTO body)
+        {
+            var safeSlug = SafeSlug(slug);
+            var guide = _store.Read(safeSlug);
+            if (guide is null) return NotFound(new { error = "No such guide." });
+
+            guide.IsPublic = body.IsPublic;
+            _store.Write(guide);
+
+            _logger.LogInformation(
+                "Codex guide \"{Slug}\" set {Visibility} by {UserId}",
+                safeSlug, guide.IsPublic ? "public" : "members-only", DiscordId);
+
+            return Ok(new { isPublic = guide.IsPublic });
         }
 
         // -----------------------------------------------------------------------------
@@ -275,13 +308,26 @@ namespace Quintessence_Website.Controllers
         private static bool IsSnowflake(string? value) =>
             !string.IsNullOrEmpty(value) && value.Length is >= 5 and <= 25 && value.All(char.IsDigit);
 
-        /// <summary>Serves a guide's uploaded images.</summary>
+        /// <summary>
+        /// Serves a guide's uploaded images.
+        ///
+        /// Gated by the same read check as the guide itself. Without this, a members-only
+        /// guide's screenshots would still be fetchable by anyone who knew the URL - and the
+        /// images are often the substance of a guide, so leaving them open would undo most of
+        /// what making the guide private is for.
+        /// </summary>
         [HttpGet("{slug}/images/{fileName}")]
-        public IActionResult Image(string slug, string fileName)
+        public async Task<IActionResult> Image(string slug, string fileName, CancellationToken ct)
         {
             if (Path.GetFileName(fileName) != fileName) return BadRequest();
 
-            var path = _store.ImagePath(SafeSlug(slug), fileName);
+            var safeSlug = SafeSlug(slug);
+            var guide = _store.Read(safeSlug);
+            if (guide is null) return NotFound();
+
+            if (!CanView(guide, await _access.GetMemberAsync(DiscordId, ct))) return NotFound();
+
+            var path = _store.ImagePath(safeSlug, fileName);
             if (!System.IO.File.Exists(path)) return NotFound();
 
             if (!new FileExtensionContentTypeProvider().TryGetContentType(path, out var contentType))
@@ -291,16 +337,58 @@ namespace Quintessence_Website.Controllers
         }
 
         /// <summary>
-        /// Who may change a guide's contents: its owner, anyone the owner has invited, or a
-        /// manager. The endpoints are gated by the CodexAuthor policy first, so an invited
-        /// editor who has since lost the author role is already out before this runs - being
-        /// on a guide's list widens *which* guides you may touch, it does not grant authoring.
+        /// Whether this member may *read* the guide.
+        ///
+        /// Guides are private by default, so the order matters: anyone who could edit it sees
+        /// it (including their own drafts), drafts stop there, an admin can mark a guide public
+        /// for the world, and everything else needs the Discord role configured for its game.
+        ///
+        /// Pure rather than async so the index can filter a whole list against one member.
         /// </summary>
-        private async Task<bool> MayEditAsync(CodexGuideDTO guide, CancellationToken ct)
+        private bool CanView(CodexGuideDTO guide, CodexMember? member)
         {
-            if (await MayAdministerAsync(guide, ct)) return true;
-            return DiscordId is not null && guide.Editors.Contains(DiscordId);
+            if (IsEditorOf(guide, member)) return true;
+
+            // A draft is unfinished work - being allowed to read the game's guides is not the
+            // same as being shown something its author has not published yet.
+            if (guide.Draft) return false;
+
+            if (guide.IsPublic) return true;
+
+            var roleId = _guideAccess.RoleIdFor(guide.Game);
+            if (roleId is null)
+            {
+                // Fail closed. An unlisted game must not silently become world-readable, but a
+                // missing entry is easy to make, so say so loudly enough to be found in logs.
+                _logger.LogWarning(
+                    "No GuideAccess:GameRoleIds entry for game \"{Game}\", so its guides stay hidden " +
+                    "from everyone but their authors and admins. Add one in guideaccess.json.",
+                    guide.Game);
+                return false;
+            }
+
+            return member?.HasRole(roleId) == true;
         }
+
+        /// <summary>
+        /// Who may change a guide's contents: its owner, anyone the owner has invited, or a
+        /// manager. The write endpoints are gated by the CodexAuthor policy first, so an invited
+        /// editor who has since lost the author role is already out before this runs - being on
+        /// a guide's list widens *which* guides you may touch, it does not grant authoring.
+        ///
+        /// Deliberately does not require the author role itself: it also answers "may they read
+        /// this", and an owner who lost the role should still see their own work.
+        /// </summary>
+        private static bool IsEditorOf(CodexGuideDTO guide, CodexMember? member)
+        {
+            if (member is null) return false;
+            return member.Access.CanManage
+                || guide.AuthorId == member.Id
+                || guide.Editors.Contains(member.Id);
+        }
+
+        private async Task<bool> MayEditAsync(CodexGuideDTO guide, CancellationToken ct) =>
+            IsEditorOf(guide, await _access.GetMemberAsync(DiscordId, ct));
 
         /// <summary>
         /// Who may delete a guide or change who can edit it: the owner and managers only.
@@ -311,9 +399,9 @@ namespace Quintessence_Website.Controllers
         /// </summary>
         private async Task<bool> MayAdministerAsync(CodexGuideDTO guide, CancellationToken ct)
         {
-            var access = await _access.GetAccessAsync(DiscordId, ct);
-            if (access.CanManage) return true;
-            return DiscordId is not null && guide.AuthorId == DiscordId;
+            var member = await _access.GetMemberAsync(DiscordId, ct);
+            if (member is null) return false;
+            return member.Access.CanManage || guide.AuthorId == member.Id;
         }
 
         /// <summary>

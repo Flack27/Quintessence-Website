@@ -1,0 +1,28 @@
+{
+  // Which Discord role a signed-in member needs in order to read the guides for a game.
+  //
+  // This lives in its own committed file rather than in appsettings.json because that file
+  // is gitignored - it holds the bot token and only ever exists on the server. Role ids are
+  // not secrets (anyone in the guild can right-click a role and copy its id), so keeping
+  // them here means adding a game is an ordinary commit that anyone with repo access can
+  // make, with no server access and no secrets involved.
+  //
+  // Match the key to the guide's "game" frontmatter value as it appears in the publish
+  // form's game dropdown. Matching is case-insensitive.
+  //
+  // Changes apply on the next deploy or restart. (The app does watch this file, but don't
+  // count on that - the watcher is unreliable on some filesystems.)
+  //
+  // A game with no entry here fails CLOSED: its guides stay hidden from everyone except
+  // their author and admins. This is a privacy feature, so an unlisted game must not
+  // silently become world-readable. The API logs a warning naming any game it could not
+  // find a role for, so a missing entry is visible in the container logs.
+  //
+  // Individual guides can still be opened up to everyone - an admin flips a guide to
+  // public from the guide page itself, which is stored on the guide, not here.
+  "GuideAccess": {
+    "GameRoleIds": {
+      "Aion 2": "1513926268607922196"
+    }
+  }
+}

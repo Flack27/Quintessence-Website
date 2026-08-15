@@ -16,6 +16,8 @@ export function PostPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [accessOpen, setAccessOpen] = useState(false);
+  const [visibilityBusy, setVisibilityBusy] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
 
   // The body lives on the server now, so a guide is fetched rather than read out of
   // the bundle. `undefined` means still loading; `null` means there is no such guide.
@@ -49,6 +51,34 @@ export function PostPage() {
   // thing outright, or widen access without the owner knowing.
   const canEdit = canPublish && (canModerate || isOwner || isEditor);
   const canAdminister = canPublish && (canModerate || isOwner);
+
+  // Admin-only. Reading a guide otherwise needs the Discord role configured for its game,
+  // so this is the switch that puts one in front of the open internet instead.
+  async function toggleVisibility() {
+    const next = !frontmatter.isPublic;
+    setVisibilityBusy(true);
+    setVisibilityError(null);
+
+    try {
+      const response = await fetch(`${CODEX_API}/guides/${encodeURIComponent(postSlug)}/visibility`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPublic: next }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Couldn't change who can see this.");
+
+      setPost((prev) =>
+        prev ? { ...prev, frontmatter: { ...prev.frontmatter, isPublic: data.isPublic } } : prev
+      );
+    } catch (err) {
+      setVisibilityError(err instanceof Error ? err.message : "Couldn't change who can see this.");
+    } finally {
+      setVisibilityBusy(false);
+    }
+  }
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${frontmatter.title}"? This can't be undone.`)) return;
@@ -91,14 +121,49 @@ export function PostPage() {
         <TagPill label={frontmatter.section} />
         {date && <span className="text-xs text-slate-500">{date}</span>}
         {frontmatter.author && <span className="text-xs text-slate-500">by {frontmatter.author}</span>}
+        {/* This row wraps because it can hold four controls (edit / visibility / access /
+            delete), which on a narrow phone reaches the edge of the viewport exactly. */}
         {canEdit && (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
             <Link
               to={`/publish/${postSlug}`}
               className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/50 hover:text-white"
             >
               Edit guide
             </Link>
+            {/* Admins get a switch; everyone else who can edit gets to see the state, since
+                "who can read this" matters when you are writing it. */}
+            {canModerate ? (
+              <button
+                type="button"
+                onClick={toggleVisibility}
+                disabled={visibilityBusy}
+                title={
+                  frontmatter.isPublic
+                    ? "Anyone can read this guide. Click to put it back behind the game's role."
+                    : "Only members with this game's Discord role can read this guide. Click to make it public."
+                }
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  frontmatter.isPublic
+                    ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                    : "border-white/15 text-slate-300 hover:border-quint-purple/50 hover:text-white"
+                }`}
+              >
+                {visibilityBusy ? "Saving…" : frontmatter.isPublic ? "Public" : "Members only"}
+              </button>
+            ) : (
+              <span
+                className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-500"
+                title={
+                  frontmatter.isPublic
+                    ? "Anyone can read this guide."
+                    : "Only members with this game's Discord role can read this guide."
+                }
+              >
+                {frontmatter.isPublic ? "Public" : "Members only"}
+              </span>
+            )}
+
             {canAdminister && (
               <>
                 <button
@@ -122,6 +187,7 @@ export function PostPage() {
         )}
       </div>
       {deleteError && <p className="mb-4 text-sm text-red-400">{deleteError}</p>}
+      {visibilityError && <p className="mb-4 text-sm text-red-400">{visibilityError}</p>}
 
       <h1 className="font-display text-3xl font-bold text-white sm:text-4xl">{frontmatter.title}</h1>
 

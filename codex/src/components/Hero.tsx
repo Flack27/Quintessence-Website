@@ -30,7 +30,12 @@ export function Hero({ postCount }: HeroProps) {
 
       <p className="mx-auto mt-8 max-w-xl text-base text-slate-400">
         The Quintessence Codex is where the guild keeps every guide for every game we play,
-        one searchable place instead of scattered Discord messages. {postCount} guide{postCount === 1 ? "" : "s"} published so far.
+        one searchable place instead of scattered Discord messages.
+        {/* The count is what the *viewer* can see, and guides are members-only by default -
+            so for a signed-out visitor it is always 0, which reads as "this site is empty"
+            rather than "you are not signed in". Say nothing instead; the panel below the
+            search bar explains the real reason. */}
+        {postCount > 0 && ` ${postCount} guide${postCount === 1 ? "" : "s"} published so far.`}
       </p>
     </section>
   );

@@ -68,9 +68,18 @@ namespace Quintessence_Website.Services
 
     /// <summary>
     /// A guild member, with the Codex access their roles grant. Carries the display fields too,
-    /// so the access dialog can list people without a second round trip per name.
+    /// so the access dialog can list people without a second round trip per name, and the raw
+    /// role ids, so per-game read access can be checked off the same cached lookup.
     /// </summary>
-    public sealed record CodexMember(string Id, string Username, string? AvatarUrl, CodexAccess Access);
+    public sealed record CodexMember(
+        string Id,
+        string Username,
+        string? AvatarUrl,
+        CodexAccess Access,
+        IReadOnlyList<string> RoleIds)
+    {
+        public bool HasRole(string roleId) => RoleIds.Contains(roleId);
+    }
 
     /// <summary>
     /// Resolves Codex permissions from a user's Discord roles.
@@ -254,7 +263,7 @@ namespace Quintessence_Website.Services
             // server nickname, then the account's display name, then the raw handle.
             var name = Text(element, "nick") ?? Text(user, "global_name") ?? Text(user, "username") ?? id;
 
-            return new CodexMember(id, name, AvatarUrl(element, user, id), new CodexAccess(canWrite, canManage));
+            return new CodexMember(id, name, AvatarUrl(element, user, id), new CodexAccess(canWrite, canManage), roles);
         }
 
         /// <summary>Guild-specific avatar if they set one for this server, otherwise their account avatar.</summary>

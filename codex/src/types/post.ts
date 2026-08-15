@@ -20,6 +20,11 @@ export interface PostFrontmatter {
   editors?: string[];
   cover?: string;
   draft?: boolean;
+  /**
+   * Readable by anyone, signed out included. Defaults to false: guides are members-only
+   * unless an admin opens one up, and otherwise need the Discord role set for their game.
+   */
+  isPublic?: boolean;
 }
 
 export interface Post {

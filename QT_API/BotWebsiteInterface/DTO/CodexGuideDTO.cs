@@ -44,6 +44,15 @@ namespace QuintessenceWebsiteInterface.DTO
 
         public bool Draft { get; set; }
 
+        /// <summary>
+        /// Readable by anyone, signed in or not.
+        ///
+        /// Defaults to false, so a guide is members-only unless an admin deliberately opens it
+        /// up: guides are private by default, and reading one otherwise needs the Discord role
+        /// configured for its game (see guideaccess.json). Only managers can change this.
+        /// </summary>
+        public bool IsPublic { get; set; }
+
         /// <summary>Markdown body, frontmatter stripped. Null in index responses.</summary>
         public string? Content { get; set; }
 
@@ -62,6 +71,12 @@ namespace QuintessenceWebsiteInterface.DTO
 
         /// <summary>Last write time, for sorting when no date is set.</summary>
         public DateTime UpdatedUtc { get; set; }
+    }
+
+    /// <summary>Admin-only change to whether a guide is world-readable.</summary>
+    public class CodexGuideVisibilityDTO
+    {
+        public bool IsPublic { get; set; }
     }
 
     /// <summary>A guild member as the access dialog lists them.</summary>

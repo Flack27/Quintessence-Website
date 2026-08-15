@@ -25,6 +25,17 @@ bool isDevelopment = environment.IsDevelopment();
 
 builder.Configuration.AddUserSecrets<Program>();
 
+// Which Discord role each game's guides require. Its own committed file rather than a
+// section of appsettings.json, because that file is gitignored and only exists on the
+// server - role ids are not secrets, so keeping them in the repo means adding a game is
+// an ordinary commit instead of a server edit.
+//
+// reloadOnChange is best-effort: the file watcher did not fire on a OneDrive-synced dev
+// checkout, so treat a redeploy (or restart) as the reliable way to apply a change. The
+// options are still read through IOptionsMonitor so a reload is picked up where the
+// watcher does work.
+builder.Configuration.AddJsonFile("guideaccess.json", optional: true, reloadOnChange: true);
+
 // Persist the Data Protection keys, which encrypt the auth cookie. By default they live in
 // the container filesystem, so every `docker compose up --build` generated a fresh set and
 // silently signed everyone out - which made the 365-day cookie below last only until the
@@ -57,6 +68,11 @@ var adminUserIds = builder.Configuration.GetSection("Discord:AdminUserIds").Get<
 // rather than a crash.
 var codexOptions = builder.Configuration.GetSection("Codex").Get<CodexOptions>() ?? new CodexOptions();
 builder.Services.AddSingleton(codexOptions);
+
+// Per-game read access (guideaccess.json). Bound rather than snapshotted so edits to that
+// file are picked up without a restart.
+builder.Services.Configure<GuideAccessOptions>(builder.Configuration.GetSection("GuideAccess"));
+builder.Services.AddSingleton<GuideAccessPolicy>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<CodexAccessService>(http => http.Timeout = TimeSpan.FromSeconds(10));
 

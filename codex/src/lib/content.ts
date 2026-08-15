@@ -30,6 +30,7 @@ interface GuideResponse {
   editors?: string[] | null;
   cover?: string | null;
   draft: boolean;
+  isPublic?: boolean;
   content?: string | null;
   /** Stripped body, sent on the index where `content` is omitted. */
   searchText?: string | null;
@@ -51,6 +52,7 @@ function toPost(dto: GuideResponse): Post {
     editors: dto.editors ?? [],
     cover: dto.cover ?? undefined,
     draft: dto.draft,
+    isPublic: dto.isPublic ?? false,
   };
 
   return {

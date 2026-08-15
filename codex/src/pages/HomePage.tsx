@@ -5,9 +5,11 @@ import { PostGrid } from "@/components/PostGrid";
 import { DiscordLoginButton } from "@/components/DiscordLoginButton";
 import { fetchPosts } from "@/lib/content";
 import { searchPosts } from "@/lib/search";
+import { useAuth } from "@/lib/AuthContext";
 import type { Post } from "@/types/post";
 
 export function HomePage() {
+  const { authenticated, loading: authLoading } = useAuth();
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -44,6 +46,19 @@ export function HomePage() {
           </p>
         ) : posts === null ? (
           <p className="px-1 text-[#6c6179]">Loading guides…</p>
+        ) : posts.length === 0 && !authLoading ? (
+          // Guides are members-only by default, so an empty list is the normal view for a
+          // signed-out visitor - say why, or the Codex just looks broken.
+          <div className="rounded-xl border border-[rgba(201,160,220,0.26)] bg-white/[0.03] px-5 py-6">
+            <p className="font-semibold text-[#e6dcef]">
+              {authenticated ? "No guides to show yet." : "The guides are for guild members."}
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-[#9c8fae]">
+              {authenticated
+                ? "Guides are limited to members holding the Discord role for their game. If you think you should see something here, ask an officer to check your roles."
+                : "Log in with Discord to read them. Anything published publicly will show up here without signing in."}
+            </p>
+          </div>
         ) : (
           <PostGrid posts={filtered} />
         )}
