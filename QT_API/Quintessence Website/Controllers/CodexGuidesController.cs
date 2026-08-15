@@ -20,8 +20,8 @@ namespace Quintessence_Website.Controllers
     [ApiController]
     public class CodexGuidesController : ControllerBase
     {
-        private const int MaxImages = 24;
-        private const int MaxImageBytes = 10 * 1024 * 1024;
+        private const int MaxImages = 50;
+        private const int MaxImageBytes = 30 * 1024 * 1024;
 
         private static readonly string[] AllowedImageExtensions =
             { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg" };
@@ -72,7 +72,6 @@ namespace Quintessence_Website.Controllers
 
         [HttpPost]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
-        [RequestSizeLimit(100 * 1024 * 1024)]
         public async Task<IActionResult> Create([FromBody] CodexGuideWriteDTO body, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(body.Title))
@@ -85,8 +84,11 @@ namespace Quintessence_Website.Controllers
             if (_store.Exists(slug))
                 return Conflict(new { error = $"A guide already exists at \"{slug}\"." });
 
-            var error = SaveImages(slug, body.Images);
-            if (error is not null) return BadRequest(new { error });
+            // Images were uploaded one at a time (see UploadDraftImage) while the author was
+            // still typing the title, staged under a random id since the slug wasn't settled
+            // yet. Now that it is, move them into the guide's real image folder.
+            if (!string.IsNullOrWhiteSpace(body.DraftId) && IsSafeDraftId(body.DraftId))
+                _store.AdoptDraftImages(body.DraftId, slug);
 
             var guide = new CodexGuideDTO
             {
@@ -112,7 +114,6 @@ namespace Quintessence_Website.Controllers
 
         [HttpPut("{slug}")]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
-        [RequestSizeLimit(100 * 1024 * 1024)]
         public async Task<IActionResult> Update(string slug, [FromBody] CodexGuideWriteDTO body, CancellationToken ct)
         {
             slug = SafeSlug(slug);
@@ -122,8 +123,8 @@ namespace Quintessence_Website.Controllers
             if (!await MayEditAsync(existing, ct))
                 return StatusCode(403, new { error = "Only the guide's author, an invited editor or a moderator can edit it." });
 
-            var error = SaveImages(slug, body.Images);
-            if (error is not null) return BadRequest(new { error });
+            // Its slug is already fixed, so new images went straight to {slug}/images
+            // (see UploadImage) as soon as they were picked - nothing to adopt here.
 
             existing.Title = string.IsNullOrWhiteSpace(body.Title) ? existing.Title : body.Title.Trim();
             existing.Subtitle = Blank(body.Subtitle);
@@ -315,42 +316,116 @@ namespace Quintessence_Website.Controllers
             return DiscordId is not null && guide.AuthorId == DiscordId;
         }
 
-        /// <summary>Returns an error message, or null on success.</summary>
-        private string? SaveImages(string slug, List<CodexGuideImageDTO>? images)
+        /// <summary>
+        /// Uploads one image onto an existing guide. Images now go over the wire one at a
+        /// time as multipart/form-data, not bundled as base64 into the Create/Update JSON
+        /// body - a guide with many large images used to mean a single, gigantic request
+        /// that could sit "pending" forever (and get rejected outright once past Cloudflare's
+        /// ~100MB body cap on the way in). One request per image keeps every request small
+        /// regardless of how many images a guide ends up with.
+        /// </summary>
+        [HttpPost("{slug}/images")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        [RequestSizeLimit(MaxImageBytes + 1024 * 1024)]
+        public async Task<IActionResult> UploadImage(string slug, IFormFile file, CancellationToken ct)
         {
-            if (images is null || images.Count == 0) return null;
-            if (images.Count > MaxImages) return $"Too many images (max {MaxImages}).";
+            slug = SafeSlug(slug);
+            var existing = _store.Read(slug);
+            if (existing is null) return NotFound(new { error = "No such guide." });
 
-            foreach (var image in images)
-            {
-                var name = Path.GetFileName(image.FileName ?? string.Empty);
-                if (string.IsNullOrWhiteSpace(name) || name != image.FileName)
-                    return $"Invalid image filename: \"{image.FileName}\".";
+            if (!await MayEditAsync(existing, ct))
+                return StatusCode(403, new { error = "Only the guide's author, an invited editor or a moderator can edit it." });
 
-                if (!AllowedImageExtensions.Contains(Path.GetExtension(name).ToLowerInvariant()))
-                    return $"\"{name}\" is not an image type we accept.";
+            var (name, bytes, error) = await ReadImageAsync(file, ct);
+            if (error is not null) return BadRequest(new { error });
 
-                byte[] bytes;
-                try
-                {
-                    var payload = image.Data ?? string.Empty;
-                    var comma = payload.IndexOf(',');
-                    if (payload.StartsWith("data:") && comma > 0) payload = payload[(comma + 1)..];
-                    bytes = Convert.FromBase64String(payload);
-                }
-                catch (FormatException)
-                {
-                    return $"\"{name}\" could not be decoded.";
-                }
+            var current = _store.ListImages(slug);
+            if (!current.Contains(name) && current.Count >= MaxImages)
+                return BadRequest(new { error = $"Too many images (max {MaxImages})." });
 
-                if (bytes.Length > MaxImageBytes)
-                    return $"\"{name}\" is larger than {MaxImageBytes / (1024 * 1024)}MB.";
-
-                _store.SaveImage(slug, name, bytes);
-            }
-
-            return null;
+            _store.SaveImage(slug, name!, bytes!);
+            return Ok(new { filename = name });
         }
+
+        /// <summary>Removes one of a guide's images.</summary>
+        [HttpDelete("{slug}/images/{fileName}")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> DeleteGuideImage(string slug, string fileName, CancellationToken ct)
+        {
+            slug = SafeSlug(slug);
+            var existing = _store.Read(slug);
+            if (existing is null) return NotFound(new { error = "No such guide." });
+
+            if (!await MayEditAsync(existing, ct))
+                return StatusCode(403, new { error = "Only the guide's author, an invited editor or a moderator can edit it." });
+
+            if (Path.GetFileName(fileName) != fileName) return BadRequest();
+
+            _store.DeleteImage(slug, fileName);
+            return Ok(new { ok = true });
+        }
+
+        /// <summary>
+        /// Stages one image for a guide that doesn't exist yet - its title (and so its slug)
+        /// can still change while the author is typing, so there is nowhere stable to save
+        /// it until Create() settles on a real slug and adopts everything staged here (see
+        /// GuideStore.AdoptDraftImages). draftId is a random id the publish form generates
+        /// once per new-guide session; anyone with the Codex Author role may stage under any
+        /// id, since nothing is owned yet - Create() is what actually claims a slug.
+        /// </summary>
+        [HttpPost("drafts/{draftId}/images")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        [RequestSizeLimit(MaxImageBytes + 1024 * 1024)]
+        public async Task<IActionResult> UploadDraftImage(string draftId, IFormFile file, CancellationToken ct)
+        {
+            if (!IsSafeDraftId(draftId)) return BadRequest(new { error = "Invalid draft id." });
+
+            var (name, bytes, error) = await ReadImageAsync(file, ct);
+            if (error is not null) return BadRequest(new { error });
+
+            if (_store.ListDraftImages(draftId).Count >= MaxImages)
+                return BadRequest(new { error = $"Too many images (max {MaxImages})." });
+
+            _store.SaveDraftImage(draftId, name!, bytes!);
+            return Ok(new { filename = name });
+        }
+
+        /// <summary>Removes a staged draft image (e.g. the author removed it before publishing).</summary>
+        [HttpDelete("drafts/{draftId}/images/{fileName}")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public IActionResult DeleteDraftImage(string draftId, string fileName)
+        {
+            if (!IsSafeDraftId(draftId)) return BadRequest();
+            if (Path.GetFileName(fileName) != fileName) return BadRequest();
+
+            _store.DeleteDraftImage(draftId, fileName);
+            return Ok(new { ok = true });
+        }
+
+        /// <summary>Validates an uploaded image and reads it into memory, or returns why it was rejected.</summary>
+        private async Task<(string? name, byte[]? bytes, string? error)> ReadImageAsync(IFormFile file, CancellationToken ct)
+        {
+            if (file is null || file.Length == 0) return (null, null, "No file uploaded.");
+
+            var name = Path.GetFileName(file.FileName);
+            if (string.IsNullOrWhiteSpace(name) || name != file.FileName)
+                return (null, null, $"Invalid image filename: \"{file.FileName}\".");
+
+            if (!AllowedImageExtensions.Contains(Path.GetExtension(name).ToLowerInvariant()))
+                return (null, null, $"\"{name}\" is not an image type we accept.");
+
+            if (file.Length > MaxImageBytes)
+                return (null, null, $"\"{name}\" is larger than {MaxImageBytes / (1024 * 1024)}MB.");
+
+            using var ms = new MemoryStream();
+            await file.CopyToAsync(ms, ct);
+            return (name, ms.ToArray(), null);
+        }
+
+        /// <summary>Draft ids address a folder, so - like slugs - anything path-like is rejected outright rather than stripped.</summary>
+        private static bool IsSafeDraftId(string? draftId) =>
+            !string.IsNullOrEmpty(draftId) && draftId.Length is >= 8 and <= 64 &&
+            draftId.All(ch => char.IsLetterOrDigit(ch) || ch == '-');
 
         private static string? Blank(string? v) => string.IsNullOrWhiteSpace(v) ? null : v.Trim();
 

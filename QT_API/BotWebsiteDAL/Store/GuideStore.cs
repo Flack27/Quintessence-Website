@@ -127,8 +127,104 @@ namespace QuintessenceWebsiteDAL.Store
             }
         }
 
+        public bool DeleteImage(string slug, string fileName)
+        {
+            lock (_lock)
+            {
+                var path = Path.Combine(_imagesDir, slug, fileName);
+                if (!File.Exists(path)) return false;
+                File.Delete(path);
+                return true;
+            }
+        }
+
         public string ImagePath(string slug, string fileName) =>
             Path.Combine(_imagesDir, slug, fileName);
+
+        // ---------------------------------------------------------------------
+        // Draft image staging.
+        //
+        // A new guide's slug is derived from its title client-side and can change while
+        // the author is still typing, so images picked before the first save can't be
+        // written straight into `<slug>/` - there is no stable slug yet. The publish form
+        // instead stages them under a random id it generates once per form session; once
+        // Create() has settled on a real slug, AdoptDraftImages moves them over.
+        //
+        // Editing an existing guide never uses this path - its slug is already fixed, so
+        // new images there upload straight into its own folder.
+        // ---------------------------------------------------------------------
+
+        private string DraftsRoot => Path.Combine(_imagesDir, "_drafts");
+
+        public string SaveDraftImage(string draftId, string fileName, byte[] bytes)
+        {
+            lock (_lock)
+            {
+                CleanupStaleDraftsUnlocked();
+                var dir = Path.Combine(DraftsRoot, draftId);
+                Directory.CreateDirectory(dir);
+                File.WriteAllBytes(Path.Combine(dir, fileName), bytes);
+                return fileName;
+            }
+        }
+
+        public bool DeleteDraftImage(string draftId, string fileName)
+        {
+            lock (_lock)
+            {
+                var path = Path.Combine(DraftsRoot, draftId, fileName);
+                if (!File.Exists(path)) return false;
+                File.Delete(path);
+                return true;
+            }
+        }
+
+        public List<string> ListDraftImages(string draftId)
+        {
+            lock (_lock)
+            {
+                var dir = Path.Combine(DraftsRoot, draftId);
+                if (!Directory.Exists(dir)) return new List<string>();
+
+                return Directory.EnumerateFiles(dir)
+                    .Select(Path.GetFileName)
+                    .Where(name => !string.IsNullOrEmpty(name))
+                    .Select(name => name!)
+                    .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+            }
+        }
+
+        /// <summary>Moves everything staged under a draft into the guide's real image folder. No-op if the draft is missing - editing an existing guide never creates one.</summary>
+        public void AdoptDraftImages(string draftId, string slug)
+        {
+            lock (_lock)
+            {
+                var draftDir = Path.Combine(DraftsRoot, draftId);
+                if (!Directory.Exists(draftDir)) return;
+
+                var targetDir = Path.Combine(_imagesDir, slug);
+                Directory.CreateDirectory(targetDir);
+                foreach (var file in Directory.EnumerateFiles(draftDir))
+                {
+                    File.Copy(file, Path.Combine(targetDir, Path.GetFileName(file)), overwrite: true);
+                }
+                Directory.Delete(draftDir, recursive: true);
+            }
+        }
+
+        /// <summary>Sweeps drafts abandoned by a closed tab, so staged uploads don't accumulate forever without a background job.</summary>
+        private void CleanupStaleDraftsUnlocked()
+        {
+            if (!Directory.Exists(DraftsRoot)) return;
+
+            var cutoff = DateTime.UtcNow.AddDays(-2);
+            foreach (var dir in Directory.EnumerateDirectories(DraftsRoot))
+            {
+                if (Directory.GetLastWriteTimeUtc(dir) >= cutoff) continue;
+                try { Directory.Delete(dir, recursive: true); } catch { /* best effort */ }
+            }
+        }
 
         /// <summary>Filenames already uploaded for a guide, so an editor can re-list them.</summary>
         public List<string> ListImages(string slug)

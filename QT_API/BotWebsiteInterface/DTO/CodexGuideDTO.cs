@@ -100,13 +100,6 @@ namespace QuintessenceWebsiteInterface.DTO
         public bool CanManageAccess { get; set; }
     }
 
-    /// <summary>An image uploaded alongside a guide, sent as base64 by the publish form.</summary>
-    public class CodexGuideImageDTO
-    {
-        public string FileName { get; set; } = string.Empty;
-        public string Data { get; set; } = string.Empty;
-    }
-
     /// <summary>Create/update payload from the publish form.</summary>
     public class CodexGuideWriteDTO
     {
@@ -120,6 +113,12 @@ namespace QuintessenceWebsiteInterface.DTO
         public string? Cover { get; set; }
         public bool Draft { get; set; }
         public string Body { get; set; } = string.Empty;
-        public List<CodexGuideImageDTO> Images { get; set; } = new();
+
+        /// <summary>
+        /// Id the publish form staged images under (via POST drafts/{draftId}/images) before
+        /// this guide had a slug. Null/omitted when editing an existing guide - its images
+        /// were already uploaded straight to its own slug, nothing to adopt.
+        /// </summary>
+        public string? DraftId { get; set; }
     }
 }
