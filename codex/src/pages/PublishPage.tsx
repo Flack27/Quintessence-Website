@@ -46,8 +46,8 @@ function SelectChevron() {
 
 const ALLOWED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_IMAGES = 6;
-const MAX_IMAGE_BYTES = 1.5 * 1024 * 1024;
-const MAX_TOTAL_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_TOTAL_IMAGE_BYTES = 40 * 1024 * 1024;
 
 const GAME_OPTIONS = ["Aion 2"];
 const SECTION_OPTIONS = ["Class Guides", "Tips", "PvE Guides", "PvP Guides", "Others"];

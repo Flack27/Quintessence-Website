@@ -75,6 +75,7 @@ namespace Quintessence_Website.Controllers
 
         [HttpPost]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        [RequestSizeLimit(100 * 1024 * 1024)]
         public async Task<IActionResult> Create([FromBody] CodexGuideWriteDTO body, CancellationToken ct)
         {
             if (string.IsNullOrWhiteSpace(body.Title))
@@ -114,6 +115,7 @@ namespace Quintessence_Website.Controllers
 
         [HttpPut("{slug}")]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        [RequestSizeLimit(100 * 1024 * 1024)]
         public async Task<IActionResult> Update(string slug, [FromBody] CodexGuideWriteDTO body, CancellationToken ct)
         {
             slug = SafeSlug(slug);
