@@ -11,8 +11,13 @@ export interface PostFrontmatter {
   tags?: string[];
   date?: string;
   author?: string;
-  /** Discord user id of whoever published this guide; used to gate the delete button. */
+  /** Discord user id of whoever published this guide - its owner. */
   authorId?: string;
+  /**
+   * Discord user ids the owner has invited to edit this guide. Admins are not listed here:
+   * their access comes from a Discord role, not from any one guide. See the access dialog.
+   */
+  editors?: string[];
   cover?: string;
   draft?: boolean;
 }

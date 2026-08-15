@@ -6,14 +6,16 @@ import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
+import { GuideAccessDialog } from "@/components/GuideAccessDialog";
 import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
   const { slug } = useParams<{ slug: string }>();
-  const { user, canModerate } = useAuth();
+  const { user, canPublish, canModerate } = useAuth();
   const navigate = useNavigate();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [accessOpen, setAccessOpen] = useState(false);
 
   // The body lives on the server now, so a guide is fetched rather than read out of
   // the bundle. `undefined` means still loading; `null` means there is no such guide.
@@ -39,7 +41,14 @@ export function PostPage() {
 
   const { slug: postSlug, frontmatter, content, coverUrl } = post;
   const date = formatPostDate(frontmatter.date);
-  const canManage = Boolean(canModerate || (user && frontmatter.authorId && user.id === frontmatter.authorId));
+  const isOwner = Boolean(user && frontmatter.authorId && user.id === frontmatter.authorId);
+  const isEditor = Boolean(user && frontmatter.editors?.includes(user.id));
+
+  // Being invited to a guide lets you change its contents. Removing it, and deciding who else
+  // gets in, stay with the owner and admins - a collaborator shouldn't be able to delete the
+  // thing outright, or widen access without the owner knowing.
+  const canEdit = canPublish && (canModerate || isOwner || isEditor);
+  const canAdminister = canPublish && (canModerate || isOwner);
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${frontmatter.title}"? This can't be undone.`)) return;
@@ -82,7 +91,7 @@ export function PostPage() {
         <TagPill label={frontmatter.section} />
         {date && <span className="text-xs text-slate-500">{date}</span>}
         {frontmatter.author && <span className="text-xs text-slate-500">by {frontmatter.author}</span>}
-        {canManage && (
+        {canEdit && (
           <div className="ml-auto flex items-center gap-2">
             <Link
               to={`/publish/${postSlug}`}
@@ -90,14 +99,25 @@ export function PostPage() {
             >
               Edit guide
             </Link>
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={deleting}
-              className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
-            >
-              {deleting ? "Deleting…" : "Delete guide"}
-            </button>
+            {canAdminister && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setAccessOpen(true)}
+                  className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/50 hover:text-white"
+                >
+                  Manage access
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
+                >
+                  {deleting ? "Deleting…" : "Delete guide"}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -132,6 +152,14 @@ export function PostPage() {
       <div className="mt-10">
         <MarkdownRenderer slug={post.slug} content={content} />
       </div>
+
+      {accessOpen && (
+        <GuideAccessDialog
+          slug={postSlug}
+          title={frontmatter.title}
+          onClose={() => setAccessOpen(false)}
+        />
+      )}
     </article>
   );
 }

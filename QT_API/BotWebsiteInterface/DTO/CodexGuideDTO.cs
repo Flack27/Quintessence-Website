@@ -22,8 +22,22 @@ namespace QuintessenceWebsiteInterface.DTO
 
         public string? Author { get; set; }
 
-        /// <summary>Discord id of whoever published it. Decides who may edit it later.</summary>
+        /// <summary>Discord id of whoever published it. The guide's owner - see <see cref="Editors"/>.</summary>
         public string? AuthorId { get; set; }
+
+        /// <summary>
+        /// Discord ids the owner has invited to edit this guide, beyond the owner themselves.
+        ///
+        /// Ids only, no names: the display name is resolved from Discord when the access dialog
+        /// opens, so a rename never leaves a stale name on disk - and the frontmatter list stays
+        /// free of the commas and quotes a username can contain, which the small YAML subset in
+        /// GuideStore would not survive.
+        ///
+        /// Holders of a manager role are deliberately *never* written here. Their access comes
+        /// from the role, read live on every request; materialising it into a file would mean
+        /// taking the role away no longer takes the access away.
+        /// </summary>
+        public List<string> Editors { get; set; } = new();
 
         /// <summary>Image filename relative to the guide, or a root-absolute asset path.</summary>
         public string? Cover { get; set; }
@@ -48,6 +62,42 @@ namespace QuintessenceWebsiteInterface.DTO
 
         /// <summary>Last write time, for sorting when no date is set.</summary>
         public DateTime UpdatedUtc { get; set; }
+    }
+
+    /// <summary>A guild member as the access dialog lists them.</summary>
+    public class CodexMemberDTO
+    {
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>Guild nickname if they have one, otherwise their Discord display name.</summary>
+        public string Username { get; set; } = string.Empty;
+
+        public string? Avatar { get; set; }
+
+        /// <summary>Holds an author role, so is eligible to be invited to a guide.</summary>
+        public bool CanWrite { get; set; }
+
+        /// <summary>
+        /// Holds a manager role. Already has access to every guide, so they are shown as such
+        /// rather than being addable - there is no per-guide grant that could add anything.
+        /// </summary>
+        public bool CanManage { get; set; }
+    }
+
+    /// <summary>Who may edit one guide, for the access dialog.</summary>
+    public class CodexGuideAccessDTO
+    {
+        /// <summary>
+        /// The creator. Cannot be removed - there is no "no owner" state, and transferring a
+        /// guide is not something the dialog offers.
+        /// </summary>
+        public CodexMemberDTO? Owner { get; set; }
+
+        /// <summary>Everyone the owner has invited, resolved to names at read time.</summary>
+        public List<CodexMemberDTO> Editors { get; set; } = new();
+
+        /// <summary>Whether the caller may add and remove editors here (owner or manager).</summary>
+        public bool CanManageAccess { get; set; }
     }
 
     /// <summary>An image uploaded alongside a guide, sent as base64 by the publish form.</summary>

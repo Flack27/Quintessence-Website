@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using QuintessenceWebsiteInterface.DTO;
 using Quintessence_Website.Services;
 
 namespace Quintessence_Website.Controllers
@@ -81,6 +83,29 @@ namespace Quintessence_Website.Controllers
                     avatar = User.FindFirst("avatar_url")?.Value,
                 }
             });
+        }
+
+        /// <summary>
+        /// Guild members matching a name, for the access dialog's search box.
+        ///
+        /// Authors only - this is a directory of real people, so it is not something an
+        /// anonymous visitor gets to enumerate. Results are narrowed to members who hold a
+        /// Codex role: anyone else could be added to a guide and still not be able to edit
+        /// it, since the write endpoints check the role first.
+        /// </summary>
+        [HttpGet("members/search")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> SearchMembers([FromQuery] string? q, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(q) || q.Trim().Length < 2)
+                return Ok(Array.Empty<CodexMemberDTO>());
+
+            var members = await _access.SearchMembersAsync(q, limit: 25, ct);
+
+            return Ok(members
+                .Where(m => m.Access.CanWrite)
+                .Select(CodexGuidesController.ToDto)
+                .ToList());
         }
 
         /// <summary>

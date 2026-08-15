@@ -67,6 +67,12 @@ namespace Quintessence_Website.Services
     }
 
     /// <summary>
+    /// A guild member, with the Codex access their roles grant. Carries the display fields too,
+    /// so the access dialog can list people without a second round trip per name.
+    /// </summary>
+    public sealed record CodexMember(string Id, string Username, string? AvatarUrl, CodexAccess Access);
+
+    /// <summary>
     /// Resolves Codex permissions from a user's Discord roles.
     ///
     /// Roles are looked up live (behind a short cache) rather than baked into the auth cookie
@@ -102,84 +108,173 @@ namespace Quintessence_Website.Services
 
         public async Task<CodexAccess> GetAccessAsync(string? discordUserId, CancellationToken ct = default)
         {
-            if (string.IsNullOrWhiteSpace(discordUserId)) return CodexAccess.None;
+            var member = await GetMemberAsync(discordUserId, ct);
+            return member?.Access ?? CodexAccess.None;
+        }
+
+        /// <summary>
+        /// One guild member, or null if they are not in the guild (or Discord could not be
+        /// reached). Shares the cache with <see cref="GetAccessAsync"/> - it is the same lookup.
+        /// </summary>
+        public async Task<CodexMember?> GetMemberAsync(string? discordUserId, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(discordUserId)) return null;
 
             if (!_options.IsConfigured)
             {
                 _logger.LogWarning(
                     "Codex access checked but Codex:GuildId / Codex:BotToken are not set - denying. " +
                     "Fill them in appsettings.Production.json.");
-                return CodexAccess.None;
+                return null;
             }
 
-            var cacheKey = $"codex:access:{discordUserId}";
-            if (_cache.TryGetValue<CodexAccess>(cacheKey, out var cached)) return cached;
+            var cacheKey = $"codex:member:{discordUserId}";
+            if (_cache.TryGetValue<CodexMember?>(cacheKey, out var cached)) return cached;
 
-            var roles = await FetchMemberRoleIdsAsync(discordUserId, ct);
+            var url = $"{DiscordApiBase}/guilds/{_options.GuildId}/members/{discordUserId}";
+            var (ok, member) = await FetchMemberAsync(url, discordUserId, ct);
 
-            // A failed lookup returns null (as opposed to an empty role list for a real member
-            // with no roles). Don't cache it - a transient Discord blip shouldn't lock an author
-            // out for the whole TTL.
-            if (roles is null) return CodexAccess.None;
+            // A failed lookup is not cached - a transient Discord blip shouldn't lock an author
+            // out for the whole TTL. "Not in the guild" (ok, but no member) is a real answer and
+            // is cached like any other.
+            if (!ok) return null;
 
-            var canManage = roles.Any(id => _options.ManagerRoleIds.Contains(id));
-            var canWrite = canManage || roles.Any(id => _options.AuthorRoleIds.Contains(id));
-            var access = new CodexAccess(canWrite, canManage);
-
-            _cache.Set(cacheKey, access, TimeSpan.FromSeconds(Math.Max(5, _options.RoleCacheSeconds)));
-            return access;
+            _cache.Set(cacheKey, member, TimeSpan.FromSeconds(Math.Max(5, _options.RoleCacheSeconds)));
+            return member;
         }
 
-        /// <summary>Member's role ids, or null if the lookup failed (as opposed to "no roles").</summary>
-        private async Task<List<string>?> FetchMemberRoleIdsAsync(string discordUserId, CancellationToken ct)
+        /// <summary>
+        /// Guild members whose name starts with <paramref name="query"/>, for the access dialog's
+        /// search box.
+        ///
+        /// This is Discord's member *search*, not the member *list*: search is exempt from the
+        /// GUILD_MEMBERS privileged intent, so the bot still needs nothing enabled beyond being
+        /// in the guild - the same standing requirement the role lookup above already has.
+        /// </summary>
+        public async Task<List<CodexMember>> SearchMembersAsync(string query, int limit = 25, CancellationToken ct = default)
         {
-            var url = $"{DiscordApiBase}/guilds/{_options.GuildId}/members/{discordUserId}";
+            if (string.IsNullOrWhiteSpace(query) || !_options.IsConfigured) return new List<CodexMember>();
+
+            var url = $"{DiscordApiBase}/guilds/{_options.GuildId}/members/search" +
+                      $"?query={Uri.EscapeDataString(query.Trim())}&limit={Math.Clamp(limit, 1, 100)}";
 
             try
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.TryAddWithoutValidation("Authorization", $"Bot {_options.BotToken}");
+                using var response = await SendAsync(url, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Discord member search failed for \"{Query}\": {Status}", query, response.StatusCode);
+                    return new List<CodexMember>();
+                }
 
-                using var response = await _http.SendAsync(request, ct);
+                await using var stream = await response.Content.ReadAsStreamAsync(ct);
+                using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-                // Not in the guild - a definite "no roles", worth caching.
-                if (response.StatusCode == HttpStatusCode.NotFound) return new List<string>();
+                if (document.RootElement.ValueKind != JsonValueKind.Array) return new List<CodexMember>();
+
+                return document.RootElement.EnumerateArray()
+                    .Select(ParseMember)
+                    .Where(m => m is not null)
+                    .Select(m => m!)
+                    .ToList();
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
+            {
+                _logger.LogWarning(ex, "Discord member search errored for \"{Query}\"", query);
+                return new List<CodexMember>();
+            }
+        }
+
+        /// <summary>
+        /// Fetches one member. The bool is whether Discord answered at all, which is separate
+        /// from whether it had a member for us - a blip and a non-member must not be conflated,
+        /// because only the latter is safe to cache.
+        /// </summary>
+        private async Task<(bool Ok, CodexMember? Member)> FetchMemberAsync(
+            string url, string discordUserId, CancellationToken ct)
+        {
+            try
+            {
+                using var response = await SendAsync(url, ct);
+
+                // Not in the guild - a definite answer, worth caching.
+                if (response.StatusCode == HttpStatusCode.NotFound) return (true, null);
 
                 if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
                 {
                     _logger.LogError(
                         "Discord rejected the Codex bot token ({Status}). Check Codex:BotToken, and that " +
                         "the bot is a member of guild {GuildId}.", response.StatusCode, _options.GuildId);
-                    return null;
+                    return (false, null);
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogWarning(
                         "Discord member lookup failed for {UserId}: {Status}", discordUserId, response.StatusCode);
-                    return null;
+                    return (false, null);
                 }
 
                 await using var stream = await response.Content.ReadAsStreamAsync(ct);
                 using var document = await JsonDocument.ParseAsync(stream, cancellationToken: ct);
 
-                if (!document.RootElement.TryGetProperty("roles", out var rolesElement)
-                    || rolesElement.ValueKind != JsonValueKind.Array)
-                {
-                    return new List<string>();
-                }
-
-                return rolesElement.EnumerateArray()
-                    .Select(role => role.GetString())
-                    .Where(id => !string.IsNullOrEmpty(id))
-                    .Select(id => id!)
-                    .ToList();
+                return (true, ParseMember(document.RootElement));
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException)
             {
                 _logger.LogWarning(ex, "Discord member lookup errored for {UserId}", discordUserId);
-                return null;
+                return (false, null);
             }
+        }
+
+        private Task<HttpResponseMessage> SendAsync(string url, CancellationToken ct)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.TryAddWithoutValidation("Authorization", $"Bot {_options.BotToken}");
+            return _http.SendAsync(request, ct);
+        }
+
+        /// <summary>Turns a Discord guild-member object into a <see cref="CodexMember"/>.</summary>
+        private CodexMember? ParseMember(JsonElement element)
+        {
+            if (element.ValueKind != JsonValueKind.Object) return null;
+            if (!element.TryGetProperty("user", out var user) || user.ValueKind != JsonValueKind.Object) return null;
+
+            var id = user.TryGetProperty("id", out var idElement) ? idElement.GetString() : null;
+            if (string.IsNullOrEmpty(id)) return null;
+
+            var roles = element.TryGetProperty("roles", out var rolesElement) && rolesElement.ValueKind == JsonValueKind.Array
+                ? rolesElement.EnumerateArray().Select(r => r.GetString()).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).ToList()
+                : new List<string>();
+
+            var canManage = roles.Any(roleId => _options.ManagerRoleIds.Contains(roleId));
+            var canWrite = canManage || roles.Any(roleId => _options.AuthorRoleIds.Contains(roleId));
+
+            // What people call each other in the guild, in the order Discord itself falls back:
+            // server nickname, then the account's display name, then the raw handle.
+            var name = Text(element, "nick") ?? Text(user, "global_name") ?? Text(user, "username") ?? id;
+
+            return new CodexMember(id, name, AvatarUrl(element, user, id), new CodexAccess(canWrite, canManage));
+        }
+
+        /// <summary>Guild-specific avatar if they set one for this server, otherwise their account avatar.</summary>
+        private string? AvatarUrl(JsonElement member, JsonElement user, string userId)
+        {
+            if (Text(member, "avatar") is { } guildHash)
+                return $"https://cdn.discordapp.com/guilds/{_options.GuildId}/users/{userId}/avatars/{guildHash}.png?size=64";
+
+            if (Text(user, "avatar") is { } hash)
+                return $"https://cdn.discordapp.com/avatars/{userId}/{hash}.png?size=64";
+
+            return null;
+        }
+
+        /// <summary>A non-empty string property, or null. Discord sends absent, null and "" alike.</summary>
+        private static string? Text(JsonElement element, string property)
+        {
+            if (!element.TryGetProperty(property, out var value)) return null;
+            if (value.ValueKind != JsonValueKind.String) return null;
+            return value.GetString() is { Length: > 0 } text ? text : null;
         }
     }
 }

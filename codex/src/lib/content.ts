@@ -27,6 +27,7 @@ interface GuideResponse {
   date?: string | null;
   author?: string | null;
   authorId?: string | null;
+  editors?: string[] | null;
   cover?: string | null;
   draft: boolean;
   content?: string | null;
@@ -47,6 +48,7 @@ function toPost(dto: GuideResponse): Post {
     date: dto.date ?? undefined,
     author: dto.author ?? undefined,
     authorId: dto.authorId ?? undefined,
+    editors: dto.editors ?? [],
     cover: dto.cover ?? undefined,
     draft: dto.draft,
   };

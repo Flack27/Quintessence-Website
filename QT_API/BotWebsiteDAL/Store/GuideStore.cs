@@ -199,6 +199,7 @@ namespace QuintessenceWebsiteDAL.Store
                             case "section": guide.Section = Unquote(value); break;
                             case "author": guide.Author = Unquote(value); break;
                             case "authorid": guide.AuthorId = Unquote(value); break;
+                            case "editors": guide.Editors = ParseList(value); break;
                             case "cover": guide.Cover = Unquote(value); break;
                             case "date": guide.Date = Unquote(value); break;
                             case "draft": guide.Draft = Unquote(value).Equals("true", StringComparison.OrdinalIgnoreCase); break;
@@ -226,6 +227,9 @@ namespace QuintessenceWebsiteDAL.Store
             if (!string.IsNullOrWhiteSpace(g.Date)) sb.Append($"date: {Quote(g.Date!)}\n");
             if (!string.IsNullOrWhiteSpace(g.Author)) sb.Append($"author: {Quote(g.Author!)}\n");
             if (!string.IsNullOrWhiteSpace(g.AuthorId)) sb.Append($"authorId: {Quote(g.AuthorId!)}\n");
+            // Snowflake ids only, so the inline-list form is safe here - no quoting needed and
+            // nothing in a value that ParseList's comma split could trip over.
+            if (g.Editors.Count > 0) sb.Append($"editors: [{string.Join(", ", g.Editors)}]\n");
             if (!string.IsNullOrWhiteSpace(g.Cover)) sb.Append($"cover: {Quote(g.Cover!)}\n");
             if (g.Draft) sb.Append("draft: true\n");
             sb.Append("---\n\n");

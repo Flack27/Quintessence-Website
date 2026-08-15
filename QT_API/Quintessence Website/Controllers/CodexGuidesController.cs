@@ -44,11 +44,12 @@ namespace Quintessence_Website.Controllers
             var access = await _access.GetAccessAsync(DiscordId, ct);
             var guides = _store.ReadAll(includeBody: false);
 
-            // Drafts are only visible to someone who could edit them.
+            // Drafts are only visible to someone who could edit them - which now includes anyone
+            // the owner has invited, or they could not work on a draft they were invited to.
             if (!access.CanManage)
             {
                 guides = guides
-                    .Where(g => !g.Draft || (DiscordId is not null && g.AuthorId == DiscordId))
+                    .Where(g => !g.Draft || (DiscordId is not null && (g.AuthorId == DiscordId || g.Editors.Contains(DiscordId))))
                     .ToList();
             }
 
@@ -62,12 +63,8 @@ namespace Quintessence_Website.Controllers
             var guide = _store.Read(safeSlug);
             if (guide is null) return NotFound(new { error = "No such guide." });
 
-            if (guide.Draft)
-            {
-                var access = await _access.GetAccessAsync(DiscordId, ct);
-                if (!access.CanManage && guide.AuthorId != DiscordId)
-                    return NotFound(new { error = "No such guide." });
-            }
+            if (guide.Draft && !await MayEditAsync(guide, ct))
+                return NotFound(new { error = "No such guide." });
 
             guide.Images = _store.ListImages(safeSlug);
             return Ok(guide);
@@ -122,8 +119,8 @@ namespace Quintessence_Website.Controllers
             var existing = _store.Read(slug);
             if (existing is null) return NotFound(new { error = "No such guide." });
 
-            if (!await MayModifyAsync(existing, ct))
-                return StatusCode(403, new { error = "Only the guide's author or a moderator can edit it." });
+            if (!await MayEditAsync(existing, ct))
+                return StatusCode(403, new { error = "Only the guide's author, an invited editor or a moderator can edit it." });
 
             var error = SaveImages(slug, body.Images);
             if (error is not null) return BadRequest(new { error });
@@ -150,12 +147,132 @@ namespace Quintessence_Website.Controllers
             var existing = _store.Read(slug);
             if (existing is null) return NotFound(new { error = "No such guide." });
 
-            if (!await MayModifyAsync(existing, ct))
+            if (!await MayAdministerAsync(existing, ct))
                 return StatusCode(403, new { error = "Only the guide's author or a moderator can remove it." });
 
             _store.Delete(slug);
             return Ok(new { ok = true });
         }
+
+        // -----------------------------------------------------------------------------
+        // Per-guide editor access.
+        //
+        // A guide has one owner (whoever created it) and a list of invited editors. The
+        // owner is never in that list and cannot be removed - there is no ownerless state.
+        //
+        // Managers are never in it either, and that is the important part: their access
+        // comes from a Discord role re-read on every request, so writing them into a file
+        // would mean taking the role away no longer takes the access away. There is
+        // nothing here to remove them from, and nothing to go stale.
+        // -----------------------------------------------------------------------------
+
+        /// <summary>Who may edit this guide, resolved to names for the access dialog.</summary>
+        [HttpGet("{slug}/access")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetAccess(string slug, CancellationToken ct)
+        {
+            var guide = _store.Read(SafeSlug(slug));
+            if (guide is null) return NotFound(new { error = "No such guide." });
+
+            if (!await MayEditAsync(guide, ct))
+                return StatusCode(403, new { error = "You don't have access to this guide." });
+
+            var editors = new List<CodexMemberDTO>();
+            foreach (var id in guide.Editors)
+            {
+                if (await DescribeAsync(id, ct) is { } editor) editors.Add(editor);
+            }
+
+            return Ok(new CodexGuideAccessDTO
+            {
+                Owner = await DescribeAsync(guide.AuthorId, ct),
+                Editors = editors,
+                CanManageAccess = await MayAdministerAsync(guide, ct),
+            });
+        }
+
+        /// <summary>Invites someone to edit this guide.</summary>
+        [HttpPost("{slug}/access/{userId}")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> AddEditor(string slug, string userId, CancellationToken ct)
+        {
+            var guide = _store.Read(SafeSlug(slug));
+            if (guide is null) return NotFound(new { error = "No such guide." });
+
+            if (!await MayAdministerAsync(guide, ct))
+                return StatusCode(403, new { error = "Only the guide's author or a moderator can change who may edit it." });
+
+            if (!IsSnowflake(userId)) return BadRequest(new { error = "That is not a Discord user id." });
+
+            if (userId == guide.AuthorId)
+                return BadRequest(new { error = "They created this guide - they already have access." });
+
+            var member = await _access.GetMemberAsync(userId, ct);
+            if (member is null)
+                return BadRequest(new { error = "That account isn't in the guild." });
+
+            // Both of these would be grants that grant nothing, so say why rather than storing
+            // a row that has no effect.
+            if (member.Access.CanManage)
+                return BadRequest(new { error = $"{member.Username} is an admin and can already edit every guide." });
+
+            if (!member.Access.CanWrite)
+                return BadRequest(new { error = $"{member.Username} doesn't have the Codex Author role, so they couldn't edit guides even with access here." });
+
+            if (!guide.Editors.Contains(userId))
+            {
+                guide.Editors.Add(userId);
+                _store.Write(guide);
+            }
+
+            return Ok(ToDto(member));
+        }
+
+        /// <summary>Withdraws someone's access to this guide.</summary>
+        [HttpDelete("{slug}/access/{userId}")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> RemoveEditor(string slug, string userId, CancellationToken ct)
+        {
+            var guide = _store.Read(SafeSlug(slug));
+            if (guide is null) return NotFound(new { error = "No such guide." });
+
+            if (!await MayAdministerAsync(guide, ct))
+                return StatusCode(403, new { error = "Only the guide's author or a moderator can change who may edit it." });
+
+            if (userId == guide.AuthorId)
+                return BadRequest(new { error = "The guide's creator can't be removed from it." });
+
+            if (guide.Editors.Remove(userId)) _store.Write(guide);
+            return Ok(new { ok = true });
+        }
+
+        /// <summary>
+        /// Resolves a stored id to a member card. Falls back to showing the bare id when Discord
+        /// has no answer - someone who has left the guild should still be visible and removable,
+        /// not silently dropped from a list the owner is trying to manage.
+        /// </summary>
+        private async Task<CodexMemberDTO?> DescribeAsync(string? discordId, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(discordId)) return null;
+
+            var member = await _access.GetMemberAsync(discordId, ct);
+            return member is null
+                ? new CodexMemberDTO { Id = discordId, Username = discordId }
+                : ToDto(member);
+        }
+
+        internal static CodexMemberDTO ToDto(CodexMember member) => new()
+        {
+            Id = member.Id,
+            Username = member.Username,
+            Avatar = member.AvatarUrl,
+            CanWrite = member.Access.CanWrite,
+            CanManage = member.Access.CanManage,
+        };
+
+        /// <summary>Discord ids are decimal snowflakes; anything else never reaches Discord.</summary>
+        private static bool IsSnowflake(string? value) =>
+            !string.IsNullOrEmpty(value) && value.Length is >= 5 and <= 25 && value.All(char.IsDigit);
 
         /// <summary>Serves a guide's uploaded images.</summary>
         [HttpGet("{slug}/images/{fileName}")]
@@ -172,8 +289,26 @@ namespace Quintessence_Website.Controllers
             return PhysicalFile(path, contentType);
         }
 
-        /// <summary>Author's own guide, or anything if they hold a manager role.</summary>
-        private async Task<bool> MayModifyAsync(CodexGuideDTO guide, CancellationToken ct)
+        /// <summary>
+        /// Who may change a guide's contents: its owner, anyone the owner has invited, or a
+        /// manager. The endpoints are gated by the CodexAuthor policy first, so an invited
+        /// editor who has since lost the author role is already out before this runs - being
+        /// on a guide's list widens *which* guides you may touch, it does not grant authoring.
+        /// </summary>
+        private async Task<bool> MayEditAsync(CodexGuideDTO guide, CancellationToken ct)
+        {
+            if (await MayAdministerAsync(guide, ct)) return true;
+            return DiscordId is not null && guide.Editors.Contains(DiscordId);
+        }
+
+        /// <summary>
+        /// Who may delete a guide or change who can edit it: the owner and managers only.
+        ///
+        /// Invited editors are deliberately excluded from both. Removal is unrecoverable, and
+        /// letting editors invite further editors would spread access sideways with no one
+        /// able to say who let whom in.
+        /// </summary>
+        private async Task<bool> MayAdministerAsync(CodexGuideDTO guide, CancellationToken ct)
         {
             var access = await _access.GetAccessAsync(DiscordId, ct);
             if (access.CanManage) return true;
