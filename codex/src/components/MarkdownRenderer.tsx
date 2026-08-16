@@ -1,8 +1,10 @@
+import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { resolveAssetUrl, parseImageMeta, parseHoverPayload } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
+import { Lightbox } from "./Lightbox";
 
 interface MarkdownRendererProps {
   slug: string;
@@ -10,6 +12,8 @@ interface MarkdownRendererProps {
 }
 
 export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+
   /** Renders a hover payload (image or text) as popup content, resolving image filenames against this guide. */
   function renderHoverContent(payload: string) {
     const { type, value, width, height } = parseHoverPayload(payload);
@@ -63,14 +67,18 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
             const hoverClass = hover
               ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
               : undefined;
+            // Hover-payload images already open an enlarged preview on click (via HoverPopup's
+            // toggle); wiring the lightbox onto them too would fight that click handler, so the
+            // lightbox only applies to plain images.
             const image = (
               <img
                 src={resolved}
                 alt={alt ?? ""}
                 title={width || position || hover ? undefined : title}
-                className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
+                className={[floatClass, hoverClass, hover ? undefined : "cursor-zoom-in"].filter(Boolean).join(" ") || undefined}
                 style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                 loading="lazy"
+                onClick={hover ? undefined : () => setLightbox({ src: resolved ?? "", alt: alt ?? "" })}
               />
             );
             return hover ? <HoverPopup trigger={image} content={renderHoverContent(hover)} /> : image;
@@ -82,6 +90,7 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
       >
         {content}
       </ReactMarkdown>
+      {lightbox && <Lightbox src={lightbox.src} alt={lightbox.alt} onClose={() => setLightbox(null)} />}
     </div>
   );
 }

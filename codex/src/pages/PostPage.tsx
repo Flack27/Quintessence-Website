@@ -4,6 +4,7 @@ import { fetchPost } from "@/lib/content";
 import { formatPostDate } from "@/lib/date";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 import { TagPill } from "@/components/TagPill";
+import { Lightbox } from "@/components/Lightbox";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
 import { GuideAccessDialog } from "@/components/GuideAccessDialog";
@@ -18,6 +19,7 @@ export function PostPage() {
   const [accessOpen, setAccessOpen] = useState(false);
   const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
+  const [coverLightboxOpen, setCoverLightboxOpen] = useState(false);
 
   // The body lives on the server now, so a guide is fetched rather than read out of
   // the bundle. `undefined` means still loading; `null` means there is no such guide.
@@ -212,7 +214,15 @@ export function PostPage() {
       )}
 
       {coverUrl && (
-        <img src={coverUrl} alt="" className="mt-8 w-full rounded-2xl border border-white/10" />
+        <img
+          src={coverUrl}
+          alt=""
+          onClick={() => setCoverLightboxOpen(true)}
+          className="mt-8 w-full cursor-zoom-in rounded-2xl border border-white/10"
+        />
+      )}
+      {coverLightboxOpen && (
+        <Lightbox src={coverUrl} alt={frontmatter.title} onClose={() => setCoverLightboxOpen(false)} />
       )}
 
       <div className="mt-10">
