@@ -221,7 +221,7 @@ export function PostPage() {
           className="mt-8 w-full cursor-zoom-in rounded-2xl border border-white/10"
         />
       )}
-      {coverLightboxOpen && (
+      {coverUrl && coverLightboxOpen && (
         <Lightbox src={coverUrl} alt={frontmatter.title} onClose={() => setCoverLightboxOpen(false)} />
       )}
 
