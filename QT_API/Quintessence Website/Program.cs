@@ -228,6 +228,42 @@ var app = builder.Build();
 
 app.UseForwardedHeaders();
 
+// Canonical host: bounce www.<host> to the bare host before anything else runs.
+//
+// The Discord OAuth handler builds redirect_uri from the INCOMING request host
+// (CallbackPath is a path, not an absolute URL), so a login started on
+// www.quintessence-eu.com asks Discord to call back on www.*, which is not in the
+// app's registered redirect list and fails with "invalid redirect uri". Everything
+// else on www works, which is why only login breaks.
+//
+// This redirects rather than rewriting Request.Host on purpose. Rewriting would
+// hand Discord the right redirect_uri, but the OAuth correlation cookie is set by
+// the browser against the host it actually visited (www), so the callback on the
+// bare host would not find it and login would fail with "correlation failed"
+// instead. Moving the browser first keeps one host for the whole flow, and keeps
+// the session cookie on one host too.
+//
+// Only the www alias is bounced: the API is also reached internally as
+// http://quintessence-api:8080 (the Qutie stack proxies to it), and that must not
+// be redirected. A Cloudflare redirect rule does the same thing at the edge; this
+// is the backstop so auth stays correct regardless of edge config.
+if (!isDevelopment && Uri.TryCreate(frontendUrl, UriKind.Absolute, out var canonicalUri))
+{
+    var wwwHost = "www." + canonicalUri.Host;
+    app.Use(async (context, next) =>
+    {
+        if (string.Equals(context.Request.Host.Host, wwwHost, StringComparison.OrdinalIgnoreCase))
+        {
+            context.Response.Redirect(
+                $"{canonicalUri.Scheme}://{canonicalUri.Host}{context.Request.PathBase}{context.Request.Path}{context.Request.QueryString}",
+                permanent: true);
+            return;
+        }
+
+        await next();
+    });
+}
+
 app.UseCors(policy =>
     policy.WithOrigins(frontendUrl)
           .AllowCredentials()
