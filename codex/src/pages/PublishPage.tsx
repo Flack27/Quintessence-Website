@@ -1130,7 +1130,9 @@ export function PublishPage() {
                       return hover ? <HoverPopup trigger={image} content={renderHoverPreviewContent(hover)} /> : image;
                     },
                     table: ({ children }) => (
-                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10">{children}</div>
+                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10">
+                        <table>{children}</table>
+                      </div>
                     ),
                   }}
                 >

@@ -147,7 +147,12 @@ h6 {
 }
 
 .prose-codex table {
-  @apply w-full border-collapse text-sm;
+  /* max-w-full (not w-full): a table sizes to its content like GitHub's markdown
+     tables do, so a short 2-3 column table (e.g. a macro table) stays compact instead
+     of being stretched edge-to-edge with its few cells spread thin. Content-heavy
+     tables still reach full width on their own since their cells need the room; the
+     wrapping div's overflow-x-auto covers anything that still doesn't fit. */
+  @apply max-w-full border-collapse text-sm;
 }
 
 .prose-codex thead {
