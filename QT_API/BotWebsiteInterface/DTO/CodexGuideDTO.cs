@@ -130,6 +130,13 @@ namespace QuintessenceWebsiteInterface.DTO
         public string Body { get; set; } = string.Empty;
 
         /// <summary>
+        /// Byline shown on the guide. Optional - blank keeps/falls back to the publishing
+        /// Discord user's display name. This is display-only and separate from
+        /// <see cref="CodexGuideDTO.AuthorId"/>, which is the actual owner used for permissions.
+        /// </summary>
+        public string? Author { get; set; }
+
+        /// <summary>
         /// Id the publish form staged images under (via POST drafts/{draftId}/images) before
         /// this guide had a slug. Null/omitted when editing an existing guide - its images
         /// were already uploaded straight to its own slug, nothing to adopt.

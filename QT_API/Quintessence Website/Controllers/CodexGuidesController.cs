@@ -110,7 +110,7 @@ namespace Quintessence_Website.Controllers
                 Cover = Blank(body.Cover),
                 Draft = body.Draft,
                 Date = DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                Author = User.FindFirst("display_name")?.Value ?? User.FindFirst("user_name")?.Value,
+                Author = Blank(body.Author) ?? User.FindFirst("display_name")?.Value ?? User.FindFirst("user_name")?.Value,
                 AuthorId = DiscordId,
                 Content = body.Body ?? string.Empty,
             };
@@ -143,6 +143,7 @@ namespace Quintessence_Website.Controllers
             existing.Cover = Blank(body.Cover) ?? existing.Cover;
             existing.Draft = body.Draft;
             existing.Content = body.Body ?? existing.Content;
+            existing.Author = Blank(body.Author) ?? existing.Author;
 
             _store.Write(existing);
             return Ok(existing);

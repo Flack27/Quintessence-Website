@@ -62,6 +62,7 @@ interface FormState {
   section: string;
   tags: string;
   date: string;
+  author: string;
   cover: string;
   body: string;
 }
@@ -83,6 +84,7 @@ const initialForm: FormState = {
   section: "",
   tags: "",
   date: "",
+  author: "",
   cover: "",
   body: "",
 };
@@ -100,6 +102,7 @@ function formFromPost(slug: string, post: Post | null | undefined): FormState {
     section: frontmatter.section,
     tags: (frontmatter.tags ?? []).join(", "),
     date: frontmatter.date ?? "",
+    author: frontmatter.author ?? "",
     cover: frontmatter.cover ?? "",
     body: content,
   };
@@ -176,6 +179,15 @@ export function PublishPage() {
 
     return () => { cancelled = true; };
   }, [editSlug]);
+
+  // Prefills the byline with the logged-in user's Discord name for a new guide, as a
+  // starting point - it stays editable so a co-authored or ghost-written guide can credit
+  // someone else instead.
+  useEffect(() => {
+    if (isEditing || !user) return;
+    setForm((prev) => (prev.author ? prev : { ...prev, author: user.username }));
+  }, [isEditing, user]);
+
   const [images, setImages] = useState<UploadedImage[]>([]);
   // Only a new guide needs this: its slug isn't settled until Create() runs (it's derived
   // from the title, which can still change), so images picked before then are staged under
@@ -764,6 +776,19 @@ export function PublishPage() {
               className={inputClass}
             />
           </div>
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="author">
+            Author
+          </label>
+          <input
+            id="author"
+            value={form.author}
+            onChange={(e) => update("author", e.target.value)}
+            placeholder="Shown as the guide's byline"
+            className={inputClass}
+          />
         </div>
 
         <div>
