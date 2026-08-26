@@ -1,11 +1,12 @@
 import { useRef, useState, type ChangeEvent, type FormEvent, useEffect} from "react";
+import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost, resolveAssetUrl, parseImageMeta, parseHoverPayload } from "@/lib/content";
+import { fetchPost, resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset } from "@/lib/content";
 import { HoverPopup } from "@/components/HoverPopup";
 import type { Post } from "@/types/post";
 
@@ -50,6 +51,12 @@ const ALLOWED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
 const MAX_IMAGES = 50;
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
+// Videos share the same guide folder, upload endpoint and MAX_IMAGES slot count as images
+// (see CodexGuidesController.AllowedVideoExtensions/MaxVideoBytes) - only the extension and
+// per-file size cap differ.
+const ALLOWED_VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
+const MAX_VIDEO_BYTES = 90 * 1024 * 1024;
+
 const GAME_OPTIONS = ["Aion 2"];
 const SECTION_OPTIONS = ["Class Guides", "Tips", "PvE Guides", "PvP Guides", "Others"];
 
@@ -67,11 +74,12 @@ interface FormState {
   body: string;
 }
 
-interface UploadedImage {
+/** Shape for a staged image or video upload - both go through the same upload/status flow. */
+interface UploadedMedia {
   filename: string;
   dataUrl: string;
   bytes: number;
-  /** Each image now uploads to the API as soon as it's picked, not bundled into the publish request. */
+  /** Each file now uploads to the API as soon as it's picked, not bundled into the publish request. */
   status: "uploading" | "done" | "error";
 }
 
@@ -188,19 +196,23 @@ export function PublishPage() {
     setForm((prev) => (prev.author ? prev : { ...prev, author: user.username }));
   }, [isEditing, user]);
 
-  const [images, setImages] = useState<UploadedImage[]>([]);
+  const [images, setImages] = useState<UploadedMedia[]>([]);
+  const [videos, setVideos] = useState<UploadedMedia[]>([]);
   // Only a new guide needs this: its slug isn't settled until Create() runs (it's derived
   // from the title, which can still change), so images picked before then are staged under
   // this id and adopted into the real slug's folder once it exists. Editing an existing
   // guide uploads straight to its already-fixed slug instead.
   const [draftId] = useState(() => crypto.randomUUID());
   const [imageError, setImageError] = useState<string | null>(null);
+  const [videoError, setVideoError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showImageMenu, setShowImageMenu] = useState(false);
+  const [showVideoMenu, setShowVideoMenu] = useState(false);
   const [bodyView, setBodyView] = useState<"editor" | "preview">("editor");
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageMenuRef = useRef<HTMLDivElement>(null);
+  const videoMenuRef = useRef<HTMLDivElement>(null);
 
   const [showHoverMenu, setShowHoverMenu] = useState(false);
   const [hoverTriggerKind, setHoverTriggerKind] = useState<"text" | "image">("text");
@@ -225,6 +237,18 @@ export function PublishPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showImageMenu]);
 
+  // Same for the toolbar's video dropdown.
+  useEffect(() => {
+    if (!showVideoMenu) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (videoMenuRef.current && !videoMenuRef.current.contains(event.target as Node)) {
+        setShowVideoMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showVideoMenu]);
+
   // Same for the hover-popup form.
   useEffect(() => {
     if (!showHoverMenu) return;
@@ -247,11 +271,16 @@ export function PublishPage() {
     ? `${CODEX_API}/guides/${encodeURIComponent(editSlug ?? "")}/images`
     : `${CODEX_API}/guides/drafts/${draftId}/images`;
 
+  // Images and videos share one folder on the guide, so split what's already saved
+  // between them by extension before building each picker's list.
+  const existingImageFiles = existingImages.filter((filename) => !isVideoAsset(filename));
+  const existingVideoFiles = existingImages.filter((filename) => isVideoAsset(filename));
+
   // Images already saved on the guide (from a previous session) plus whatever is staged
   // for upload in this one. A freshly staged file with the same name wins the display slot,
   // since it's the version that will actually be saved.
   const allImages = [
-    ...existingImages
+    ...existingImageFiles
       .filter((filename) => !images.some((img) => img.filename === filename))
       .map((filename) => ({
         filename,
@@ -266,11 +295,29 @@ export function PublishPage() {
       status: img.status,
     })),
   ];
+  // Same shape, for videos.
+  const allVideos = [
+    ...existingVideoFiles
+      .filter((filename) => !videos.some((vid) => vid.filename === filename))
+      .map((filename) => ({
+        filename,
+        previewUrl: resolveAssetUrl(editSlug ?? "", filename) ?? filename,
+        removable: false,
+        status: "done" as const,
+      })),
+    ...videos.map((vid) => ({
+      filename: vid.filename,
+      previewUrl: vid.dataUrl,
+      removable: true,
+      status: vid.status,
+    })),
+  ];
   // Pickers that insert a reference into the body (toolbar, cover, hover popup) should only
   // ever offer images that have actually finished uploading - referencing one still in
   // flight (or that failed) would save a markdown link to nothing.
   const insertableImages = allImages.filter((img) => img.status === "done");
-  const imagesUploading = images.some((img) => img.status === "uploading");
+  const insertableVideos = allVideos.filter((vid) => vid.status === "done");
+  const imagesUploading = images.some((img) => img.status === "uploading") || videos.some((vid) => vid.status === "uploading");
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -280,8 +327,8 @@ export function PublishPage() {
     setForm((prev) => ({ ...prev, title: value, slug: isEditing ? prev.slug : slugify(value) }));
   }
 
-  /** Uploads one file as its own multipart request, so a batch of large images never becomes one giant request. */
-  async function uploadImage(file: File, filename: string): Promise<boolean> {
+  /** Uploads one file (image or video) as its own multipart request, so a batch never becomes one giant request. */
+  async function uploadFile(file: File, filename: string): Promise<boolean> {
     const body = new FormData();
     body.append("file", file, filename);
 
@@ -299,7 +346,7 @@ export function PublishPage() {
   }
 
   /** Best-effort: an orphaned staged/guide file left behind is harmless clutter, not worth surfacing an error for. */
-  async function deleteRemoteImage(filename: string) {
+  async function deleteRemoteFile(filename: string) {
     try {
       await fetch(`${imagesBase}/${encodeURIComponent(filename)}`, { method: "DELETE", credentials: "include" });
     } catch {
@@ -340,7 +387,7 @@ export function PublishPage() {
 
       // Uploads run concurrently rather than one-at-a-time - each is its own small request,
       // so there's no shared "total" budget left to serialize them against.
-      uploadImage(file, filename).then((ok) => {
+      uploadFile(file, filename).then((ok) => {
         setImages((prev) =>
           prev.map((img) => (img.filename === filename ? { ...img, status: ok ? "done" : "error" } : img))
         );
@@ -351,7 +398,52 @@ export function PublishPage() {
   function removeImage(filename: string) {
     setImages((prev) => prev.filter((img) => img.filename !== filename));
     setForm((prev) => (prev.cover === filename ? { ...prev, cover: "" } : prev));
-    void deleteRemoteImage(filename);
+    void deleteRemoteFile(filename);
+  }
+
+  /** Same flow as handleImagesSelected, for video files - same upload endpoint, own extension/size checks. */
+  async function handleVideosSelected(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setVideoError(null);
+
+    const remainingSlots = MAX_IMAGES - videos.length;
+    const toProcess = files.slice(0, Math.max(remainingSlots, 0));
+    if (files.length > toProcess.length) {
+      setVideoError(`Only ${Math.max(remainingSlots, 0)} more video(s) can be added (max ${MAX_IMAGES}).`);
+    }
+
+    const existingNames = new Set(videos.map((vid) => vid.filename));
+
+    for (const file of toProcess) {
+      const ext = file.name.toLowerCase().split(".").pop() ?? "";
+      if (!ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
+        setVideoError(`"${file.name}" isn't a supported video type.`);
+        continue;
+      }
+      if (file.size > MAX_VIDEO_BYTES) {
+        setVideoError(`"${file.name}" is too large (max ${MAX_VIDEO_BYTES / (1024 * 1024)}MB).`);
+        continue;
+      }
+
+      const filename = uniqueFilename(sanitizeFilename(file.name), existingNames);
+      existingNames.add(filename);
+      const dataUrl = await readFileAsDataUrl(file);
+      setVideos((prev) => [...prev, { filename, dataUrl, bytes: file.size, status: "uploading" }]);
+
+      uploadFile(file, filename).then((ok) => {
+        setVideos((prev) =>
+          prev.map((vid) => (vid.filename === filename ? { ...vid, status: ok ? "done" : "error" } : vid))
+        );
+      });
+    }
+  }
+
+  function removeVideo(filename: string) {
+    setVideos((prev) => prev.filter((vid) => vid.filename !== filename));
+    void deleteRemoteFile(filename);
   }
 
   /**
@@ -360,7 +452,7 @@ export function PublishPage() {
    * fetched from the API.
    */
   function resolvePreviewImageSrc(filename: string): string {
-    const staged = images.find((img) => img.filename === filename);
+    const staged = images.find((img) => img.filename === filename) ?? videos.find((vid) => vid.filename === filename);
     if (staged) return staged.dataUrl;
     return resolveAssetUrl(form.slug || "preview", filename) ?? filename;
   }
@@ -421,16 +513,20 @@ export function PublishPage() {
 
     const { selectionStart, selectionEnd, value } = textarea;
     const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
-    update("body", nextBody);
+
+    // flushSync forces the controlled textarea's DOM value to update *before* we touch its
+    // selection, instead of a requestAnimationFrame racing an async re-render - without it,
+    // the caret could land wherever the browser happened to leave it (often the end of the
+    // text) rather than right after what was just inserted.
+    flushSync(() => update("body", nextBody));
 
     const cursor = selectionStart + markdown.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(cursor, cursor);
-    });
+    textarea.focus();
+    textarea.setSelectionRange(cursor, cursor);
   }
 
-  function insertImageMarkdown(filename: string, meta?: string) {
+  /** Inserts an image or video reference - same `![](file "meta")` syntax, the extension picks the tag at render time. */
+  function insertMediaMarkdown(filename: string, meta?: string) {
     insertAtCursor(meta ? `![](${filename} "${meta}")` : `![](${filename})`);
   }
 
@@ -494,14 +590,12 @@ export function PublishPage() {
     const { selectionStart, selectionEnd, value } = textarea;
     const selected = value.slice(selectionStart, selectionEnd) || placeholder;
     const nextBody = `${value.slice(0, selectionStart)}${before}${selected}${after}${value.slice(selectionEnd)}`;
-    update("body", nextBody);
+    flushSync(() => update("body", nextBody));
 
     const start = selectionStart + before.length;
     const end = start + selected.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start, end);
-    });
+    textarea.focus();
+    textarea.setSelectionRange(start, end);
   }
 
   /** Sets the current line's heading level, replacing any marker it already has (toggles off on repeat). */
@@ -520,13 +614,11 @@ export function PublishPage() {
     const nextLine = isSameLevel ? stripped : `${"#".repeat(level)} ${stripped}`;
 
     const nextBody = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`;
-    update("body", nextBody);
+    flushSync(() => update("body", nextBody));
 
     const delta = nextLine.length - line.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(lineStart, lineEnd + delta);
-    });
+    textarea.focus();
+    textarea.setSelectionRange(lineStart, lineEnd + delta);
   }
 
   /** Toggles a per-line prefix (e.g. "- ") across every line the selection touches. */
@@ -544,13 +636,11 @@ export function PublishPage() {
     const nextBlock = lines.map((line) => (alreadyApplied ? line.slice(prefix.length) : `${prefix}${line}`)).join("\n");
 
     const nextBody = `${value.slice(0, lineStart)}${nextBlock}${value.slice(lineEnd)}`;
-    update("body", nextBody);
+    flushSync(() => update("body", nextBody));
 
     const delta = nextBlock.length - block.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(lineStart, lineEnd + delta);
-    });
+    textarea.focus();
+    textarea.setSelectionRange(lineStart, lineEnd + delta);
   }
 
   function insertLink() {
@@ -564,13 +654,11 @@ export function PublishPage() {
     const selected = value.slice(selectionStart, selectionEnd) || "link text";
     const markdown = `[${selected}](${url})`;
     const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
-    update("body", nextBody);
+    flushSync(() => update("body", nextBody));
 
     const cursor = selectionStart + markdown.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(cursor, cursor);
-    });
+    textarea.focus();
+    textarea.setSelectionRange(cursor, cursor);
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -582,7 +670,7 @@ export function PublishPage() {
     try {
       // REST now: POST /guides to create, PUT /guides/<slug> to edit. Images are no longer
       // part of this payload - each was already uploaded to the API as soon as it was
-      // picked (see uploadImage). Creating just needs to know where to find them: draftId
+      // picked (see uploadFile). Creating just needs to know where to find them: draftId
       // says which staged folder to adopt into the slug this call settles on.
       const endpoint = isEditing
         ? `${CODEX_API}/guides/${encodeURIComponent(editSlug ?? "")}`
@@ -817,7 +905,7 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => insertImageMarkdown(img.filename, promptImageOptions())}
+                    onClick={() => insertMediaMarkdown(img.filename, promptImageOptions())}
                     disabled={img.status !== "done"}
                     className="block w-full text-left disabled:cursor-not-allowed"
                     title={
@@ -839,6 +927,66 @@ export function PublishPage() {
                     <button
                       type="button"
                       onClick={() => removeImage(img.filename)}
+                      className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className={labelClass} htmlFor="videos">
+            Videos — click one below to insert it into the body
+          </label>
+          <input
+            id="videos"
+            type="file"
+            multiple
+            accept="video/mp4,video/webm,video/quicktime"
+            onChange={handleVideosSelected}
+            disabled={videos.length >= MAX_IMAGES}
+            className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/20"
+          />
+          {videoError && <p className="mt-2 text-sm text-red-400">{videoError}</p>}
+
+          {allVideos.length > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {allVideos.map((vid) => (
+                <div
+                  key={vid.filename}
+                  className={`group relative overflow-hidden rounded-xl border bg-white/[0.03] ${
+                    vid.status === "error" ? "border-red-500/60" : "border-white/10"
+                  } ${vid.status === "uploading" ? "opacity-60" : ""}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => insertMediaMarkdown(vid.filename, promptImageOptions())}
+                    disabled={vid.status !== "done"}
+                    className="block w-full text-left disabled:cursor-not-allowed"
+                    title={
+                      vid.status === "uploading"
+                        ? "Still uploading…"
+                        : vid.status === "error"
+                          ? "Upload failed"
+                          : "Insert into body"
+                    }
+                  >
+                    <video src={vid.previewUrl} muted className="h-24 w-full object-cover" />
+                    <p className="truncate px-2 py-1.5 text-xs text-slate-300">
+                      {vid.filename}
+                      {vid.status === "uploading" && " — uploading…"}
+                      {vid.status === "error" && " — failed"}
+                    </p>
+                  </button>
+                  {vid.removable && (
+                    <button
+                      type="button"
+                      onClick={() => removeVideo(vid.filename)}
                       className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-1.5 py-0.5 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
                       title="Remove"
                     >
@@ -963,12 +1111,45 @@ export function PublishPage() {
                         key={img.filename}
                         type="button"
                         onClick={() => {
-                          insertImageMarkdown(img.filename, promptImageOptions());
+                          insertMediaMarkdown(img.filename, promptImageOptions());
                           setShowImageMenu(false);
                         }}
                         className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
                       >
                         {img.filename}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+            <div ref={videoMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setShowVideoMenu((prev) => !prev)}
+                className={toolbarButtonClass}
+                title="Video"
+              >
+                🎬 Video
+              </button>
+              {showVideoMenu && (
+                <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
+                  {insertableVideos.length === 0 ? (
+                    <p className="px-2 py-1.5 text-xs text-slate-400">
+                      No videos uploaded yet — add one in the Videos section below.
+                    </p>
+                  ) : (
+                    insertableVideos.map((vid) => (
+                      <button
+                        key={vid.filename}
+                        type="button"
+                        onClick={() => {
+                          insertMediaMarkdown(vid.filename, promptImageOptions());
+                          setShowVideoMenu(false);
+                        }}
+                        className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
+                      >
+                        {vid.filename}
                       </button>
                     ))
                   )}
@@ -1139,6 +1320,17 @@ export function PublishPage() {
                       const { width, height, position, hover } = parseImageMeta(title);
                       const floatClass =
                         position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+
+                      if (isVideoAsset(filename)) {
+                        return (
+                          <video
+                            src={resolved}
+                            controls
+                            className={floatClass}
+                            style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                          />
+                        );
+                      }
                       const hoverClass = hover
                         ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
                         : undefined;

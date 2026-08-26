@@ -23,9 +23,14 @@ namespace Quintessence_Website.Controllers
     {
         private const int MaxImages = 50;
         private const int MaxImageBytes = 30 * 1024 * 1024;
+        // Cloudflare caps request bodies at ~100MB on the way in (see UploadImage's remarks),
+        // so this has to stay comfortably under that regardless of what RequestSizeLimit allows.
+        private const int MaxVideoBytes = 90 * 1024 * 1024;
 
         private static readonly string[] AllowedImageExtensions =
             { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg" };
+        private static readonly string[] AllowedVideoExtensions =
+            { ".mp4", ".webm", ".mov" };
 
         private readonly GuideStore _store;
         private readonly CodexAccessService _access;
@@ -406,16 +411,16 @@ namespace Quintessence_Website.Controllers
         }
 
         /// <summary>
-        /// Uploads one image onto an existing guide. Images now go over the wire one at a
-        /// time as multipart/form-data, not bundled as base64 into the Create/Update JSON
-        /// body - a guide with many large images used to mean a single, gigantic request
-        /// that could sit "pending" forever (and get rejected outright once past Cloudflare's
-        /// ~100MB body cap on the way in). One request per image keeps every request small
-        /// regardless of how many images a guide ends up with.
+        /// Uploads one image or video onto an existing guide, into the same folder. Files go
+        /// over the wire one at a time as multipart/form-data, not bundled as base64 into the
+        /// Create/Update JSON body - a guide with many large files used to mean a single,
+        /// gigantic request that could sit "pending" forever (and get rejected outright once
+        /// past Cloudflare's ~100MB body cap on the way in). One request per file keeps every
+        /// request small regardless of how many a guide ends up with.
         /// </summary>
         [HttpPost("{slug}/images")]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
-        [RequestSizeLimit(MaxImageBytes + 1024 * 1024)]
+        [RequestSizeLimit(MaxVideoBytes + 1024 * 1024)]
         public async Task<IActionResult> UploadImage(string slug, IFormFile file, CancellationToken ct)
         {
             slug = SafeSlug(slug);
@@ -464,7 +469,7 @@ namespace Quintessence_Website.Controllers
         /// </summary>
         [HttpPost("drafts/{draftId}/images")]
         [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
-        [RequestSizeLimit(MaxImageBytes + 1024 * 1024)]
+        [RequestSizeLimit(MaxVideoBytes + 1024 * 1024)]
         public async Task<IActionResult> UploadDraftImage(string draftId, IFormFile file, CancellationToken ct)
         {
             if (!IsSafeDraftId(draftId)) return BadRequest(new { error = "Invalid draft id." });
@@ -491,20 +496,27 @@ namespace Quintessence_Website.Controllers
             return Ok(new { ok = true });
         }
 
-        /// <summary>Validates an uploaded image and reads it into memory, or returns why it was rejected.</summary>
+        /// <summary>
+        /// Validates an uploaded image or video and reads it into memory, or returns why it was
+        /// rejected. Both share the same guide folder and endpoints - the extension alone decides
+        /// which allow-list and size cap apply.
+        /// </summary>
         private async Task<(string? name, byte[]? bytes, string? error)> ReadImageAsync(IFormFile file, CancellationToken ct)
         {
             if (file is null || file.Length == 0) return (null, null, "No file uploaded.");
 
             var name = Path.GetFileName(file.FileName);
             if (string.IsNullOrWhiteSpace(name) || name != file.FileName)
-                return (null, null, $"Invalid image filename: \"{file.FileName}\".");
+                return (null, null, $"Invalid file name: \"{file.FileName}\".");
 
-            if (!AllowedImageExtensions.Contains(Path.GetExtension(name).ToLowerInvariant()))
-                return (null, null, $"\"{name}\" is not an image type we accept.");
+            var ext = Path.GetExtension(name).ToLowerInvariant();
+            var isVideo = AllowedVideoExtensions.Contains(ext);
+            if (!isVideo && !AllowedImageExtensions.Contains(ext))
+                return (null, null, $"\"{name}\" is not an image or video type we accept.");
 
-            if (file.Length > MaxImageBytes)
-                return (null, null, $"\"{name}\" is larger than {MaxImageBytes / (1024 * 1024)}MB.");
+            var maxBytes = isVideo ? MaxVideoBytes : MaxImageBytes;
+            if (file.Length > maxBytes)
+                return (null, null, $"\"{name}\" is larger than {maxBytes / (1024 * 1024)}MB.");
 
             using var ms = new MemoryStream();
             await file.CopyToAsync(ms, ct);

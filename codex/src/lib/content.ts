@@ -102,6 +102,14 @@ export function resolveAssetUrl(slug: string, relativePath: string): string | un
   return `${CODEX_API}/guides/${encodeURIComponent(slug)}/images/${encodeURIComponent(cleaned)}`;
 }
 
+const VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
+
+/** Whether a guide asset filename is a video, so the renderer can pick `<video>` over `<img>`. */
+export function isVideoAsset(filename: string): boolean {
+  const ext = filename.toLowerCase().split(".").pop() ?? "";
+  return VIDEO_EXTENSIONS.includes(ext);
+}
+
 /**
  * Reads an explicit pixel size and/or left/right placement off a markdown image's
  * title, e.g. `![alt](file.png "400")`, `![alt](file.png "400x250 left")`, or

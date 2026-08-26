@@ -2,7 +2,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import { resolveAssetUrl, parseImageMeta, parseHoverPayload } from "@/lib/content";
+import { resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 import { Lightbox } from "./Lightbox";
 
@@ -64,6 +64,20 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
             const resolved = typeof src === "string" ? resolveAssetUrl(slug, src) ?? src : src;
             const { width, height, position, hover } = parseImageMeta(title);
             const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+
+            // Videos are inserted with the same `![](file "meta")` syntax as images (same
+            // uploads, same width/height/position metadata) - the extension alone decides
+            // which tag renders.
+            if (typeof src === "string" && isVideoAsset(src)) {
+              return (
+                <video
+                  src={resolved}
+                  controls
+                  className={floatClass}
+                  style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                />
+              );
+            }
             const hoverClass = hover
               ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
               : undefined;
