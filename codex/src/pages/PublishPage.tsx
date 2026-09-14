@@ -46,13 +46,12 @@ function SelectChevron() {
 }
 
 const ALLOWED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif", "webp", "svg"];
-// Matches the API's own caps (CodexGuidesController.MaxImages/MaxImageBytes) - going higher
-// here would just mean the upload fails once it reaches the server anyway.
-const MAX_IMAGES = 50;
+// Matches the API's own cap (CodexGuidesController.MaxImageBytes) - going higher here would
+// just mean the upload fails once it reaches the server anyway.
 const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 
-// Videos share the same guide folder, upload endpoint and MAX_IMAGES slot count as images
-// (see CodexGuidesController.AllowedVideoExtensions/MaxVideoBytes) - only the extension and
+// Videos share the same guide folder and upload endpoint as images (see
+// CodexGuidesController.AllowedVideoExtensions/MaxVideoBytes) - only the extension and
 // per-file size cap differ.
 const ALLOWED_VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
 const MAX_VIDEO_BYTES = 90 * 1024 * 1024;
@@ -361,15 +360,9 @@ export function PublishPage() {
 
     setImageError(null);
 
-    const remainingSlots = MAX_IMAGES - images.length;
-    const toProcess = files.slice(0, Math.max(remainingSlots, 0));
-    if (files.length > toProcess.length) {
-      setImageError(`Only ${Math.max(remainingSlots, 0)} more image(s) can be added (max ${MAX_IMAGES}).`);
-    }
-
     const existingNames = new Set(images.map((img) => img.filename));
 
-    for (const file of toProcess) {
+    for (const file of files) {
       const ext = file.name.toLowerCase().split(".").pop() ?? "";
       if (!ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
         setImageError(`"${file.name}" isn't a supported image type.`);
@@ -409,15 +402,9 @@ export function PublishPage() {
 
     setVideoError(null);
 
-    const remainingSlots = MAX_IMAGES - videos.length;
-    const toProcess = files.slice(0, Math.max(remainingSlots, 0));
-    if (files.length > toProcess.length) {
-      setVideoError(`Only ${Math.max(remainingSlots, 0)} more video(s) can be added (max ${MAX_IMAGES}).`);
-    }
-
     const existingNames = new Set(videos.map((vid) => vid.filename));
 
-    for (const file of toProcess) {
+    for (const file of files) {
       const ext = file.name.toLowerCase().split(".").pop() ?? "";
       if (!ALLOWED_VIDEO_EXTENSIONS.includes(ext)) {
         setVideoError(`"${file.name}" isn't a supported video type.`);
@@ -889,7 +876,6 @@ export function PublishPage() {
             multiple
             accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
             onChange={handleImagesSelected}
-            disabled={images.length >= MAX_IMAGES}
             className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/20"
           />
           {imageError && <p className="mt-2 text-sm text-red-400">{imageError}</p>}
@@ -949,7 +935,6 @@ export function PublishPage() {
             multiple
             accept="video/mp4,video/webm,video/quicktime"
             onChange={handleVideosSelected}
-            disabled={videos.length >= MAX_IMAGES}
             className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-full file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/20"
           />
           {videoError && <p className="mt-2 text-sm text-red-400">{videoError}</p>}

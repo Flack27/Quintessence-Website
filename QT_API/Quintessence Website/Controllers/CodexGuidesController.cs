@@ -21,7 +21,6 @@ namespace Quintessence_Website.Controllers
     [ApiController]
     public class CodexGuidesController : ControllerBase
     {
-        private const int MaxImages = 50;
         private const int MaxImageBytes = 30 * 1024 * 1024;
         // Cloudflare caps request bodies at ~100MB on the way in (see UploadImage's remarks),
         // so this has to stay comfortably under that regardless of what RequestSizeLimit allows.
@@ -436,10 +435,6 @@ namespace Quintessence_Website.Controllers
             var (name, bytes, error) = await ReadImageAsync(file, ct);
             if (error is not null) return BadRequest(new { error });
 
-            var current = _store.ListImages(slug);
-            if (!current.Contains(name) && current.Count >= MaxImages)
-                return BadRequest(new { error = $"Too many images (max {MaxImages})." });
-
             _store.SaveImage(slug, name!, bytes!);
             return Ok(new { filename = name });
         }
@@ -479,9 +474,6 @@ namespace Quintessence_Website.Controllers
 
             var (name, bytes, error) = await ReadImageAsync(file, ct);
             if (error is not null) return BadRequest(new { error });
-
-            if (_store.ListDraftImages(draftId).Count >= MaxImages)
-                return BadRequest(new { error = $"Too many images (max {MaxImages})." });
 
             _store.SaveDraftImage(draftId, name!, bytes!);
             return Ok(new { filename = name });
