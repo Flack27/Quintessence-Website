@@ -1,5 +1,10 @@
 {
-  // Which Discord role a signed-in member needs in order to read the guides for a game.
+  // Which Discord roles let a signed-in member read the guides for a game.
+  //
+  // A game takes a single role id or a list; holding ANY listed role is enough. Removing a
+  // role is safe in either order: delete it in Discord first and it simply stops matching
+  // anyone, then drop its id here whenever convenient. A dead id does no harm - it just
+  // never matches.
   //
   // This lives in its own committed file rather than in appsettings.json because that file
   // is gitignored - it holds the bot token and only ever exists on the server. Role ids are
@@ -22,7 +27,11 @@
   // public from the guide page itself, which is stored on the guide, not here.
   "GuideAccess": {
     "GameRoleIds": {
-      "Aion 2": "1513926268607922196"
+      "Aion 2": [
+        "1513926268607922196",
+        // Temporary role - remove this line once the role is deleted in Discord.
+        "1549045922212618370"
+      ]
     }
   }
 }

@@ -361,8 +361,8 @@ namespace Quintessence_Website.Controllers
 
             if (guide.IsPublic) return true;
 
-            var roleId = _guideAccess.RoleIdFor(guide.Game);
-            if (roleId is null)
+            var roleIds = _guideAccess.RoleIdsFor(guide.Game);
+            if (roleIds.Count == 0)
             {
                 // Fail closed. An unlisted game must not silently become world-readable, but a
                 // missing entry is easy to make, so say so loudly enough to be found in logs.
@@ -373,7 +373,10 @@ namespace Quintessence_Website.Controllers
                 return false;
             }
 
-            return member?.HasRole(roleId) == true;
+            // Any one of the game's roles is enough. A role deleted in Discord needs no handling
+            // here: Discord strips it from every member, so no one can match it any more and the
+            // remaining roles carry on deciding access.
+            return member is not null && roleIds.Any(member.HasRole);
         }
 
         /// <summary>

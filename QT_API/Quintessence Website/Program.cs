@@ -31,8 +31,8 @@ builder.Configuration.AddUserSecrets<Program>();
 // an ordinary commit instead of a server edit.
 //
 // reloadOnChange is best-effort: the file watcher did not fire on a OneDrive-synced dev
-// checkout, so treat a redeploy (or restart) as the reliable way to apply a change. The
-// options are still read through IOptionsMonitor so a reload is picked up where the
+// checkout, so treat a redeploy (or restart) as the reliable way to apply a change.
+// GuideAccessPolicy reads configuration per call, so a reload is picked up where the
 // watcher does work.
 builder.Configuration.AddJsonFile("guideaccess.json", optional: true, reloadOnChange: true);
 
@@ -69,9 +69,8 @@ var adminUserIds = builder.Configuration.GetSection("Discord:AdminUserIds").Get<
 var codexOptions = builder.Configuration.GetSection("Codex").Get<CodexOptions>() ?? new CodexOptions();
 builder.Services.AddSingleton(codexOptions);
 
-// Per-game read access (guideaccess.json). Bound rather than snapshotted so edits to that
-// file are picked up without a restart.
-builder.Services.Configure<GuideAccessOptions>(builder.Configuration.GetSection("GuideAccess"));
+// Per-game read access (guideaccess.json). The policy reads configuration on each call
+// rather than binding once - see GuideAccessPolicy for why it accepts one role or a list.
 builder.Services.AddSingleton<GuideAccessPolicy>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<CodexAccessService>(http => http.Timeout = TimeSpan.FromSeconds(10));
