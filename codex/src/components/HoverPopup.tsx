@@ -14,7 +14,7 @@ export function HoverPopup({ trigger, content }: HoverPopupProps) {
 
   return (
     <span
-      className="group relative isolate inline-block cursor-help align-middle"
+      className={`group relative isolate inline-block cursor-help align-middle ${open ? "z-50" : ""}`}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
