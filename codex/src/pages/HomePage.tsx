@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Hero } from "@/components/Hero";
 import { SearchBar } from "@/components/SearchBar";
+import { SortDropdown } from "@/components/SortDropdown";
 import { PostGrid } from "@/components/PostGrid";
 import { DiscordLoginButton } from "@/components/DiscordLoginButton";
 import { fetchPosts } from "@/lib/content";
 import { searchPosts } from "@/lib/search";
+import { sortPosts, type SortOption } from "@/lib/sort";
 import { useAuth } from "@/lib/AuthContext";
 import type { Post } from "@/types/post";
 
@@ -13,6 +15,7 @@ export function HomePage() {
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<SortOption>("newest");
 
   useEffect(() => {
     let cancelled = false;
@@ -24,7 +27,10 @@ export function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  const filtered = useMemo(() => searchPosts(posts ?? [], query), [posts, query]);
+  const filtered = useMemo(
+    () => sortPosts(searchPosts(posts ?? [], query), sort),
+    [posts, query, sort],
+  );
 
   return (
     <>
@@ -37,7 +43,10 @@ export function HomePage() {
             site-wide - the same cookie the Angular admin pages use. */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
           <DiscordLoginButton />
-          <SearchBar value={query} onChange={setQuery} className="w-full sm:w-80" />
+          <div className="flex w-full flex-wrap gap-3 sm:w-auto">
+            <SearchBar value={query} onChange={setQuery} className="w-full sm:w-72" />
+            <SortDropdown value={sort} onChange={setSort} className="w-full sm:w-44" />
+          </div>
         </div>
 
         {error ? (
