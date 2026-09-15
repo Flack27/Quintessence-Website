@@ -26,7 +26,7 @@ title: "Templar Tanking Fundamentals"
 subtitle: "Aggro, mitigation and cooldown planning for raid tanks"
 description: "A ground-up breakdown of how Templar tanking works in Aion 2 raids: stat priorities, cooldown sequencing and positioning basics."
 game: "Aion 2"
-section: "Class Guides"
+section: "Class Guide"
 tags: [templar, tank, pve]
 date: "2026-06-18"
 author: "Quintessence Officers"
@@ -41,7 +41,7 @@ The rest of the file is plain markdown.
 | `title`       |    ✅    | Main heading, shown on the card and the post page.                                        |
 | `description` |    ✅    | The one/two-sentence intro — shown on the card excerpt and as the post's lead-in callout. |
 | `game`        |    ✅    | Which game the guide is for (e.g. `Aion 2`, `Minecraft`, `Valheim`); the primary homepage filter, since the guild covers more than one game. |
-| `section`     |    ✅    | Groups the guide within that game (e.g. `Class Guides`, `Raid Guides`, `PvP`, `Getting Started`); powers the section filter chips. |
+| `section`     |    ✅    | Groups the guide within that game: `PvE Guide`, `PvP Guide`, `General`, `Class Guide` or `Others`; the homepage lists guides grouped by this value. |
 | `subtitle`    |    —     | Short supporting line shown under the title.                                              |
 | `tags`        |    —     | List of keywords; searchable, shown as pills, and also powers the tag filter chips.       |
 | `date`        |    —     | `YYYY-MM-DD`; used to sort posts newest-first.                                            |

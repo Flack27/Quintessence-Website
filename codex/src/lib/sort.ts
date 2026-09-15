@@ -1,6 +1,6 @@
 import type { Post } from "@/types/post";
 
-export const SORT_OPTIONS = ["newest", "oldest", "az", "za", "category"] as const;
+export const SORT_OPTIONS = ["newest", "oldest", "az", "za"] as const;
 export type SortOption = (typeof SORT_OPTIONS)[number];
 
 export const SORT_LABELS: Record<SortOption, string> = {
@@ -8,7 +8,6 @@ export const SORT_LABELS: Record<SortOption, string> = {
   oldest: "Oldest",
   az: "Title A-Z",
   za: "Title Z-A",
-  category: "Category",
 };
 
 function byTitle(a: Post, b: Post): number {
@@ -36,11 +35,6 @@ export function sortPosts(posts: Post[], option: SortOption): Post[] {
       return [...posts].sort(byTitle);
     case "za":
       return [...posts].sort((a, b) => byTitle(b, a));
-    case "category":
-      return [...posts].sort((a, b) => {
-        const section = a.frontmatter.section.localeCompare(b.frontmatter.section);
-        return section !== 0 ? section : byTitle(a, b);
-      });
     default:
       return posts;
   }

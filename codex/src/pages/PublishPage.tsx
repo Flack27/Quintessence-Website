@@ -7,6 +7,7 @@ import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
 import { fetchPost, resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset } from "@/lib/content";
+import { SECTION_ORDER } from "@/lib/sections";
 import { HoverPopup } from "@/components/HoverPopup";
 import type { Post } from "@/types/post";
 
@@ -57,7 +58,7 @@ const ALLOWED_VIDEO_EXTENSIONS = ["mp4", "webm", "mov"];
 const MAX_VIDEO_BYTES = 90 * 1024 * 1024;
 
 const GAME_OPTIONS = ["Aion 2"];
-const SECTION_OPTIONS = ["Class Guides", "Tips", "PvE Guides", "PvP Guides", "Others"];
+const SECTION_OPTIONS = SECTION_ORDER;
 
 interface FormState {
   slug: string;

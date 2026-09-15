@@ -7,6 +7,7 @@ import { DiscordLoginButton } from "@/components/DiscordLoginButton";
 import { fetchPosts } from "@/lib/content";
 import { searchPosts } from "@/lib/search";
 import { sortPosts, type SortOption } from "@/lib/sort";
+import { groupBySection } from "@/lib/sections";
 import { useAuth } from "@/lib/AuthContext";
 import type { Post } from "@/types/post";
 
@@ -31,6 +32,7 @@ export function HomePage() {
     () => sortPosts(searchPosts(posts ?? [], query), sort),
     [posts, query, sort],
   );
+  const groups = useMemo(() => groupBySection(filtered), [filtered]);
 
   return (
     <>
@@ -68,8 +70,19 @@ export function HomePage() {
                 : "Log in with Discord to read them. Anything published publicly will show up here without signing in."}
             </p>
           </div>
+        ) : filtered.length === 0 ? (
+          <PostGrid posts={[]} />
         ) : (
-          <PostGrid posts={filtered} />
+          <div className="flex flex-col gap-10">
+            {groups.map((group) => (
+              <div key={group.section}>
+                <h2 className="mb-4 font-display text-lg font-semibold text-[#e6dcef]">
+                  {group.section}
+                </h2>
+                <PostGrid posts={group.posts} />
+              </div>
+            ))}
+          </div>
         )}
       </section>
     </>
