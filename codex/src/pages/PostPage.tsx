@@ -8,6 +8,7 @@ import { Lightbox } from "@/components/Lightbox";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
 import { GuideAccessDialog } from "@/components/GuideAccessDialog";
+import { GuideViewsDialog } from "@/components/GuideViewsDialog";
 import { NotFoundPage } from "./NotFoundPage";
 
 export function PostPage() {
@@ -17,6 +18,7 @@ export function PostPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [accessOpen, setAccessOpen] = useState(false);
+  const [viewsOpen, setViewsOpen] = useState(false);
   const [visibilityBusy, setVisibilityBusy] = useState(false);
   const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const [coverLightboxOpen, setCoverLightboxOpen] = useState(false);
@@ -177,6 +179,13 @@ export function PostPage() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setViewsOpen(true)}
+                  className="rounded-full border border-white/15 px-3 py-1 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/50 hover:text-white"
+                >
+                  Views
+                </button>
+                <button
+                  type="button"
                   onClick={handleDelete}
                   disabled={deleting}
                   className="rounded-full border border-red-500/40 px-3 py-1 text-xs font-semibold text-red-400 transition-colors hover:bg-red-500/10 disabled:opacity-50"
@@ -234,6 +243,14 @@ export function PostPage() {
           slug={postSlug}
           title={frontmatter.title}
           onClose={() => setAccessOpen(false)}
+        />
+      )}
+
+      {viewsOpen && (
+        <GuideViewsDialog
+          slug={postSlug}
+          title={frontmatter.title}
+          onClose={() => setViewsOpen(false)}
         />
       )}
     </article>

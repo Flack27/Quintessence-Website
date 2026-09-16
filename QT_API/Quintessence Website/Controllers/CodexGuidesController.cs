@@ -34,17 +34,20 @@ namespace Quintessence_Website.Controllers
         private readonly GuideStore _store;
         private readonly CodexAccessService _access;
         private readonly GuideAccessPolicy _guideAccess;
+        private readonly JsonStore<GuideViewDTO> _views;
         private readonly ILogger<CodexGuidesController> _logger;
 
         public CodexGuidesController(
             GuideStore store,
             CodexAccessService access,
             GuideAccessPolicy guideAccess,
+            JsonStore<GuideViewDTO> views,
             ILogger<CodexGuidesController> logger)
         {
             _store = store;
             _access = access;
             _guideAccess = guideAccess;
+            _views = views;
             _logger = logger;
         }
 
@@ -78,8 +81,68 @@ namespace Quintessence_Website.Controllers
             if (!CanView(guide, await _access.GetMemberAsync(DiscordId, ct)))
                 return NotFound(new { error = "No such guide." });
 
+            RecordView(safeSlug);
+
             guide.Images = _store.ListImages(safeSlug);
             return Ok(guide);
+        }
+
+        /// <summary>
+        /// Counts one read of a guide by a signed-in Discord member, for the "who's read this"
+        /// list its owner or a manager can pull up (see GetViews). An anonymous read of a public
+        /// guide has no member to attribute it to, so there's nothing to record for those.
+        /// </summary>
+        private void RecordView(string slug)
+        {
+            var discordId = DiscordId;
+            if (string.IsNullOrEmpty(discordId)) return;
+
+            _views.Update(list =>
+            {
+                var entry = list.FirstOrDefault(v => v.Slug == slug && v.DiscordId == discordId);
+                if (entry is null)
+                {
+                    entry = new GuideViewDTO { Slug = slug, DiscordId = discordId };
+                    list.Add(entry);
+                }
+
+                entry.Count++;
+                entry.LastViewedUtc = DateTime.UtcNow;
+            });
+        }
+
+        /// <summary>
+        /// Who has read this guide and how many times, most-read first.
+        ///
+        /// Gated the same as deleting the guide or changing its editor list
+        /// (MayAdministerAsync): the owner and managers only, not an invited editor - this is
+        /// administrative visibility into readership, not something you get just for being able
+        /// to fix a typo.
+        /// </summary>
+        [HttpGet("{slug}/views")]
+        [Authorize(Policy = "CodexAuthor", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
+        public async Task<IActionResult> GetViews(string slug, CancellationToken ct)
+        {
+            var safeSlug = SafeSlug(slug);
+            var guide = _store.Read(safeSlug);
+            if (guide is null) return NotFound(new { error = "No such guide." });
+
+            if (!await MayAdministerAsync(guide, ct))
+                return StatusCode(403, new { error = "Only the guide's author or a moderator can see who has read it." });
+
+            var viewers = new List<CodexGuideViewerDTO>();
+            foreach (var entry in _views.Read().Where(v => v.Slug == safeSlug).OrderByDescending(v => v.Count))
+            {
+                if (await DescribeAsync(entry.DiscordId, ct) is not { } member) continue;
+                viewers.Add(new CodexGuideViewerDTO
+                {
+                    Member = member,
+                    Count = entry.Count,
+                    LastViewedUtc = entry.LastViewedUtc,
+                });
+            }
+
+            return Ok(viewers);
         }
 
         [HttpPost]

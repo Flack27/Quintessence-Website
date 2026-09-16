@@ -188,6 +188,9 @@ var dataDir = Path.Combine(builder.Environment.ContentRootPath, "App_Data");
 builder.Services.AddSingleton(new JsonStore<GamesDTO>(Path.Combine(dataDir, "games.json"), Seed.Games));
 builder.Services.AddSingleton(new JsonStore<GuildTimelineEntryDTO>(Path.Combine(dataDir, "timeline.json"), Seed.Timeline));
 
+// Who has read which Codex guide, and how many times - see CodexGuidesController.RecordView.
+builder.Services.AddSingleton(new JsonStore<GuideViewDTO>(Path.Combine(dataDir, "guide-views.json")));
+
 builder.Services.AddScoped<IGamesDAL, GamesDAL>();
 builder.Services.AddScoped<ITimelineDAL, TimelineDAL>();
 
