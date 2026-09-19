@@ -1,4 +1,4 @@
-import { useRef, useState, type ChangeEvent, type FormEvent, useEffect} from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent, useEffect} from "react";
 import { flushSync } from "react-dom";
 import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -213,6 +213,10 @@ export function PublishPage() {
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageMenuRef = useRef<HTMLDivElement>(null);
   const videoMenuRef = useRef<HTMLDivElement>(null);
+  // Snapshot of the body textarea's caret, taken right before a window.prompt() or a
+  // multi-field panel (which both steal focus for a while) so the eventual insert lands
+  // back where the caret actually was, not wherever focus loss left selectionStart/End.
+  const pendingRangeRef = useRef<{ start: number; end: number } | null>(null);
 
   const [showHoverMenu, setShowHoverMenu] = useState(false);
   const [hoverTriggerKind, setHoverTriggerKind] = useState<"text" | "image">("text");
@@ -285,7 +289,7 @@ export function PublishPage() {
       .map((filename) => ({
         filename,
         previewUrl: resolveAssetUrl(editSlug ?? "", filename) ?? filename,
-        removable: false,
+        removable: true,
         status: "done" as const,
       })),
     ...images.map((img) => ({
@@ -302,7 +306,7 @@ export function PublishPage() {
       .map((filename) => ({
         filename,
         previewUrl: resolveAssetUrl(editSlug ?? "", filename) ?? filename,
-        removable: false,
+        removable: true,
         status: "done" as const,
       })),
     ...videos.map((vid) => ({
@@ -390,7 +394,13 @@ export function PublishPage() {
   }
 
   function removeImage(filename: string) {
+    // Files already saved on the guide (as opposed to just staged this session) are deleted
+    // from the server immediately, not on the next Save - worth a confirmation.
+    if (existingImages.includes(filename) && !window.confirm(`Delete "${filename}" from this guide? This can't be undone.`)) {
+      return;
+    }
     setImages((prev) => prev.filter((img) => img.filename !== filename));
+    setExistingImages((prev) => prev.filter((f) => f !== filename));
     setForm((prev) => (prev.cover === filename ? { ...prev, cover: "" } : prev));
     void deleteRemoteFile(filename);
   }
@@ -430,7 +440,11 @@ export function PublishPage() {
   }
 
   function removeVideo(filename: string) {
+    if (existingImages.includes(filename) && !window.confirm(`Delete "${filename}" from this guide? This can't be undone.`)) {
+      return;
+    }
     setVideos((prev) => prev.filter((vid) => vid.filename !== filename));
+    setExistingImages((prev) => prev.filter((f) => f !== filename));
     void deleteRemoteFile(filename);
   }
 
@@ -443,6 +457,47 @@ export function PublishPage() {
     const staged = images.find((img) => img.filename === filename) ?? videos.find((vid) => vid.filename === filename);
     if (staged) return staged.dataUrl;
     return resolveAssetUrl(form.slug || "preview", filename) ?? filename;
+  }
+
+  /** Reads a markdown AST node's source offsets, for tagging preview elements so a click can jump back to them. */
+  function sourcePosAttrs(node: { position?: { start?: { offset?: number }; end?: { offset?: number } } } | undefined) {
+    const start = node?.position?.start?.offset;
+    const end = node?.position?.end?.offset;
+    return typeof start === "number" && typeof end === "number"
+      ? { "data-src-start": start, "data-src-end": end }
+      : {};
+  }
+
+  /** Wraps a plain tag so its rendered element carries the source offsets of the markdown node it came from. */
+  function withSourcePos(Tag: string) {
+    return function SourcePosTag({ node, children, ...rest }: any) {
+      return (
+        <Tag {...rest} {...sourcePosAttrs(node)}>
+          {children}
+        </Tag>
+      );
+    };
+  }
+
+  /** Switches to the Editor tab and places the caret at a source offset from a preview click. */
+  function jumpToSource(offset: number) {
+    flushSync(() => setBodyView("editor"));
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset);
+    const lineIndex = textarea.value.slice(0, offset).split("\n").length - 1;
+    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
+    textarea.scrollTop = Math.max(0, lineIndex * lineHeight - textarea.clientHeight / 2);
+  }
+
+  /** Click-to-edit: clicking any tagged element in the preview jumps back to its spot in the raw markdown. */
+  function handlePreviewClick(event: ReactMouseEvent<HTMLDivElement>) {
+    const target = (event.target as HTMLElement).closest("[data-src-start]") as HTMLElement | null;
+    if (!target) return;
+    const start = Number(target.getAttribute("data-src-start"));
+    if (Number.isNaN(start)) return;
+    jumpToSource(start);
   }
 
   /** Renders a hover payload (image or text) as popup content for the preview. */
@@ -490,6 +545,13 @@ export function PublishPage() {
     return [size, position].filter(Boolean).join(" ") || undefined;
   }
 
+  /** Grabs the body textarea's current caret so a later insert can use it instead of whatever
+   *  selectionStart/End look like after a window.prompt() or panel steals focus in between. */
+  function capturePendingRange() {
+    const textarea = bodyRef.current;
+    pendingRangeRef.current = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : null;
+  }
+
   /** Inserts markdown at the cursor (or appends it, if the body textarea isn't mounted yet). */
   function insertAtCursor(markdown: string) {
     const textarea = bodyRef.current;
@@ -499,7 +561,11 @@ export function PublishPage() {
       return;
     }
 
-    const { selectionStart, selectionEnd, value } = textarea;
+    const range = pendingRangeRef.current;
+    pendingRangeRef.current = null;
+    const selectionStart = range?.start ?? textarea.selectionStart;
+    const selectionEnd = range?.end ?? textarea.selectionEnd;
+    const { value } = textarea;
     const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
 
     // flushSync forces the controlled textarea's DOM value to update *before* we touch its
@@ -892,7 +958,10 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => insertMediaMarkdown(img.filename, promptImageOptions())}
+                    onClick={() => {
+                      capturePendingRange();
+                      insertMediaMarkdown(img.filename, promptImageOptions());
+                    }}
                     disabled={img.status !== "done"}
                     className="block w-full text-left disabled:cursor-not-allowed"
                     title={
@@ -951,7 +1020,10 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => insertMediaMarkdown(vid.filename, promptImageOptions())}
+                    onClick={() => {
+                      capturePendingRange();
+                      insertMediaMarkdown(vid.filename, promptImageOptions());
+                    }}
                     disabled={vid.status !== "done"}
                     className="block w-full text-left disabled:cursor-not-allowed"
                     title={
@@ -1097,6 +1169,7 @@ export function PublishPage() {
                         key={img.filename}
                         type="button"
                         onClick={() => {
+                          capturePendingRange();
                           insertMediaMarkdown(img.filename, promptImageOptions());
                           setShowImageMenu(false);
                         }}
@@ -1130,6 +1203,7 @@ export function PublishPage() {
                         key={vid.filename}
                         type="button"
                         onClick={() => {
+                          capturePendingRange();
                           insertMediaMarkdown(vid.filename, promptImageOptions());
                           setShowVideoMenu(false);
                         }}
@@ -1146,6 +1220,7 @@ export function PublishPage() {
               <button
                 type="button"
                 onClick={() => {
+                  capturePendingRange();
                   setHoverFormError(null);
                   setShowHoverMenu((prev) => !prev);
                 }}
@@ -1275,18 +1350,34 @@ export function PublishPage() {
           />
           </>
           ) : (
-            <div className={`${inputClass} prose-codex min-h-[24rem] overflow-y-auto`}>
+            <div
+              className={`${inputClass} prose-codex min-h-[24rem] overflow-y-auto`}
+              onClick={handlePreviewClick}
+              title="Click any element to edit its markdown"
+            >
               {form.body.trim() ? (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSlug]}
                   components={{
-                    a: ({ href, title, children }) => {
+                    p: withSourcePos("p"),
+                    li: withSourcePos("li"),
+                    h1: withSourcePos("h1"),
+                    h2: withSourcePos("h2"),
+                    h3: withSourcePos("h3"),
+                    h4: withSourcePos("h4"),
+                    h5: withSourcePos("h5"),
+                    h6: withSourcePos("h6"),
+                    blockquote: withSourcePos("blockquote"),
+                    a: ({ node, href, title, children }) => {
                       if (href === "hover") {
                         return (
                           <HoverPopup
                             trigger={
-                              <span className="border-b border-dashed border-slate-400 transition-colors group-hover:border-white group-hover:text-white">
+                              <span
+                                {...sourcePosAttrs(node)}
+                                className="border-b border-dashed border-slate-400 transition-colors group-hover:border-white group-hover:text-white"
+                              >
                                 {children}
                               </span>
                             }
@@ -1295,17 +1386,18 @@ export function PublishPage() {
                         );
                       }
                       return (
-                        <a href={href} title={title}>
+                        <a href={href} title={title} {...sourcePosAttrs(node)}>
                           {children}
                         </a>
                       );
                     },
-                    img: ({ src, alt, title }) => {
+                    img: ({ node, src, alt, title }) => {
                       const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
                       const resolved = resolvePreviewImageSrc(filename);
                       const { width, height, position, hover } = parseImageMeta(title);
                       const floatClass =
                         position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+                      const posAttrs = sourcePosAttrs(node);
 
                       if (isVideoAsset(filename)) {
                         return (
@@ -1314,6 +1406,7 @@ export function PublishPage() {
                             controls
                             className={floatClass}
                             style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                            {...posAttrs}
                           />
                         );
                       }
@@ -1328,12 +1421,13 @@ export function PublishPage() {
                           className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
                           style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
                           loading="lazy"
+                          {...posAttrs}
                         />
                       );
                       return hover ? <HoverPopup trigger={image} content={renderHoverPreviewContent(hover)} /> : image;
                     },
-                    table: ({ children }) => (
-                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10">
+                    table: ({ node, children }) => (
+                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10" {...sourcePosAttrs(node)}>
                         <table>{children}</table>
                       </div>
                     ),

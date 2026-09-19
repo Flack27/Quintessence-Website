@@ -134,16 +134,28 @@ h6 {
 
 @media (min-width: 640px) {
   .prose-codex img.img-float-left {
-    @apply float-left mr-7 max-w-[45%];
+    @apply float-left mr-4 max-w-[45%] border-r border-white/15 pr-3;
   }
 
   .prose-codex img.img-float-right {
-    @apply float-right ml-7 max-w-[45%];
+    @apply float-right ml-4 max-w-[45%] border-l border-white/15 pl-3;
   }
 }
 
 .prose-codex hr {
   @apply my-10 border-white/10;
+}
+
+/* Click-to-edit affordance in the publish-page preview: only elements the preview tags
+   with a source offset (see PublishPage's `withSourcePos`/`sourcePosAttrs`) get this -
+   the read-only guide page never sets `data-src-start`, so it's unaffected. */
+.prose-codex [data-src-start] {
+  cursor: pointer;
+}
+
+.prose-codex [data-src-start]:hover {
+  outline: 1px dashed rgba(255, 255, 255, 0.3);
+  outline-offset: 3px;
 }
 
 .prose-codex table {
