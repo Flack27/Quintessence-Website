@@ -2,7 +2,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import { resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset } from "@/lib/content";
+import { resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset, imageSizeStyle } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 import { Lightbox } from "./Lightbox";
 
@@ -28,7 +28,7 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
           src={resolveAssetUrl(slug, value) ?? value}
           alt=""
           className={`${width ? "" : "max-h-80"} w-auto rounded-lg !my-0`}
-          style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+          style={imageSizeStyle(width, height)}
         />
       );
     }
@@ -74,7 +74,7 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
                   src={resolved}
                   controls
                   className={floatClass}
-                  style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                  style={imageSizeStyle(width, height)}
                 />
               );
             }
@@ -90,7 +90,7 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
                 alt={alt ?? ""}
                 title={width || position || hover ? undefined : title}
                 className={[floatClass, hoverClass, hover ? undefined : "cursor-zoom-in"].filter(Boolean).join(" ") || undefined}
-                style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
+                style={imageSizeStyle(width, height)}
                 loading="lazy"
                 onClick={hover ? undefined : () => setLightbox({ src: resolved ?? "", alt: alt ?? "" })}
               />

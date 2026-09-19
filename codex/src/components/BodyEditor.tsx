@@ -18,7 +18,7 @@ import { TableRow as TiptapTableRow } from "@tiptap/extension-table-row";
 import { TableHeader as TiptapTableHeader } from "@tiptap/extension-table-header";
 import { TableCell as TiptapTableCell } from "@tiptap/extension-table-cell";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
-import { parseImageMeta, isVideoAsset } from "@/lib/content";
+import { parseImageMeta, isVideoAsset, imageSizeStyle } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 
 /** tiptap-markdown doesn't ship a `Storage` module augmentation for `@tiptap/core`, so
@@ -126,7 +126,7 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeVi
   const { width, height, position, hover } = parseImageMeta(title);
   const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
   const isVideo = isVideoAsset(filename);
-  const style = width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined;
+  const style = imageSizeStyle(width, height);
 
   function reconfigure() {
     ctx!.openImageOptions(title ?? undefined, (meta) => updateAttributes({ title: buildImageTitle(meta, hover) }));
