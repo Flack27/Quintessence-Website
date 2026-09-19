@@ -42,6 +42,52 @@ function kindToggleClass(active: boolean) {
   }`;
 }
 
+/** One toolbar action - a plain button, or the active/toggled state of a format like Bold. */
+function ToolbarButton({
+  onClick,
+  active,
+  disabled,
+  title,
+  children,
+  className,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  title: string;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      className={`${toolbarButtonClass} ${active ? toolbarButtonActiveClass : ""} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-white/10 disabled:hover:bg-white/[0.04] disabled:hover:text-slate-300 ${className ?? ""}`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** Groups related toolbar buttons with a label above them, so the palette reads as sections
+ *  (Text, Insert, Lists, Table) instead of one undifferentiated row of icons. */
+function ToolbarGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="px-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</span>
+      <div className="flex flex-wrap items-center gap-1">{children}</div>
+    </div>
+  );
+}
+
+function ToolbarDivider() {
+  return <span aria-hidden className="mx-1 hidden h-9 w-px shrink-0 self-end bg-white/10 sm:block" />;
+}
+
 interface MediaOption {
   filename: string;
 }
@@ -207,6 +253,11 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
     // "Cannot read properties of undefined (reading 'getMarkdown')" crash that was silently
     // taking out this whole component (hence "no Table button", "no tables", "tables vanish").
     immediatelyRender: false,
+    // Tiptap v3 defaults this to off (a perf tradeoff): without it, moving the caret alone -
+    // e.g. clicking from a table's header into a body cell - never re-renders this component,
+    // so every `isActive(...)` check below (bold/heading highlighting, the table-header safety
+    // gating) would keep showing whatever was true at the last actual content edit.
+    shouldRerenderOnTransaction: true,
     extensions: [
       StarterKit.configure({ link: false, underline: false }),
       GuideImage,
@@ -362,383 +413,342 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
 
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1">
-        <button
-          type="button"
-          onClick={() => setViewMode("write")}
-          className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
-            viewMode === "write" ? "border-white/10 bg-white/[0.06] text-white" : "border-transparent text-slate-400 hover:text-slate-200"
-          }`}
-        >
-          Write
-        </button>
-        <button
-          type="button"
-          onClick={() => setViewMode("markdown")}
-          className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
-            viewMode === "markdown" ? "border-white/10 bg-white/[0.06] text-white" : "border-transparent text-slate-400 hover:text-slate-200"
-          }`}
-          title="Edit the raw markdown directly - useful as a fallback if something looks off above"
-        >
-          Markdown
-        </button>
-      </div>
+      <div
+        className="sticky z-30 -mx-1 space-y-2 border-b border-white/10 bg-void-950/95 px-1 pb-3 pt-2 backdrop-blur-sm"
+        style={{ top: "var(--navbar-height)" }}
+      >
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setViewMode("write")}
+            className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
+              viewMode === "write" ? "border-white/10 bg-white/[0.06] text-white" : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Write
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("markdown")}
+            className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
+              viewMode === "markdown" ? "border-white/10 bg-white/[0.06] text-white" : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+            title="Edit the raw markdown directly - useful as a fallback if something looks off above"
+          >
+            Markdown
+          </button>
+        </div>
 
-      <div hidden={viewMode !== "write"}>
-        <div className="mb-2 flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
-            className={`${toolbarButtonClass} ${isActive("heading", { level: 1 }) ? toolbarButtonActiveClass : ""}`}
-            title="Heading 1"
-          >
-            H1
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
-            className={`${toolbarButtonClass} ${isActive("heading", { level: 2 }) ? toolbarButtonActiveClass : ""}`}
-            title="Heading 2"
-          >
-            H2
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
-            className={`${toolbarButtonClass} ${isActive("heading", { level: 3 }) ? toolbarButtonActiveClass : ""}`}
-            title="Heading 3"
-          >
-            H3
-          </button>
-          <span className="mx-1 h-5 w-px bg-white/10" />
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleBold().run()}
-            className={`${toolbarButtonClass} font-bold ${isActive("bold") ? toolbarButtonActiveClass : ""}`}
-            title="Bold"
-          >
-            B
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleItalic().run()}
-            className={`${toolbarButtonClass} italic ${isActive("italic") ? toolbarButtonActiveClass : ""}`}
-            title="Italic"
-          >
-            I
-          </button>
-          <span className="mx-1 h-5 w-px bg-white/10" />
-          <button type="button" onClick={insertLink} className={toolbarButtonClass} title="Link">
-            🔗 Link
-          </button>
-          <div ref={imageMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                capturePendingRange();
-                setShowImageMenu((prev) => !prev);
-              }}
-              className={toolbarButtonClass}
-              title="Image"
-            >
-              🖼 Image
-            </button>
-            {showImageMenu && (
-              <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
-                {insertableImages.length === 0 ? (
-                  <p className="px-2 py-1.5 text-xs text-slate-400">No images uploaded yet — add one in the Images section below.</p>
-                ) : (
-                  insertableImages.map((img) => (
-                    <button
-                      key={img.filename}
-                      type="button"
-                      onClick={() => {
-                        setShowImageMenu(false);
-                        openImageOptions(undefined, (meta) => insertMedia(img.filename, meta));
-                      }}
-                      className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
-                    >
-                      {img.filename}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-          <div ref={videoMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                capturePendingRange();
-                setShowVideoMenu((prev) => !prev);
-              }}
-              className={toolbarButtonClass}
-              title="Video"
-            >
-              🎬 Video
-            </button>
-            {showVideoMenu && (
-              <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
-                {insertableVideos.length === 0 ? (
-                  <p className="px-2 py-1.5 text-xs text-slate-400">No videos uploaded yet — add one in the Videos section below.</p>
-                ) : (
-                  insertableVideos.map((vid) => (
-                    <button
-                      key={vid.filename}
-                      type="button"
-                      onClick={() => {
-                        setShowVideoMenu(false);
-                        openImageOptions(undefined, (meta) => insertMedia(vid.filename, meta));
-                      }}
-                      className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
-                    >
-                      {vid.filename}
-                    </button>
-                  ))
-                )}
-              </div>
-            )}
-          </div>
-          <div ref={hoverMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => {
-                capturePendingRange();
-                setHoverFormError(null);
-                setShowHoverMenu((prev) => !prev);
-              }}
-              className={toolbarButtonClass}
-              title="Hover popup"
-            >
-              💬 Hover
-            </button>
-            {showHoverMenu && (
-              <div className="absolute left-0 top-full z-10 mt-1 w-72 space-y-3 rounded-lg border border-white/10 bg-void-950 p-3 shadow-xl">
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-300">What gets hovered</p>
-                  <div className="mb-1.5 flex gap-1.5">
-                    <button type="button" onClick={() => setHoverTriggerKind("text")} className={kindToggleClass(hoverTriggerKind === "text")}>
-                      Text
-                    </button>
-                    <button type="button" onClick={() => setHoverTriggerKind("image")} className={kindToggleClass(hoverTriggerKind === "image")}>
-                      Image
-                    </button>
-                  </div>
-                  {hoverTriggerKind === "text" ? (
-                    <input
-                      value={hoverTriggerText}
-                      onChange={(e) => setHoverTriggerText(e.target.value)}
-                      placeholder="Word or phrase to hover"
-                      className={menuInputClass}
-                    />
-                  ) : (
-                    <select value={hoverTriggerImage} onChange={(e) => setHoverTriggerImage(e.target.value)} className={menuSelectClass}>
-                      <option value="" className={optionClass}>
-                        Select an image…
-                      </option>
-                      {insertableImages.map((img) => (
-                        <option key={img.filename} value={img.filename} className={optionClass}>
-                          {img.filename}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div>
-                  <p className="mb-1.5 text-xs font-semibold text-slate-300">Popup content (shown on hover)</p>
-                  <div className="mb-1.5 flex gap-1.5">
-                    <button type="button" onClick={() => setHoverPopupKind("text")} className={kindToggleClass(hoverPopupKind === "text")}>
-                      Text
-                    </button>
-                    <button type="button" onClick={() => setHoverPopupKind("image")} className={kindToggleClass(hoverPopupKind === "image")}>
-                      Image
-                    </button>
-                  </div>
-                  {hoverPopupKind === "text" ? (
-                    <textarea
-                      value={hoverPopupText}
-                      onChange={(e) => setHoverPopupText(e.target.value)}
-                      rows={2}
-                      placeholder="Text to show in the popup"
-                      className={menuInputClass}
-                    />
-                  ) : (
-                    <div className="space-y-1.5">
-                      <select value={hoverPopupImage} onChange={(e) => setHoverPopupImage(e.target.value)} className={menuSelectClass}>
-                        <option value="" className={optionClass}>
-                          Select an image…
-                        </option>
-                        {insertableImages.map((img) => (
-                          <option key={img.filename} value={img.filename} className={optionClass}>
+        {viewMode === "write" && (
+          <>
+            <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+              <ToolbarGroup label="Heading">
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={isActive("heading", { level: 1 })} title="Heading 1">
+                  H1
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} active={isActive("heading", { level: 2 })} title="Heading 2">
+                  H2
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} active={isActive("heading", { level: 3 })} title="Heading 3">
+                  H3
+                </ToolbarButton>
+              </ToolbarGroup>
+
+              <ToolbarDivider />
+
+              <ToolbarGroup label="Text">
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleBold().run()} active={isActive("bold")} title="Bold" className="font-bold">
+                  B
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleItalic().run()} active={isActive("italic")} title="Italic" className="italic">
+                  I
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleStrike().run()} active={isActive("strike")} title="Strikethrough" className="line-through">
+                  S
+                </ToolbarButton>
+              </ToolbarGroup>
+
+              <ToolbarDivider />
+
+              <ToolbarGroup label="Lists & blocks">
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleBulletList().run()} active={isActive("bulletList")} title="Bullet list">
+                  • List
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={isActive("orderedList")} title="Numbered list">
+                  1. List
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={isActive("blockquote")} title="Quote">
+                  ❝ Quote
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().toggleCodeBlock().run()} active={isActive("codeBlock")} title="Code block" className="font-mono">
+                  {"</>"}
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Horizontal rule (divider line)">
+                  ― Line
+                </ToolbarButton>
+              </ToolbarGroup>
+
+              <ToolbarDivider />
+
+              <ToolbarGroup label="Insert">
+                <ToolbarButton onClick={insertLink} title="Link">
+                  🔗 Link
+                </ToolbarButton>
+                <div ref={imageMenuRef} className="relative">
+                  <ToolbarButton
+                    onClick={() => {
+                      capturePendingRange();
+                      setShowImageMenu((prev) => !prev);
+                    }}
+                    title="Image"
+                  >
+                    🖼 Image
+                  </ToolbarButton>
+                  {showImageMenu && (
+                    <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
+                      {insertableImages.length === 0 ? (
+                        <p className="px-2 py-1.5 text-xs text-slate-400">No images uploaded yet — add one in the Images section below.</p>
+                      ) : (
+                        insertableImages.map((img) => (
+                          <button
+                            key={img.filename}
+                            type="button"
+                            onClick={() => {
+                              setShowImageMenu(false);
+                              openImageOptions(undefined, (meta) => insertMedia(img.filename, meta));
+                            }}
+                            className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
+                          >
                             {img.filename}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={hoverPopupImageSize}
-                        onChange={(e) => setHoverPopupImageSize(e.target.value)}
-                        placeholder='Size in pixels, e.g. "400" or "400x250" (optional)'
-                        className={menuInputClass}
-                      />
+                          </button>
+                        ))
+                      )}
                     </div>
                   )}
                 </div>
-                {hoverFormError && <p className="text-xs text-red-400">{hoverFormError}</p>}
+                <div ref={videoMenuRef} className="relative">
+                  <ToolbarButton
+                    onClick={() => {
+                      capturePendingRange();
+                      setShowVideoMenu((prev) => !prev);
+                    }}
+                    title="Video"
+                  >
+                    🎬 Video
+                  </ToolbarButton>
+                  {showVideoMenu && (
+                    <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
+                      {insertableVideos.length === 0 ? (
+                        <p className="px-2 py-1.5 text-xs text-slate-400">No videos uploaded yet — add one in the Videos section below.</p>
+                      ) : (
+                        insertableVideos.map((vid) => (
+                          <button
+                            key={vid.filename}
+                            type="button"
+                            onClick={() => {
+                              setShowVideoMenu(false);
+                              openImageOptions(undefined, (meta) => insertMedia(vid.filename, meta));
+                            }}
+                            className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
+                          >
+                            {vid.filename}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div ref={hoverMenuRef} className="relative">
+                  <ToolbarButton
+                    onClick={() => {
+                      capturePendingRange();
+                      setHoverFormError(null);
+                      setShowHoverMenu((prev) => !prev);
+                    }}
+                    title="Hover popup"
+                  >
+                    💬 Hover
+                  </ToolbarButton>
+                  {showHoverMenu && (
+                    <div className="absolute left-0 top-full z-10 mt-1 w-72 space-y-3 rounded-lg border border-white/10 bg-void-950 p-3 shadow-xl">
+                      <div>
+                        <p className="mb-1.5 text-xs font-semibold text-slate-300">What gets hovered</p>
+                        <div className="mb-1.5 flex gap-1.5">
+                          <button type="button" onClick={() => setHoverTriggerKind("text")} className={kindToggleClass(hoverTriggerKind === "text")}>
+                            Text
+                          </button>
+                          <button type="button" onClick={() => setHoverTriggerKind("image")} className={kindToggleClass(hoverTriggerKind === "image")}>
+                            Image
+                          </button>
+                        </div>
+                        {hoverTriggerKind === "text" ? (
+                          <input
+                            value={hoverTriggerText}
+                            onChange={(e) => setHoverTriggerText(e.target.value)}
+                            placeholder="Word or phrase to hover"
+                            className={menuInputClass}
+                          />
+                        ) : (
+                          <select value={hoverTriggerImage} onChange={(e) => setHoverTriggerImage(e.target.value)} className={menuSelectClass}>
+                            <option value="" className={optionClass}>
+                              Select an image…
+                            </option>
+                            {insertableImages.map((img) => (
+                              <option key={img.filename} value={img.filename} className={optionClass}>
+                                {img.filename}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                      <div>
+                        <p className="mb-1.5 text-xs font-semibold text-slate-300">Popup content (shown on hover)</p>
+                        <div className="mb-1.5 flex gap-1.5">
+                          <button type="button" onClick={() => setHoverPopupKind("text")} className={kindToggleClass(hoverPopupKind === "text")}>
+                            Text
+                          </button>
+                          <button type="button" onClick={() => setHoverPopupKind("image")} className={kindToggleClass(hoverPopupKind === "image")}>
+                            Image
+                          </button>
+                        </div>
+                        {hoverPopupKind === "text" ? (
+                          <textarea
+                            value={hoverPopupText}
+                            onChange={(e) => setHoverPopupText(e.target.value)}
+                            rows={2}
+                            placeholder="Text to show in the popup"
+                            className={menuInputClass}
+                          />
+                        ) : (
+                          <div className="space-y-1.5">
+                            <select value={hoverPopupImage} onChange={(e) => setHoverPopupImage(e.target.value)} className={menuSelectClass}>
+                              <option value="" className={optionClass}>
+                                Select an image…
+                              </option>
+                              {insertableImages.map((img) => (
+                                <option key={img.filename} value={img.filename} className={optionClass}>
+                                  {img.filename}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              value={hoverPopupImageSize}
+                              onChange={(e) => setHoverPopupImageSize(e.target.value)}
+                              placeholder='Size in pixels, e.g. "400" or "400x250" (optional)'
+                              className={menuInputClass}
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {hoverFormError && <p className="text-xs text-red-400">{hoverFormError}</p>}
+                      <button
+                        type="button"
+                        onClick={submitHoverPopup}
+                        className="w-full rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                      >
+                        Insert
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </ToolbarGroup>
+
+              <ToolbarDivider />
+
+              <ToolbarGroup label="Table">
+                <ToolbarButton onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert a 3×3 table">
+                  ▦ Table
+                </ToolbarButton>
+              </ToolbarGroup>
+            </div>
+
+            {isActive("table") && (
+              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-quint-purple/30 bg-quint-purple/[0.06] p-2">
+                <span className="mr-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Table cell:</span>
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().addRowBefore().run()}
+                  disabled={isActive("tableHeader")}
+                  title={
+                    isActive("tableHeader")
+                      ? "Can't insert a row above the header - a table needs exactly one header row, at the top"
+                      : "Insert a row above the current one"
+                  }
+                >
+                  ↑ Row
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().addRowAfter().run()} title="Insert a row below the current one">
+                  ↓ Row
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().addColumnBefore().run()} title="Insert a column to the left">
+                  ← Col
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().addColumnAfter().run()} title="Insert a column to the right">
+                  → Col
+                </ToolbarButton>
+                <span className="mx-1 h-5 w-px bg-white/10" />
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().deleteRow().run()}
+                  disabled={isActive("tableHeader")}
+                  title={isActive("tableHeader") ? "Can't delete the header row - a table needs exactly one" : "Delete the current row"}
+                >
+                  ✕ Row
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().deleteColumn().run()} title="Delete the current column">
+                  ✕ Col
+                </ToolbarButton>
+                <ToolbarButton onClick={() => editor?.chain().focus().deleteTable().run()} title="Delete the whole table">
+                  ✕ Table
+                </ToolbarButton>
+              </div>
+            )}
+
+            {pendingInsert && (
+              <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-void-950 p-2">
+                <span className="text-xs font-semibold text-slate-300">Size / position:</span>
+                <input
+                  value={pendingWidth}
+                  onChange={(e) => setPendingWidth(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Width px"
+                  inputMode="numeric"
+                  className={`${menuInputClass} w-24`}
+                />
+                <input
+                  value={pendingHeight}
+                  onChange={(e) => setPendingHeight(e.target.value.replace(/\D/g, ""))}
+                  placeholder="Height px"
+                  inputMode="numeric"
+                  className={`${menuInputClass} w-24`}
+                />
+                <button type="button" onClick={() => setPendingPosition("")} className={kindToggleClass(pendingPosition === "")}>
+                  Inline
+                </button>
+                <button type="button" onClick={() => setPendingPosition("left")} className={kindToggleClass(pendingPosition === "left")}>
+                  Float left
+                </button>
+                <button type="button" onClick={() => setPendingPosition("right")} className={kindToggleClass(pendingPosition === "right")}>
+                  Float right
+                </button>
                 <button
                   type="button"
-                  onClick={submitHoverPopup}
-                  className="w-full rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+                  onClick={confirmPendingInsert}
+                  className="rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
                 >
-                  Insert
+                  Confirm
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingInsert(null)}
+                  className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white"
+                >
+                  Cancel
                 </button>
               </div>
             )}
-          </div>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleStrike().run()}
-            className={`${toolbarButtonClass} line-through ${isActive("strike") ? toolbarButtonActiveClass : ""}`}
-            title="Strikethrough"
-          >
-            S
-          </button>
-          <span className="mx-1 h-5 w-px bg-white/10" />
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleBulletList().run()}
-            className={`${toolbarButtonClass} ${isActive("bulletList") ? toolbarButtonActiveClass : ""}`}
-            title="Bullet list"
-          >
-            • List
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-            className={`${toolbarButtonClass} ${isActive("orderedList") ? toolbarButtonActiveClass : ""}`}
-            title="Numbered list"
-          >
-            1. List
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleBlockquote().run()}
-            className={`${toolbarButtonClass} ${isActive("blockquote") ? toolbarButtonActiveClass : ""}`}
-            title="Quote"
-          >
-            " Quote
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
-            className={`${toolbarButtonClass} font-mono ${isActive("codeBlock") ? toolbarButtonActiveClass : ""}`}
-            title="Code block"
-          >
-            {"</>"}
-          </button>
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().setHorizontalRule().run()}
-            className={toolbarButtonClass}
-            title="Horizontal rule"
-          >
-            ―
-          </button>
-          <span className="mx-1 h-5 w-px bg-white/10" />
-          <button
-            type="button"
-            onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-            className={toolbarButtonClass}
-            title="Insert table"
-          >
-            ▦ Table
-          </button>
-          {isActive("table") && (
-            <>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().addRowAfter().run()}
-                className={toolbarButtonClass}
-                title="Add row"
-              >
-                +Row
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().addColumnAfter().run()}
-                className={toolbarButtonClass}
-                title="Add column"
-              >
-                +Col
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().deleteRow().run()}
-                className={toolbarButtonClass}
-                title="Delete row"
-              >
-                −Row
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().deleteColumn().run()}
-                className={toolbarButtonClass}
-                title="Delete column"
-              >
-                −Col
-              </button>
-              <button
-                type="button"
-                onClick={() => editor?.chain().focus().deleteTable().run()}
-                className={toolbarButtonClass}
-                title="Delete table"
-              >
-                Delete table
-              </button>
-            </>
-          )}
-        </div>
-        {pendingInsert && (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-void-950 p-2">
-            <span className="text-xs font-semibold text-slate-300">Size / position:</span>
-            <input
-              value={pendingWidth}
-              onChange={(e) => setPendingWidth(e.target.value.replace(/\D/g, ""))}
-              placeholder="Width px"
-              inputMode="numeric"
-              className={`${menuInputClass} w-24`}
-            />
-            <input
-              value={pendingHeight}
-              onChange={(e) => setPendingHeight(e.target.value.replace(/\D/g, ""))}
-              placeholder="Height px"
-              inputMode="numeric"
-              className={`${menuInputClass} w-24`}
-            />
-            <button type="button" onClick={() => setPendingPosition("")} className={kindToggleClass(pendingPosition === "")}>
-              Inline
-            </button>
-            <button type="button" onClick={() => setPendingPosition("left")} className={kindToggleClass(pendingPosition === "left")}>
-              Float left
-            </button>
-            <button type="button" onClick={() => setPendingPosition("right")} className={kindToggleClass(pendingPosition === "right")}>
-              Float right
-            </button>
-            <button
-              type="button"
-              onClick={confirmPendingInsert}
-              className="rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-            >
-              Confirm
-            </button>
-            <button
-              type="button"
-              onClick={() => setPendingInsert(null)}
-              className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white"
-            >
-              Cancel
-            </button>
-          </div>
+          </>
         )}
+      </div>
+
+      <div hidden={viewMode !== "write"} className="mt-3">
         <BodyEditorContext.Provider value={{ resolveImageSrc, openImageOptions, renderHoverContent }}>
           <EditorContent
             editor={editor}
@@ -753,7 +763,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
         rows={16}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
+        className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
       />
     </div>
   );
