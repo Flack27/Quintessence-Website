@@ -13,6 +13,10 @@ import type { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
+import { Table as TiptapTable } from "@tiptap/extension-table";
+import { TableRow as TiptapTableRow } from "@tiptap/extension-table-row";
+import { TableHeader as TiptapTableHeader } from "@tiptap/extension-table-header";
+import { TableCell as TiptapTableCell } from "@tiptap/extension-table-cell";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
 import { parseImageMeta, isVideoAsset } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
@@ -44,8 +48,10 @@ interface MediaOption {
 
 interface BodyEditorContextValue {
   resolveImageSrc: (filename: string) => string;
-  promptImageOptions: () => string | undefined;
   renderHoverContent: (payload: string) => ReactNode;
+  /** Opens the size/position panel pre-filled from `currentMeta`, calling back with the new
+   *  "[size] [position]" string (or undefined to clear it) once the author confirms. */
+  openImageOptions: (currentMeta: string | undefined, onConfirm: (meta: string | undefined) => void) => void;
 }
 
 const BodyEditorContext = createContext<BodyEditorContextValue | null>(null);
@@ -77,8 +83,7 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeVi
   const style = width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined;
 
   function reconfigure() {
-    const meta = ctx!.promptImageOptions();
-    updateAttributes({ title: buildImageTitle(meta, hover) });
+    ctx!.openImageOptions(title ?? undefined, (meta) => updateAttributes({ title: buildImageTitle(meta, hover) }));
   }
 
   const media = isVideo ? (
@@ -141,7 +146,7 @@ const GuideImage = TiptapImage.extend({
 const GuideLink = TiptapLink.configure({ openOnClick: false, autolink: false });
 
 export interface BodyEditorHandle {
-  /** Inserts an already-uploaded image/video at the end of the document, prompting for size/position. */
+  /** Inserts an already-uploaded image/video at the caret, opening the size/position panel first. */
   insertMediaWithPrompt: (filename: string) => void;
 }
 
@@ -201,6 +206,13 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
       StarterKit.configure({ link: false, underline: false }),
       GuideImage,
       GuideLink,
+      // `resizable: false` - a plain, uniform grid keeps every table serializable back to GFM
+      // markdown (see tiptap-markdown's table spec: no merged/resized cells); the guide page's
+      // renderer wouldn't know what to do with column widths anyway.
+      TiptapTable.configure({ resizable: false }),
+      TiptapTableRow,
+      TiptapTableHeader,
+      TiptapTableCell,
       Markdown.configure({ html: false, tightLists: true, bulletListMarker: "-", linkify: false, breaks: false }),
     ],
     content: value,
@@ -245,25 +257,28 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
     return () => document.removeEventListener("mousedown", onClick);
   }, [showHoverMenu]);
 
-  function promptImageSize(): string | undefined {
-    const input = window.prompt('Pin a size in pixels? e.g. "400" or "400x250" — leave blank for original size', "");
-    const trimmed = input?.trim();
-    return trimmed && /^\d+(x\d+)?$/.test(trimmed) ? trimmed : undefined;
+  // The size/position panel shown after picking an image/video to insert, or after clicking
+  // an already-placed one's ⚙ control - replaces the old window.prompt() flow with proper
+  // width/height fields and left/inline/right buttons.
+  const [pendingInsert, setPendingInsert] = useState<{ onConfirm: (meta: string | undefined) => void } | null>(null);
+  const [pendingWidth, setPendingWidth] = useState("");
+  const [pendingHeight, setPendingHeight] = useState("");
+  const [pendingPosition, setPendingPosition] = useState<"" | "left" | "right">("");
+
+  function openImageOptions(currentMeta: string | undefined, onConfirm: (meta: string | undefined) => void) {
+    const { width, height, position } = parseImageMeta(currentMeta ?? null);
+    setPendingWidth(width ? String(width) : "");
+    setPendingHeight(height ? String(height) : "");
+    setPendingPosition(position ?? "");
+    setPendingInsert({ onConfirm });
   }
 
-  function promptImagePosition(): "left" | "right" | undefined {
-    const input = window.prompt(
-      'Place the image to the "left" or "right" of the text, with the text wrapping on the other side? Leave blank to keep it inline (full width)',
-      "",
-    );
-    const trimmed = input?.trim().toLowerCase();
-    return trimmed === "left" || trimmed === "right" ? trimmed : undefined;
-  }
-
-  function promptImageOptions(): string | undefined {
-    const size = promptImageSize();
-    const position = promptImagePosition();
-    return [size, position].filter(Boolean).join(" ") || undefined;
+  function confirmPendingInsert() {
+    if (!pendingInsert) return;
+    const size = pendingWidth ? (pendingHeight ? `${pendingWidth}x${pendingHeight}` : pendingWidth) : undefined;
+    const meta = [size, pendingPosition || undefined].filter(Boolean).join(" ") || undefined;
+    pendingInsert.onConfirm(meta);
+    setPendingInsert(null);
   }
 
   function insertMedia(filename: string, meta?: string) {
@@ -274,7 +289,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
   useImperativeHandle(ref, () => ({
     insertMediaWithPrompt(filename: string) {
       capturePendingRange();
-      insertMedia(filename, promptImageOptions());
+      openImageOptions(undefined, (meta) => insertMedia(filename, meta));
     },
   }));
 
@@ -433,8 +448,8 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
                       key={img.filename}
                       type="button"
                       onClick={() => {
-                        insertMedia(img.filename, promptImageOptions());
                         setShowImageMenu(false);
+                        openImageOptions(undefined, (meta) => insertMedia(img.filename, meta));
                       }}
                       className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
                     >
@@ -467,8 +482,8 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
                       key={vid.filename}
                       type="button"
                       onClick={() => {
-                        insertMedia(vid.filename, promptImageOptions());
                         setShowVideoMenu(false);
+                        openImageOptions(undefined, (meta) => insertMedia(vid.filename, meta));
                       }}
                       className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
                     >
@@ -576,14 +591,150 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
           </div>
           <button
             type="button"
+            onClick={() => editor?.chain().focus().toggleStrike().run()}
+            className={`${toolbarButtonClass} line-through ${isActive("strike") ? toolbarButtonActiveClass : ""}`}
+            title="Strikethrough"
+          >
+            S
+          </button>
+          <span className="mx-1 h-5 w-px bg-white/10" />
+          <button
+            type="button"
             onClick={() => editor?.chain().focus().toggleBulletList().run()}
             className={`${toolbarButtonClass} ${isActive("bulletList") ? toolbarButtonActiveClass : ""}`}
             title="Bullet list"
           >
             • List
           </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            className={`${toolbarButtonClass} ${isActive("orderedList") ? toolbarButtonActiveClass : ""}`}
+            title="Numbered list"
+          >
+            1. List
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+            className={`${toolbarButtonClass} ${isActive("blockquote") ? toolbarButtonActiveClass : ""}`}
+            title="Quote"
+          >
+            " Quote
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+            className={`${toolbarButtonClass} font-mono ${isActive("codeBlock") ? toolbarButtonActiveClass : ""}`}
+            title="Code block"
+          >
+            {"</>"}
+          </button>
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().setHorizontalRule().run()}
+            className={toolbarButtonClass}
+            title="Horizontal rule"
+          >
+            ―
+          </button>
+          <span className="mx-1 h-5 w-px bg-white/10" />
+          <button
+            type="button"
+            onClick={() => editor?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+            className={toolbarButtonClass}
+            title="Insert table"
+          >
+            ▦ Table
+          </button>
+          {isActive("table") && (
+            <>
+              <button
+                type="button"
+                onClick={() => editor?.chain().focus().addRowAfter().run()}
+                className={toolbarButtonClass}
+                title="Add row"
+              >
+                +Row
+              </button>
+              <button
+                type="button"
+                onClick={() => editor?.chain().focus().addColumnAfter().run()}
+                className={toolbarButtonClass}
+                title="Add column"
+              >
+                +Col
+              </button>
+              <button
+                type="button"
+                onClick={() => editor?.chain().focus().deleteRow().run()}
+                className={toolbarButtonClass}
+                title="Delete row"
+              >
+                −Row
+              </button>
+              <button
+                type="button"
+                onClick={() => editor?.chain().focus().deleteColumn().run()}
+                className={toolbarButtonClass}
+                title="Delete column"
+              >
+                −Col
+              </button>
+              <button
+                type="button"
+                onClick={() => editor?.chain().focus().deleteTable().run()}
+                className={toolbarButtonClass}
+                title="Delete table"
+              >
+                Delete table
+              </button>
+            </>
+          )}
         </div>
-        <BodyEditorContext.Provider value={{ resolveImageSrc, promptImageOptions, renderHoverContent }}>
+        {pendingInsert && (
+          <div className="mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-void-950 p-2">
+            <span className="text-xs font-semibold text-slate-300">Size / position:</span>
+            <input
+              value={pendingWidth}
+              onChange={(e) => setPendingWidth(e.target.value.replace(/\D/g, ""))}
+              placeholder="Width px"
+              inputMode="numeric"
+              className={`${menuInputClass} w-24`}
+            />
+            <input
+              value={pendingHeight}
+              onChange={(e) => setPendingHeight(e.target.value.replace(/\D/g, ""))}
+              placeholder="Height px"
+              inputMode="numeric"
+              className={`${menuInputClass} w-24`}
+            />
+            <button type="button" onClick={() => setPendingPosition("")} className={kindToggleClass(pendingPosition === "")}>
+              Inline
+            </button>
+            <button type="button" onClick={() => setPendingPosition("left")} className={kindToggleClass(pendingPosition === "left")}>
+              Float left
+            </button>
+            <button type="button" onClick={() => setPendingPosition("right")} className={kindToggleClass(pendingPosition === "right")}>
+              Float right
+            </button>
+            <button
+              type="button"
+              onClick={confirmPendingInsert}
+              className="rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              Confirm
+            </button>
+            <button
+              type="button"
+              onClick={() => setPendingInsert(null)}
+              className="rounded-md border border-white/10 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        <BodyEditorContext.Provider value={{ resolveImageSrc, openImageOptions, renderHoverContent }}>
           <EditorContent
             editor={editor}
             className="prose-codex w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus-within:border-quint-purple/60 focus-within:bg-white/[0.06] min-h-[24rem] [&_.ProseMirror]:min-h-[22rem] [&_.ProseMirror]:outline-none"
