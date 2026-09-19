@@ -1,14 +1,10 @@
-import { useRef, useState, type ChangeEvent, type FormEvent, type MouseEvent as ReactMouseEvent, useEffect} from "react";
-import { flushSync } from "react-dom";
+import { useRef, useState, type ChangeEvent, type FormEvent, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeSlug from "rehype-slug";
 import { useAuth } from "@/lib/AuthContext";
 import { CODEX_API } from "@/lib/config";
-import { fetchPost, resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset } from "@/lib/content";
+import { fetchPost, resolveAssetUrl, parseHoverPayload, isVideoAsset } from "@/lib/content";
 import { SECTION_ORDER } from "@/lib/sections";
-import { HoverPopup } from "@/components/HoverPopup";
+import { BodyEditor, type BodyEditorHandle } from "@/components/BodyEditor";
 import type { Post } from "@/types/post";
 
 const inputClass =
@@ -20,18 +16,6 @@ const selectClass = `${inputClass} appearance-none bg-void-950 pr-10`;
 // spelled out), so the dropdown list matches the closed field instead of falling back to white.
 const optionClass = "bg-void-950 text-slate-100";
 const labelClass = "mb-1.5 block text-sm font-medium text-slate-300";
-const toolbarButtonClass =
-  "rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1.5 text-xs font-semibold text-slate-300 transition-colors hover:border-quint-purple/60 hover:bg-white/[0.08] hover:text-white";
-const menuInputClass =
-  "w-full rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-xs text-slate-100 outline-none transition-colors focus:border-quint-purple/60";
-const menuSelectClass = `${menuInputClass} appearance-none bg-void-950`;
-function kindToggleClass(active: boolean) {
-  return `flex-1 rounded-md border px-2 py-1 text-xs font-semibold transition-colors ${
-    active
-      ? "border-quint-purple/60 bg-white/[0.08] text-white"
-      : "border-white/10 bg-white/[0.02] text-slate-400 hover:text-slate-200"
-  }`;
-}
 
 function SelectChevron() {
   return (
@@ -207,63 +191,7 @@ export function PublishPage() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showImageMenu, setShowImageMenu] = useState(false);
-  const [showVideoMenu, setShowVideoMenu] = useState(false);
-  const [bodyView, setBodyView] = useState<"editor" | "preview">("editor");
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const imageMenuRef = useRef<HTMLDivElement>(null);
-  const videoMenuRef = useRef<HTMLDivElement>(null);
-  // Snapshot of the body textarea's caret, taken right before a window.prompt() or a
-  // multi-field panel (which both steal focus for a while) so the eventual insert lands
-  // back where the caret actually was, not wherever focus loss left selectionStart/End.
-  const pendingRangeRef = useRef<{ start: number; end: number } | null>(null);
-
-  const [showHoverMenu, setShowHoverMenu] = useState(false);
-  const [hoverTriggerKind, setHoverTriggerKind] = useState<"text" | "image">("text");
-  const [hoverTriggerText, setHoverTriggerText] = useState("");
-  const [hoverTriggerImage, setHoverTriggerImage] = useState("");
-  const [hoverPopupKind, setHoverPopupKind] = useState<"text" | "image">("text");
-  const [hoverPopupText, setHoverPopupText] = useState("");
-  const [hoverPopupImage, setHoverPopupImage] = useState("");
-  const [hoverPopupImageSize, setHoverPopupImageSize] = useState("");
-  const [hoverFormError, setHoverFormError] = useState<string | null>(null);
-  const hoverMenuRef = useRef<HTMLDivElement>(null);
-
-  // Closes the toolbar's image dropdown on an outside click, same as a native <select>.
-  useEffect(() => {
-    if (!showImageMenu) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (imageMenuRef.current && !imageMenuRef.current.contains(event.target as Node)) {
-        setShowImageMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showImageMenu]);
-
-  // Same for the toolbar's video dropdown.
-  useEffect(() => {
-    if (!showVideoMenu) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (videoMenuRef.current && !videoMenuRef.current.contains(event.target as Node)) {
-        setShowVideoMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showVideoMenu]);
-
-  // Same for the hover-popup form.
-  useEffect(() => {
-    if (!showHoverMenu) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (hoverMenuRef.current && !hoverMenuRef.current.contains(event.target as Node)) {
-        setShowHoverMenu(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showHoverMenu]);
+  const bodyEditorRef = useRef<BodyEditorHandle>(null);
 
   const existingCover = existingPost?.frontmatter.cover;
   const canEditThis = isEditing && Boolean(canModerate || (user && user.id === existingPost?.frontmatter.authorId));
@@ -459,47 +387,6 @@ export function PublishPage() {
     return resolveAssetUrl(form.slug || "preview", filename) ?? filename;
   }
 
-  /** Reads a markdown AST node's source offsets, for tagging preview elements so a click can jump back to them. */
-  function sourcePosAttrs(node: { position?: { start?: { offset?: number }; end?: { offset?: number } } } | undefined) {
-    const start = node?.position?.start?.offset;
-    const end = node?.position?.end?.offset;
-    return typeof start === "number" && typeof end === "number"
-      ? { "data-src-start": start, "data-src-end": end }
-      : {};
-  }
-
-  /** Wraps a plain tag so its rendered element carries the source offsets of the markdown node it came from. */
-  function withSourcePos(Tag: string) {
-    return function SourcePosTag({ node, children, ...rest }: any) {
-      return (
-        <Tag {...rest} {...sourcePosAttrs(node)}>
-          {children}
-        </Tag>
-      );
-    };
-  }
-
-  /** Switches to the Editor tab and places the caret at a source offset from a preview click. */
-  function jumpToSource(offset: number) {
-    flushSync(() => setBodyView("editor"));
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-    textarea.focus();
-    textarea.setSelectionRange(offset, offset);
-    const lineIndex = textarea.value.slice(0, offset).split("\n").length - 1;
-    const lineHeight = parseFloat(getComputedStyle(textarea).lineHeight) || 20;
-    textarea.scrollTop = Math.max(0, lineIndex * lineHeight - textarea.clientHeight / 2);
-  }
-
-  /** Click-to-edit: clicking any tagged element in the preview jumps back to its spot in the raw markdown. */
-  function handlePreviewClick(event: ReactMouseEvent<HTMLDivElement>) {
-    const target = (event.target as HTMLElement).closest("[data-src-start]") as HTMLElement | null;
-    if (!target) return;
-    const start = Number(target.getAttribute("data-src-start"));
-    if (Number.isNaN(start)) return;
-    jumpToSource(start);
-  }
-
   /** Renders a hover payload (image or text) as popup content for the preview. */
   function renderHoverPreviewContent(payload: string) {
     const { type, value, width, height } = parseHoverPayload(payload);
@@ -521,203 +408,13 @@ export function PublishPage() {
     return <span>{value}</span>;
   }
 
-  /** Asks for an explicit pixel size to pin on an inserted image; blank/cancel keeps the original size. */
-  function promptImageSize(): string | undefined {
-    const input = window.prompt('Pin a size in pixels? e.g. "400" or "400x250" — leave blank for original size', "");
-    const trimmed = input?.trim();
-    return trimmed && /^\d+(x\d+)?$/.test(trimmed) ? trimmed : undefined;
-  }
-
-  /** Asks whether the image should float left/right of the text; blank/cancel keeps it inline. */
-  function promptImagePosition(): "left" | "right" | undefined {
-    const input = window.prompt(
-      'Place the image to the "left" or "right" of the text, with the text wrapping on the other side? Leave blank to keep it inline (full width)',
-      ""
-    );
-    const trimmed = input?.trim().toLowerCase();
-    return trimmed === "left" || trimmed === "right" ? trimmed : undefined;
-  }
-
-  /** Asks for size and left/right placement, combined into the title markdown images pin metadata to. */
-  function promptImageOptions(): string | undefined {
-    const size = promptImageSize();
-    const position = promptImagePosition();
-    return [size, position].filter(Boolean).join(" ") || undefined;
-  }
-
-  /** Grabs the body textarea's current caret so a later insert can use it instead of whatever
-   *  selectionStart/End look like after a window.prompt() or panel steals focus in between. */
-  function capturePendingRange() {
-    const textarea = bodyRef.current;
-    pendingRangeRef.current = textarea ? { start: textarea.selectionStart, end: textarea.selectionEnd } : null;
-  }
-
-  /** Inserts markdown at the cursor (or appends it, if the body textarea isn't mounted yet). */
-  function insertAtCursor(markdown: string) {
-    const textarea = bodyRef.current;
-
-    if (!textarea) {
-      update("body", form.body ? `${form.body}\n${markdown}\n` : `${markdown}\n`);
-      return;
-    }
-
-    const range = pendingRangeRef.current;
-    pendingRangeRef.current = null;
-    const selectionStart = range?.start ?? textarea.selectionStart;
-    const selectionEnd = range?.end ?? textarea.selectionEnd;
-    const { value } = textarea;
-    const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
-
-    // flushSync forces the controlled textarea's DOM value to update *before* we touch its
-    // selection, instead of a requestAnimationFrame racing an async re-render - without it,
-    // the caret could land wherever the browser happened to leave it (often the end of the
-    // text) rather than right after what was just inserted.
-    flushSync(() => update("body", nextBody));
-
-    const cursor = selectionStart + markdown.length;
-    textarea.focus();
-    textarea.setSelectionRange(cursor, cursor);
-  }
-
-  /** Inserts an image or video reference - same `![](file "meta")` syntax, the extension picks the tag at render time. */
-  function insertMediaMarkdown(filename: string, meta?: string) {
-    insertAtCursor(meta ? `![](${filename} "${meta}")` : `![](${filename})`);
-  }
-
-  /** Quotes can't appear literally inside a markdown title, so swap them for the closest safe character. */
-  function escapeMarkdownTitle(value: string): string {
-    return value.replace(/"/g, "'");
-  }
-
-  /** Builds the `hover "…"` / `hover:…` markdown for a hover-popup insertion and drops it at the cursor. */
-  function insertHoverPopup(
-    trigger: { kind: "text"; value: string } | { kind: "image"; value: string },
-    popup: { kind: "text"; value: string } | { kind: "image"; value: string; size?: string }
-  ) {
-    const popupPayload =
-      popup.kind === "image" ? `img:${popup.value}${popup.size ? ` ${popup.size}` : ""}` : popup.value;
-    const payload = escapeMarkdownTitle(popupPayload);
-    const markdown =
-      trigger.kind === "text"
-        ? `[${trigger.value}](hover "${payload}")`
-        : `![](${trigger.value} "hover:${payload}")`;
-    insertAtCursor(markdown);
-  }
-
-  /** Reads the hover-popup form, validates it, and inserts the markdown it describes. */
-  function submitHoverPopup() {
-    const triggerValue = hoverTriggerKind === "text" ? hoverTriggerText.trim() : hoverTriggerImage;
-    const popupValue = hoverPopupKind === "text" ? hoverPopupText.trim() : hoverPopupImage;
-
-    if (!triggerValue || !popupValue) {
-      setHoverFormError("Fill in (or pick an image for) both the trigger and the popup content.");
-      return;
-    }
-
-    const size = hoverPopupImageSize.trim();
-    if (hoverPopupKind === "image" && size && !/^\d+(x\d+)?$/.test(size)) {
-      setHoverFormError('Popup image size must look like "400" or "400x250".');
-      return;
-    }
-
-    insertHoverPopup(
-      { kind: hoverTriggerKind, value: triggerValue },
-      { kind: hoverPopupKind, value: popupValue, size: hoverPopupKind === "image" ? size || undefined : undefined }
-    );
-
-    setShowHoverMenu(false);
-    setHoverFormError(null);
-    setHoverTriggerKind("text");
-    setHoverTriggerText("");
-    setHoverTriggerImage("");
-    setHoverPopupKind("text");
-    setHoverPopupText("");
-    setHoverPopupImage("");
-    setHoverPopupImageSize("");
-  }
-
-  /** Wraps the selection in `before`/`after` (e.g. "**bold**"), or inserts a placeholder. */
-  function applyInline(before: string, after: string, placeholder: string) {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selected = value.slice(selectionStart, selectionEnd) || placeholder;
-    const nextBody = `${value.slice(0, selectionStart)}${before}${selected}${after}${value.slice(selectionEnd)}`;
-    flushSync(() => update("body", nextBody));
-
-    const start = selectionStart + before.length;
-    const end = start + selected.length;
-    textarea.focus();
-    textarea.setSelectionRange(start, end);
-  }
-
-  /** Sets the current line's heading level, replacing any marker it already has (toggles off on repeat). */
-  function applyHeading(level: number) {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-    const lineEnd = value.indexOf("\n", selectionEnd) === -1 ? value.length : value.indexOf("\n", selectionEnd);
-
-    const line = value.slice(lineStart, lineEnd);
-    const match = line.match(/^(#{1,6})\s+/);
-    const stripped = match ? line.slice(match[0].length) : line;
-    const isSameLevel = Boolean(match && match[1].length === level);
-    const nextLine = isSameLevel ? stripped : `${"#".repeat(level)} ${stripped}`;
-
-    const nextBody = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`;
-    flushSync(() => update("body", nextBody));
-
-    const delta = nextLine.length - line.length;
-    textarea.focus();
-    textarea.setSelectionRange(lineStart, lineEnd + delta);
-  }
-
-  /** Toggles a per-line prefix (e.g. "- ") across every line the selection touches. */
-  function applyLinePrefix(prefix: string) {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-    const lineEnd = value.indexOf("\n", selectionEnd) === -1 ? value.length : value.indexOf("\n", selectionEnd);
-
-    const block = value.slice(lineStart, lineEnd);
-    const lines = block.split("\n");
-    const alreadyApplied = lines.every((line) => line.startsWith(prefix));
-    const nextBlock = lines.map((line) => (alreadyApplied ? line.slice(prefix.length) : `${prefix}${line}`)).join("\n");
-
-    const nextBody = `${value.slice(0, lineStart)}${nextBlock}${value.slice(lineEnd)}`;
-    flushSync(() => update("body", nextBody));
-
-    const delta = nextBlock.length - block.length;
-    textarea.focus();
-    textarea.setSelectionRange(lineStart, lineEnd + delta);
-  }
-
-  function insertLink() {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const url = window.prompt("Link URL", "https://");
-    if (!url) return;
-
-    const selected = value.slice(selectionStart, selectionEnd) || "link text";
-    const markdown = `[${selected}](${url})`;
-    const nextBody = `${value.slice(0, selectionStart)}${markdown}${value.slice(selectionEnd)}`;
-    flushSync(() => update("body", nextBody));
-
-    const cursor = selectionStart + markdown.length;
-    textarea.focus();
-    textarea.setSelectionRange(cursor, cursor);
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (imagesUploading) return;
+    if (!form.body.trim()) {
+      setError("The guide's body can't be empty.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -958,10 +655,7 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      capturePendingRange();
-                      insertMediaMarkdown(img.filename, promptImageOptions());
-                    }}
+                    onClick={() => bodyEditorRef.current?.insertMediaWithPrompt(img.filename)}
                     disabled={img.status !== "done"}
                     className="block w-full text-left disabled:cursor-not-allowed"
                     title={
@@ -1020,10 +714,7 @@ export function PublishPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      capturePendingRange();
-                      insertMediaMarkdown(vid.filename, promptImageOptions());
-                    }}
+                    onClick={() => bodyEditorRef.current?.insertMediaWithPrompt(vid.filename)}
                     disabled={vid.status !== "done"}
                     className="block w-full text-left disabled:cursor-not-allowed"
                     title={
@@ -1091,355 +782,15 @@ export function PublishPage() {
           <label className={labelClass} htmlFor="body">
             Body
           </label>
-          <div className="mb-2 flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setBodyView("editor")}
-              className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                bodyView === "editor"
-                  ? "border-white/10 bg-white/[0.06] text-white"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              Editor
-            </button>
-            <button
-              type="button"
-              onClick={() => setBodyView("preview")}
-              className={`rounded-t-lg border border-b-0 px-3 py-1.5 text-xs font-semibold transition-colors ${
-                bodyView === "preview"
-                  ? "border-white/10 bg-white/[0.06] text-white"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              Preview
-            </button>
-          </div>
-          {bodyView === "editor" ? (
-          <>
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <button type="button" onClick={() => applyHeading(1)} className={toolbarButtonClass} title="Heading 1">
-              H1
-            </button>
-            <button type="button" onClick={() => applyHeading(2)} className={toolbarButtonClass} title="Heading 2">
-              H2
-            </button>
-            <button type="button" onClick={() => applyHeading(3)} className={toolbarButtonClass} title="Heading 3">
-              H3
-            </button>
-            <span className="mx-1 h-5 w-px bg-white/10" />
-            <button
-              type="button"
-              onClick={() => applyInline("**", "**", "bold text")}
-              className={`${toolbarButtonClass} font-bold`}
-              title="Bold"
-            >
-              B
-            </button>
-            <button
-              type="button"
-              onClick={() => applyInline("_", "_", "italic text")}
-              className={`${toolbarButtonClass} italic`}
-              title="Italic"
-            >
-              I
-            </button>
-            <span className="mx-1 h-5 w-px bg-white/10" />
-            <button type="button" onClick={insertLink} className={toolbarButtonClass} title="Link">
-              🔗 Link
-            </button>
-            <div ref={imageMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowImageMenu((prev) => !prev)}
-                className={toolbarButtonClass}
-                title="Image"
-              >
-                🖼 Image
-              </button>
-              {showImageMenu && (
-                <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
-                  {insertableImages.length === 0 ? (
-                    <p className="px-2 py-1.5 text-xs text-slate-400">
-                      No images uploaded yet — add one in the Images section below.
-                    </p>
-                  ) : (
-                    insertableImages.map((img) => (
-                      <button
-                        key={img.filename}
-                        type="button"
-                        onClick={() => {
-                          capturePendingRange();
-                          insertMediaMarkdown(img.filename, promptImageOptions());
-                          setShowImageMenu(false);
-                        }}
-                        className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
-                      >
-                        {img.filename}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-            <div ref={videoMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setShowVideoMenu((prev) => !prev)}
-                className={toolbarButtonClass}
-                title="Video"
-              >
-                🎬 Video
-              </button>
-              {showVideoMenu && (
-                <div className="absolute left-0 top-full z-10 mt-1 w-48 rounded-lg border border-white/10 bg-void-950 p-1.5 shadow-xl">
-                  {insertableVideos.length === 0 ? (
-                    <p className="px-2 py-1.5 text-xs text-slate-400">
-                      No videos uploaded yet — add one in the Videos section below.
-                    </p>
-                  ) : (
-                    insertableVideos.map((vid) => (
-                      <button
-                        key={vid.filename}
-                        type="button"
-                        onClick={() => {
-                          capturePendingRange();
-                          insertMediaMarkdown(vid.filename, promptImageOptions());
-                          setShowVideoMenu(false);
-                        }}
-                        className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs text-slate-200 hover:bg-white/10"
-                      >
-                        {vid.filename}
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-            <div ref={hoverMenuRef} className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  capturePendingRange();
-                  setHoverFormError(null);
-                  setShowHoverMenu((prev) => !prev);
-                }}
-                className={toolbarButtonClass}
-                title="Hover popup"
-              >
-                💬 Hover
-              </button>
-              {showHoverMenu && (
-                <div className="absolute left-0 top-full z-10 mt-1 w-72 space-y-3 rounded-lg border border-white/10 bg-void-950 p-3 shadow-xl">
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold text-slate-300">What gets hovered</p>
-                    <div className="mb-1.5 flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setHoverTriggerKind("text")}
-                        className={kindToggleClass(hoverTriggerKind === "text")}
-                      >
-                        Text
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setHoverTriggerKind("image")}
-                        className={kindToggleClass(hoverTriggerKind === "image")}
-                      >
-                        Image
-                      </button>
-                    </div>
-                    {hoverTriggerKind === "text" ? (
-                      <input
-                        value={hoverTriggerText}
-                        onChange={(e) => setHoverTriggerText(e.target.value)}
-                        placeholder="Word or phrase to hover"
-                        className={menuInputClass}
-                      />
-                    ) : (
-                      <select
-                        value={hoverTriggerImage}
-                        onChange={(e) => setHoverTriggerImage(e.target.value)}
-                        className={menuSelectClass}
-                      >
-                        <option value="" className={optionClass}>
-                          Select an image…
-                        </option>
-                        {insertableImages.map((img) => (
-                          <option key={img.filename} value={img.filename} className={optionClass}>
-                            {img.filename}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                  <div>
-                    <p className="mb-1.5 text-xs font-semibold text-slate-300">Popup content (shown on hover)</p>
-                    <div className="mb-1.5 flex gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setHoverPopupKind("text")}
-                        className={kindToggleClass(hoverPopupKind === "text")}
-                      >
-                        Text
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setHoverPopupKind("image")}
-                        className={kindToggleClass(hoverPopupKind === "image")}
-                      >
-                        Image
-                      </button>
-                    </div>
-                    {hoverPopupKind === "text" ? (
-                      <textarea
-                        value={hoverPopupText}
-                        onChange={(e) => setHoverPopupText(e.target.value)}
-                        rows={2}
-                        placeholder="Text to show in the popup"
-                        className={menuInputClass}
-                      />
-                    ) : (
-                      <div className="space-y-1.5">
-                        <select
-                          value={hoverPopupImage}
-                          onChange={(e) => setHoverPopupImage(e.target.value)}
-                          className={menuSelectClass}
-                        >
-                          <option value="" className={optionClass}>
-                            Select an image…
-                          </option>
-                          {insertableImages.map((img) => (
-                            <option key={img.filename} value={img.filename} className={optionClass}>
-                              {img.filename}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          value={hoverPopupImageSize}
-                          onChange={(e) => setHoverPopupImageSize(e.target.value)}
-                          placeholder='Size in pixels, e.g. "400" or "400x250" (optional)'
-                          className={menuInputClass}
-                        />
-                      </div>
-                    )}
-                  </div>
-                  {hoverFormError && <p className="text-xs text-red-400">{hoverFormError}</p>}
-                  <button
-                    type="button"
-                    onClick={submitHoverPopup}
-                    className="w-full rounded-md bg-quint-gradient px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-                  >
-                    Insert
-                  </button>
-                </div>
-              )}
-            </div>
-            <button type="button" onClick={() => applyLinePrefix("- ")} className={toolbarButtonClass} title="Bullet list">
-              • List
-            </button>
-          </div>
-          <textarea
-            id="body"
-            ref={bodyRef}
-            required
-            rows={16}
+          <BodyEditor
+            ref={bodyEditorRef}
             value={form.body}
-            onChange={(e) => update("body", e.target.value)}
-            className={`${inputClass} font-mono`}
+            onChange={(next) => update("body", next)}
+            insertableImages={insertableImages}
+            insertableVideos={insertableVideos}
+            resolveImageSrc={resolvePreviewImageSrc}
+            renderHoverContent={renderHoverPreviewContent}
           />
-          </>
-          ) : (
-            <div
-              className={`${inputClass} prose-codex min-h-[24rem] overflow-y-auto`}
-              onClick={handlePreviewClick}
-              title="Click any element to edit its markdown"
-            >
-              {form.body.trim() ? (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeSlug]}
-                  components={{
-                    p: withSourcePos("p"),
-                    li: withSourcePos("li"),
-                    h1: withSourcePos("h1"),
-                    h2: withSourcePos("h2"),
-                    h3: withSourcePos("h3"),
-                    h4: withSourcePos("h4"),
-                    h5: withSourcePos("h5"),
-                    h6: withSourcePos("h6"),
-                    blockquote: withSourcePos("blockquote"),
-                    a: ({ node, href, title, children }) => {
-                      if (href === "hover") {
-                        return (
-                          <HoverPopup
-                            trigger={
-                              <span
-                                {...sourcePosAttrs(node)}
-                                className="border-b border-dashed border-slate-400 transition-colors group-hover:border-white group-hover:text-white"
-                              >
-                                {children}
-                              </span>
-                            }
-                            content={renderHoverPreviewContent(title ?? "")}
-                          />
-                        );
-                      }
-                      return (
-                        <a href={href} title={title} {...sourcePosAttrs(node)}>
-                          {children}
-                        </a>
-                      );
-                    },
-                    img: ({ node, src, alt, title }) => {
-                      const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
-                      const resolved = resolvePreviewImageSrc(filename);
-                      const { width, height, position, hover } = parseImageMeta(title);
-                      const floatClass =
-                        position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
-                      const posAttrs = sourcePosAttrs(node);
-
-                      if (isVideoAsset(filename)) {
-                        return (
-                          <video
-                            src={resolved}
-                            controls
-                            className={floatClass}
-                            style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
-                            {...posAttrs}
-                          />
-                        );
-                      }
-                      const hoverClass = hover
-                        ? "transition duration-150 group-hover:scale-[1.03] group-hover:brightness-110 !my-0"
-                        : undefined;
-                      const image = (
-                        <img
-                          src={resolved}
-                          alt={alt ?? ""}
-                          title={width || position || hover ? undefined : title}
-                          className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
-                          style={width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined}
-                          loading="lazy"
-                          {...posAttrs}
-                        />
-                      );
-                      return hover ? <HoverPopup trigger={image} content={renderHoverPreviewContent(hover)} /> : image;
-                    },
-                    table: ({ node, children }) => (
-                      <div className="my-6 overflow-x-auto rounded-xl border border-white/10" {...sourcePosAttrs(node)}>
-                        <table>{children}</table>
-                      </div>
-                    ),
-                  }}
-                >
-                  {form.body}
-                </ReactMarkdown>
-              ) : (
-                <p className="text-sm text-slate-500">Nothing to preview yet — switch back to Editor and start writing.</p>
-              )}
-            </div>
-          )}
         </div>
 
         {error && <p className="text-sm text-red-400">{error}</p>}

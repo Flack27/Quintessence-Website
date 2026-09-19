@@ -124,20 +124,23 @@ h6 {
   @apply my-6 block max-w-full h-auto mx-auto rounded-xl border border-white/10;
 }
 
-/* Floated beside text (set from the "left"/"right" option when inserting an
-   image). Stacked full-width on small screens, where there isn't room to wrap
-   text beside the image without squeezing both. */
-.prose-codex img.img-float-left,
-.prose-codex img.img-float-right {
+/* Floated beside text (set from the "left"/"right" option when inserting an image).
+   Not scoped to `img` - the guide page floats the `<img>`/`<video>` tag directly, but the
+   publish editor's Tiptap node view wraps it in a `<div>` (see BodyEditor's ImageView) so it
+   can add its own edit/remove controls; both need the same float/divider treatment. Stacked
+   full-width on small screens, where there isn't room to wrap text beside the image without
+   squeezing both. */
+.prose-codex .img-float-left,
+.prose-codex .img-float-right {
   @apply mx-0 mt-1 mb-4;
 }
 
 @media (min-width: 640px) {
-  .prose-codex img.img-float-left {
+  .prose-codex .img-float-left {
     @apply float-left mr-4 max-w-[45%] border-r border-white/15 pr-3;
   }
 
-  .prose-codex img.img-float-right {
+  .prose-codex .img-float-right {
     @apply float-right ml-4 max-w-[45%] border-l border-white/15 pl-3;
   }
 }
@@ -146,16 +149,17 @@ h6 {
   @apply my-10 border-white/10;
 }
 
-/* Click-to-edit affordance in the publish-page preview: only elements the preview tags
-   with a source offset (see PublishPage's `withSourcePos`/`sourcePosAttrs`) get this -
-   the read-only guide page never sets `data-src-start`, so it's unaffected. */
-.prose-codex [data-src-start] {
-  cursor: pointer;
+/* The hover-popup sentinel link (`[text](hover "payload")`) - in the editor there's no live
+   preview-on-hover (see BodyEditor's comment on GuideLink), just this dashed underline so the
+   author can see and select it; the real guide page (MarkdownRenderer) swaps in the actual
+   HoverPopup component instead of relying on this rule. */
+.prose-codex a[href="hover"] {
+  @apply cursor-help border-b border-dashed border-slate-400 no-underline;
 }
 
-.prose-codex [data-src-start]:hover {
-  outline: 1px dashed rgba(255, 255, 255, 0.3);
-  outline-offset: 3px;
+/* Tiptap's editable surface - kept visually identical to the read-only render above it. */
+.ProseMirror {
+  outline: none;
 }
 
 .prose-codex table {
