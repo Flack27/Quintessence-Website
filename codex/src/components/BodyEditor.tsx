@@ -14,9 +14,6 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeSlug from "rehype-slug";
 import { parseImageMeta, isVideoAsset } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 
@@ -198,30 +195,6 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
     return range ? chain.setTextSelection(range) : chain;
   }
 
-  // Keeps the editor and the read-only preview scrolled to roughly the same relative
-  // position, in whichever direction the author scrolls. Guarded by `syncingScrollRef` so
-  // programmatically moving one side's scrollTop doesn't bounce straight back and forth.
-  const editorScrollRef = useRef<HTMLDivElement>(null);
-  const markdownScrollRef = useRef<HTMLTextAreaElement>(null);
-  const previewScrollRef = useRef<HTMLDivElement>(null);
-  const syncingScrollRef = useRef(false);
-
-  function syncScroll(source: HTMLElement, target: HTMLElement | null) {
-    if (!target || syncingScrollRef.current) return;
-    const sourceRange = source.scrollHeight - source.clientHeight;
-    const targetRange = target.scrollHeight - target.clientHeight;
-    if (sourceRange <= 0 || targetRange <= 0) return;
-    syncingScrollRef.current = true;
-    target.scrollTop = (source.scrollTop / sourceRange) * targetRange;
-    requestAnimationFrame(() => {
-      syncingScrollRef.current = false;
-    });
-  }
-
-  function activeEditorScrollEl() {
-    return viewMode === "write" ? editorScrollRef.current : markdownScrollRef.current;
-  }
-
   const editor = useEditor({
     immediatelyRender: true,
     extensions: [
@@ -367,75 +340,9 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
 
   const isActive = (name: string, attrs?: Record<string, unknown>) => Boolean(editor?.isActive(name, attrs));
 
-  /** Read-only render of the current markdown, matching the real guide page as closely as
-   *  this editor's own components let it - independent of whether Write or Markdown is
-   *  active, so it always reflects the latest content either view has produced. */
-  function renderPreview() {
-    if (!value.trim()) {
-      return <p className="text-sm text-slate-500">Nothing to preview yet.</p>;
-    }
-    return (
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSlug]}
-        components={{
-          a: ({ href, title, children }) => {
-            if (href === "hover") {
-              return (
-                <HoverPopup
-                  trigger={
-                    <span className="border-b border-dashed border-slate-400 transition-colors hover:border-white hover:text-white">
-                      {children}
-                    </span>
-                  }
-                  content={renderHoverContent(title ?? "")}
-                />
-              );
-            }
-            return (
-              <a href={href} title={title}>
-                {children}
-              </a>
-            );
-          },
-          img: ({ src, alt, title }) => {
-            const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
-            const resolved = resolveImageSrc(filename);
-            const { width, height, position, hover } = parseImageMeta(title);
-            const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
-            const style = width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined;
-
-            if (isVideoAsset(filename)) {
-              return <video src={resolved} controls className={floatClass} style={style} />;
-            }
-            const hoverClass = hover ? "transition duration-150 hover:scale-[1.03] hover:brightness-110 !my-0" : undefined;
-            const image = (
-              <img
-                src={resolved}
-                alt={alt ?? ""}
-                className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
-                style={style}
-                loading="lazy"
-              />
-            );
-            return hover ? <HoverPopup trigger={image} content={renderHoverContent(hover)} /> : image;
-          },
-          table: ({ children }) => (
-            <div className="my-6 overflow-x-auto rounded-xl border border-white/10">
-              <table>{children}</table>
-            </div>
-          ),
-        }}
-      >
-        {value}
-      </ReactMarkdown>
-    );
-  }
-
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="min-w-0 flex-1">
-        <div className="mb-2 flex items-center gap-1">
+    <div>
+      <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
           onClick={() => setViewMode("write")}
@@ -677,38 +584,21 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
           </button>
         </div>
         <BodyEditorContext.Provider value={{ resolveImageSrc, promptImageOptions, renderHoverContent }}>
-          <div
-            ref={editorScrollRef}
-            onScroll={(e) => syncScroll(e.currentTarget, previewScrollRef.current)}
-            className="prose-codex max-h-[32rem] w-full overflow-y-auto rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus-within:border-quint-purple/60 focus-within:bg-white/[0.06] [&_.ProseMirror]:min-h-[28rem] [&_.ProseMirror]:outline-none"
-          >
-            <EditorContent editor={editor} />
-          </div>
+          <EditorContent
+            editor={editor}
+            className="prose-codex w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus-within:border-quint-purple/60 focus-within:bg-white/[0.06] min-h-[24rem] [&_.ProseMirror]:min-h-[22rem] [&_.ProseMirror]:outline-none"
+          />
         </BodyEditorContext.Provider>
       </div>
 
       <textarea
-        ref={markdownScrollRef}
-        onScroll={(e) => syncScroll(e.currentTarget, previewScrollRef.current)}
         hidden={viewMode !== "markdown"}
         required={viewMode === "markdown"}
         rows={16}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="max-h-[32rem] w-full overflow-y-auto rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
+        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
       />
     </div>
-
-    <div className="min-w-0 flex-1">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Preview</p>
-      <div
-        ref={previewScrollRef}
-        onScroll={(e) => syncScroll(e.currentTarget, activeEditorScrollEl())}
-        className="prose-codex max-h-[32rem] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3"
-      >
-        {renderPreview()}
-      </div>
-    </div>
-  </div>
   );
 });
