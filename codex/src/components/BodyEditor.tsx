@@ -201,7 +201,12 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
   }
 
   const editor = useEditor({
-    immediatelyRender: true,
+    // false, not true: with React.StrictMode (which this app's main.tsx uses), a `true` here
+    // has the editor render synchronously during the intentional double-mount, which can leave
+    // `onUpdate` closing over an editor instance StrictMode already tore down - the exact
+    // "Cannot read properties of undefined (reading 'getMarkdown')" crash that was silently
+    // taking out this whole component (hence "no Table button", "no tables", "tables vanish").
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({ link: false, underline: false }),
       GuideImage,
