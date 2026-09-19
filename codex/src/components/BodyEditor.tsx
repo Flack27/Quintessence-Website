@@ -14,6 +14,9 @@ import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSlug from "rehype-slug";
 import { parseImageMeta, isVideoAsset } from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 
@@ -177,6 +180,48 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
   const videoMenuRef = useRef<HTMLDivElement>(null);
   const hoverMenuRef = useRef<HTMLDivElement>(null);
 
+  // Snapshot of the editor's selection, taken right before opening a dropdown/panel or a
+  // window.prompt() - all of which move DOM focus away from the editor for a while. Tiptap's
+  // `.focus()` restores focus but doesn't reliably restore *where the caret was*, so without
+  // this the eventual insert could land at the wrong spot (or reset to the top of the doc).
+  const pendingRangeRef = useRef<{ from: number; to: number } | null>(null);
+
+  function capturePendingRange() {
+    pendingRangeRef.current = editor ? { from: editor.state.selection.from, to: editor.state.selection.to } : null;
+  }
+
+  /** Focuses the editor and, if a range was captured beforehand, restores the selection to it. */
+  function focusChain() {
+    const chain = editor!.chain().focus();
+    const range = pendingRangeRef.current;
+    pendingRangeRef.current = null;
+    return range ? chain.setTextSelection(range) : chain;
+  }
+
+  // Keeps the editor and the read-only preview scrolled to roughly the same relative
+  // position, in whichever direction the author scrolls. Guarded by `syncingScrollRef` so
+  // programmatically moving one side's scrollTop doesn't bounce straight back and forth.
+  const editorScrollRef = useRef<HTMLDivElement>(null);
+  const markdownScrollRef = useRef<HTMLTextAreaElement>(null);
+  const previewScrollRef = useRef<HTMLDivElement>(null);
+  const syncingScrollRef = useRef(false);
+
+  function syncScroll(source: HTMLElement, target: HTMLElement | null) {
+    if (!target || syncingScrollRef.current) return;
+    const sourceRange = source.scrollHeight - source.clientHeight;
+    const targetRange = target.scrollHeight - target.clientHeight;
+    if (sourceRange <= 0 || targetRange <= 0) return;
+    syncingScrollRef.current = true;
+    target.scrollTop = (source.scrollTop / sourceRange) * targetRange;
+    requestAnimationFrame(() => {
+      syncingScrollRef.current = false;
+    });
+  }
+
+  function activeEditorScrollEl() {
+    return viewMode === "write" ? editorScrollRef.current : markdownScrollRef.current;
+  }
+
   const editor = useEditor({
     immediatelyRender: true,
     extensions: [
@@ -249,35 +294,31 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
   }
 
   function insertMedia(filename: string, meta?: string) {
-    // Plain `.focus()` resumes at the editor's last known selection - the same spot the
-    // author left the caret, even after clicking away to a thumbnail in the Images/Videos
-    // section below - rather than always appending to the end of the document.
-    editor
-      ?.chain()
-      .focus()
-      .insertContent({ type: "image", attrs: { src: filename, alt: "", title: meta ?? null } })
-      .run();
+    if (!editor) return;
+    focusChain().insertContent({ type: "image", attrs: { src: filename, alt: "", title: meta ?? null } }).run();
   }
 
   useImperativeHandle(ref, () => ({
     insertMediaWithPrompt(filename: string) {
+      capturePendingRange();
       insertMedia(filename, promptImageOptions());
     },
   }));
 
   function insertLink() {
     if (!editor) return;
+    capturePendingRange();
     const url = window.prompt("Link URL", "https://");
-    if (!url) return;
+    if (!url) {
+      pendingRangeRef.current = null;
+      return;
+    }
+    const range = pendingRangeRef.current;
 
-    if (editor.state.selection.empty) {
-      editor
-        .chain()
-        .focus()
-        .insertContent({ type: "text", text: "link text", marks: [{ type: "link", attrs: { href: url } }] })
-        .run();
+    if (!range || range.from === range.to) {
+      focusChain().insertContent({ type: "text", text: "link text", marks: [{ type: "link", attrs: { href: url } }] }).run();
     } else {
-      editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
+      focusChain().extendMarkRange("link").setLink({ href: url }).run();
     }
   }
 
@@ -314,9 +355,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
     const payload = escapeMarkdownTitle(popupPayload);
 
     if (hoverTriggerKind === "text") {
-      editor
-        .chain()
-        .focus()
+      focusChain()
         .insertContent({ type: "text", text: triggerValue, marks: [{ type: "link", attrs: { href: "hover", title: payload } }] })
         .run();
     } else {
@@ -328,9 +367,75 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
 
   const isActive = (name: string, attrs?: Record<string, unknown>) => Boolean(editor?.isActive(name, attrs));
 
+  /** Read-only render of the current markdown, matching the real guide page as closely as
+   *  this editor's own components let it - independent of whether Write or Markdown is
+   *  active, so it always reflects the latest content either view has produced. */
+  function renderPreview() {
+    if (!value.trim()) {
+      return <p className="text-sm text-slate-500">Nothing to preview yet.</p>;
+    }
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeSlug]}
+        components={{
+          a: ({ href, title, children }) => {
+            if (href === "hover") {
+              return (
+                <HoverPopup
+                  trigger={
+                    <span className="border-b border-dashed border-slate-400 transition-colors hover:border-white hover:text-white">
+                      {children}
+                    </span>
+                  }
+                  content={renderHoverContent(title ?? "")}
+                />
+              );
+            }
+            return (
+              <a href={href} title={title}>
+                {children}
+              </a>
+            );
+          },
+          img: ({ src, alt, title }) => {
+            const filename = typeof src === "string" ? src.replace(/^\.\//, "") : "";
+            const resolved = resolveImageSrc(filename);
+            const { width, height, position, hover } = parseImageMeta(title);
+            const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+            const style = width ? { width: `${width}px`, height: height ? `${height}px` : "auto" } : undefined;
+
+            if (isVideoAsset(filename)) {
+              return <video src={resolved} controls className={floatClass} style={style} />;
+            }
+            const hoverClass = hover ? "transition duration-150 hover:scale-[1.03] hover:brightness-110 !my-0" : undefined;
+            const image = (
+              <img
+                src={resolved}
+                alt={alt ?? ""}
+                className={[floatClass, hoverClass].filter(Boolean).join(" ") || undefined}
+                style={style}
+                loading="lazy"
+              />
+            );
+            return hover ? <HoverPopup trigger={image} content={renderHoverContent(hover)} /> : image;
+          },
+          table: ({ children }) => (
+            <div className="my-6 overflow-x-auto rounded-xl border border-white/10">
+              <table>{children}</table>
+            </div>
+          ),
+        }}
+      >
+        {value}
+      </ReactMarkdown>
+    );
+  }
+
   return (
-    <div>
-      <div className="mb-2 flex items-center gap-1">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+      <div className="min-w-0 flex-1">
+        <div className="mb-2 flex items-center gap-1">
         <button
           type="button"
           onClick={() => setViewMode("write")}
@@ -400,7 +505,15 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
             🔗 Link
           </button>
           <div ref={imageMenuRef} className="relative">
-            <button type="button" onClick={() => setShowImageMenu((prev) => !prev)} className={toolbarButtonClass} title="Image">
+            <button
+              type="button"
+              onClick={() => {
+                capturePendingRange();
+                setShowImageMenu((prev) => !prev);
+              }}
+              className={toolbarButtonClass}
+              title="Image"
+            >
               🖼 Image
             </button>
             {showImageMenu && (
@@ -426,7 +539,15 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
             )}
           </div>
           <div ref={videoMenuRef} className="relative">
-            <button type="button" onClick={() => setShowVideoMenu((prev) => !prev)} className={toolbarButtonClass} title="Video">
+            <button
+              type="button"
+              onClick={() => {
+                capturePendingRange();
+                setShowVideoMenu((prev) => !prev);
+              }}
+              className={toolbarButtonClass}
+              title="Video"
+            >
               🎬 Video
             </button>
             {showVideoMenu && (
@@ -455,6 +576,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
             <button
               type="button"
               onClick={() => {
+                capturePendingRange();
                 setHoverFormError(null);
                 setShowHoverMenu((prev) => !prev);
               }}
@@ -555,21 +677,38 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
           </button>
         </div>
         <BodyEditorContext.Provider value={{ resolveImageSrc, promptImageOptions, renderHoverContent }}>
-          <EditorContent
-            editor={editor}
-            className="prose-codex w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus-within:border-quint-purple/60 focus-within:bg-white/[0.06] min-h-[24rem] [&_.ProseMirror]:min-h-[22rem] [&_.ProseMirror]:outline-none"
-          />
+          <div
+            ref={editorScrollRef}
+            onScroll={(e) => syncScroll(e.currentTarget, previewScrollRef.current)}
+            className="prose-codex max-h-[32rem] w-full overflow-y-auto rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-100 outline-none transition-colors focus-within:border-quint-purple/60 focus-within:bg-white/[0.06] [&_.ProseMirror]:min-h-[28rem] [&_.ProseMirror]:outline-none"
+          >
+            <EditorContent editor={editor} />
+          </div>
         </BodyEditorContext.Provider>
       </div>
 
       <textarea
+        ref={markdownScrollRef}
+        onScroll={(e) => syncScroll(e.currentTarget, previewScrollRef.current)}
         hidden={viewMode !== "markdown"}
         required={viewMode === "markdown"}
         rows={16}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
+        className="max-h-[32rem] w-full overflow-y-auto rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-slate-100 placeholder:text-slate-500 outline-none transition-colors focus:border-quint-purple/60 focus:bg-white/[0.06]"
       />
     </div>
+
+    <div className="min-w-0 flex-1">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Preview</p>
+      <div
+        ref={previewScrollRef}
+        onScroll={(e) => syncScroll(e.currentTarget, activeEditorScrollEl())}
+        className="prose-codex max-h-[32rem] overflow-y-auto rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3"
+      >
+        {renderPreview()}
+      </div>
+    </div>
+  </div>
   );
 });
