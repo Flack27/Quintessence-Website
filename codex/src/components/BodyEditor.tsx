@@ -191,6 +191,15 @@ const GuideImage = TiptapImage.extend({
 // (unchanged) to render it.
 const GuideLink = TiptapLink.configure({ openOnClick: false, autolink: false });
 
+// tiptap-markdown can only serialize a table to GFM markdown when every cell holds exactly one
+// paragraph; the stock table-cell/table-header nodes allow any number of blocks ("block+"), so a
+// stray Enter keypress (or a multi-line paste) inside a cell silently produces a table the
+// serializer can't express - and it then drops the *entire* table as the literal text "[table]"
+// instead of just that cell. Restricting cell content to a single paragraph makes that state
+// structurally impossible (Enter inside a cell becomes a no-op rather than corrupting the table).
+const GuideTableCell = TiptapTableCell.extend({ content: "paragraph" });
+const GuideTableHeader = TiptapTableHeader.extend({ content: "paragraph" });
+
 export interface BodyEditorHandle {
   /** Inserts an already-uploaded image/video at the caret, opening the size/position panel first. */
   insertMediaWithPrompt: (filename: string) => void;
@@ -267,8 +276,8 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
       // renderer wouldn't know what to do with column widths anyway.
       TiptapTable.configure({ resizable: false }),
       TiptapTableRow,
-      TiptapTableHeader,
-      TiptapTableCell,
+      GuideTableHeader,
+      GuideTableCell,
       Markdown.configure({ html: false, tightLists: true, bulletListMarker: "-", linkify: false, breaks: false }),
     ],
     content: value,
