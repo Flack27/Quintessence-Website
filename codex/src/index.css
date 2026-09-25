@@ -137,11 +137,11 @@ h6 {
 
 @media (min-width: 640px) {
   .prose-codex .img-float-left {
-    @apply float-left mr-4 max-w-[45%] border-r border-white/15 pr-3;
+    @apply float-left mr-2 max-w-[45%] border-r border-white/15 pr-2;
   }
 
   .prose-codex .img-float-right {
-    @apply float-right ml-4 max-w-[45%] border-l border-white/15 pl-3;
+    @apply float-right ml-2 max-w-[45%] border-l border-white/15 pl-2;
   }
 }
 
@@ -166,6 +166,17 @@ h6 {
   @apply w-full border-collapse text-sm;
 }
 
+/* With the default `table-layout: auto`, a browser sizes a column to fit its content's
+   *intrinsic* size - and for an `<img>`, that's its full natural pixel size, `max-width: 100%`
+   or not (the auto-layout algorithm can't resolve a percentage width up front, so it falls back
+   to the unscaled image). One image cell would balloon its whole column - and every other cell
+   in it - out to that image's native size instead of shrinking the image to fit. `:has(img)`
+   scopes `table-layout: fixed` to only the tables that actually need it, so a plain text table
+   keeps its normal content-driven column widths. */
+.prose-codex table:has(img) {
+  table-layout: fixed;
+}
+
 .prose-codex thead {
   @apply bg-white/[0.04] text-left uppercase tracking-wide text-xs text-slate-400;
 }
@@ -173,6 +184,14 @@ h6 {
 .prose-codex th,
 .prose-codex td {
   @apply border border-white/10 px-4 py-2.5;
+}
+
+/* A cell's image sits in its own wrapping <div> in the editor (BodyEditor's ImageView, for the
+   size/position controls) - the same "give it breathing room" margin a body image gets would
+   just be dead space in a table cell. */
+.prose-codex td > div,
+.prose-codex th > div {
+  @apply my-0;
 }
 
 .prose-codex tbody tr:hover {
