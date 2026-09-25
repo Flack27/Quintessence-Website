@@ -195,10 +195,92 @@ const GuideLink = TiptapLink.configure({ openOnClick: false, autolink: false });
 // paragraph; the stock table-cell/table-header nodes allow any number of blocks ("block+"), so a
 // stray Enter keypress (or a multi-line paste) inside a cell silently produces a table the
 // serializer can't express - and it then drops the *entire* table as the literal text "[table]"
-// instead of just that cell. Restricting cell content to a single paragraph makes that state
-// structurally impossible (Enter inside a cell becomes a no-op rather than corrupting the table).
-const GuideTableCell = TiptapTableCell.extend({ content: "paragraph" });
-const GuideTableHeader = TiptapTableHeader.extend({ content: "paragraph" });
+// instead of just that cell. Restricting cell content to a single paragraph OR a single image
+// makes that state structurally impossible (Enter inside a cell becomes a no-op rather than
+// corrupting the table), while still allowing the one other thing a cell can usefully hold.
+const GuideTableCell = TiptapTableCell.extend({ content: "paragraph | image" });
+const GuideTableHeader = TiptapTableHeader.extend({ content: "paragraph | image" });
+
+/** Mirrors the private `hasSpan`/`childNodes`/`isMarkdownSerializable` helpers in
+ *  tiptap-markdown/src/extensions/nodes/table.js (not exported by the package, so duplicated
+ *  here) - the gate that decides whether a table can round-trip through GFM markdown at all.
+ *  With cell content locked to "paragraph | image" above, the only way this can still fail is
+ *  a merged cell (colspan/rowspan), which this editor's UI never creates. */
+function hasSpan(node: { attrs: { colspan?: number; rowspan?: number } }): boolean {
+  return (node.attrs.colspan ?? 1) > 1 || (node.attrs.rowspan ?? 1) > 1;
+}
+function tableChildNodes(node: { content?: { content: unknown[] } } | undefined): any[] {
+  return (node?.content?.content as any[]) ?? [];
+}
+function isTableMarkdownSerializable(node: any): boolean {
+  const rows = tableChildNodes(node);
+  const firstRow = rows[0];
+  const bodyRows = rows.slice(1);
+  if (tableChildNodes(firstRow).some((cell) => cell.type.name !== "tableHeader" || hasSpan(cell) || cell.childCount > 1)) {
+    return false;
+  }
+  if (bodyRows.some((row) => tableChildNodes(row).some((cell) => cell.type.name === "tableHeader" || hasSpan(cell) || cell.childCount > 1))) {
+    return false;
+  }
+  return true;
+}
+
+/** Writes a table cell's sole child as markdown. tiptap-markdown's own table serializer calls
+ *  `state.renderInline(cellContent)`, which renders a *paragraph's* children (text + marks) -
+ *  but silently emits nothing for a lone image, since an image is a leaf with no children and
+ *  no text content of its own. Handling it here is what actually makes "images in table cells"
+ *  survive a save, not just look like they worked while the editor is open. */
+function writeTableCellContent(state: any, cellContent: any): void {
+  if (!cellContent) return;
+  if (cellContent.type.name === "image") {
+    const alt = state.esc(cellContent.attrs.alt || "");
+    const src = String(cellContent.attrs.src || "").replace(/[()]/g, "\\$&");
+    const title = cellContent.attrs.title ? ` "${String(cellContent.attrs.title).replace(/"/g, '\\"')}"` : "";
+    state.write(`![${alt}](${src}${title})`);
+    return;
+  }
+  if (cellContent.textContent.trim()) {
+    state.renderInline(cellContent);
+  }
+}
+
+const GuideTable = TiptapTable.extend({
+  addStorage() {
+    return {
+      markdown: {
+        serialize(state: any, node: any) {
+          if (!isTableMarkdownSerializable(node)) {
+            state.write("[table]");
+            state.closeBlock(node);
+            return;
+          }
+          state.inTable = true;
+          node.forEach((row: any, _offset: number, i: number) => {
+            state.write("| ");
+            row.forEach((col: any, _colOffset: number, j: number) => {
+              if (j) state.write(" | ");
+              writeTableCellContent(state, col.firstChild);
+            });
+            state.write(" |");
+            state.ensureNewLine();
+            if (!i) {
+              const delimiterRow = Array.from({ length: row.childCount })
+                .map(() => "---")
+                .join(" | ");
+              state.write(`| ${delimiterRow} |`);
+              state.ensureNewLine();
+            }
+          });
+          state.closeBlock(node);
+          state.inTable = false;
+        },
+        parse: {
+          // handled by markdown-it
+        },
+      },
+    };
+  },
+});
 
 export interface BodyEditorHandle {
   /** Inserts an already-uploaded image/video at the caret, opening the size/position panel first. */
@@ -274,7 +356,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
       // `resizable: false` - a plain, uniform grid keeps every table serializable back to GFM
       // markdown (see tiptap-markdown's table spec: no merged/resized cells); the guide page's
       // renderer wouldn't know what to do with column widths anyway.
-      TiptapTable.configure({ resizable: false }),
+      GuideTable.configure({ resizable: false }),
       TiptapTableRow,
       GuideTableHeader,
       GuideTableCell,
@@ -348,7 +430,35 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
 
   function insertMedia(filename: string, meta?: string) {
     if (!editor) return;
-    focusChain().insertContent({ type: "image", attrs: { src: filename, alt: "", title: meta ?? null } }).run();
+    const attrs = { src: filename, alt: "", title: meta ?? null };
+
+    // A table cell's content is "paragraph | image" (see GuideTableCell/GuideTableHeader) - it
+    // can hold text OR one image, never both side by side. So inserting an image at a cursor
+    // that's inside a cell can't just add the image next to the cell's existing (usually empty)
+    // paragraph the way a normal insertContent() would elsewhere; it has to replace that cell's
+    // whole content with the image instead. Resolved against `pendingRangeRef` (captured before
+    // the image picker/size panel stole focus) rather than the editor's current selection, since
+    // that's the position the insert is actually meant to land at - see `focusChain`'s comment.
+    const target = pendingRangeRef.current ?? { from: editor.state.selection.from, to: editor.state.selection.to };
+    const $from = editor.state.doc.resolve(target.from);
+    let cellDepth = $from.depth;
+    while (cellDepth > 0 && $from.node(cellDepth).type.name !== "tableCell" && $from.node(cellDepth).type.name !== "tableHeader") {
+      cellDepth--;
+    }
+
+    if (cellDepth > 0) {
+      const cellNode = $from.node(cellDepth);
+      const cellStart = $from.before(cellDepth) + 1;
+      focusChain()
+        .command(({ tr }) => {
+          tr.replaceWith(cellStart, cellStart + cellNode.content.size, editor.schema.nodes.image.create(attrs));
+          return true;
+        })
+        .run();
+      return;
+    }
+
+    focusChain().insertContent({ type: "image", attrs }).run();
   }
 
   useImperativeHandle(ref, () => ({

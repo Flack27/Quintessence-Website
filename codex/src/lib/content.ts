@@ -147,16 +147,21 @@ export function parseImageMeta(
 /**
  * Inline size style for a `parseImageMeta`'d image/video. Width-only pins the width and
  * leaves height to the browser (which keeps the file's own aspect ratio automatically).
- * When both are pinned, `aspectRatio` stands in for a literal height: a floated image is
- * also capped to 45% of the column width in CSS (`.img-float-left`/`-right`), and a fixed
- * pixel height would ignore that cap - the image would visibly stretch out of ratio once
- * the cap actually shrinks it. `aspectRatio` keeps whichever dimension the cap constrains
- * in proportion instead.
+ * When both are pinned, `aspectRatio` stands in for a literal height.
+ *
+ * `maxWidth: "none"` overrides the `max-w-[45%]` cap that `.img-float-left`/`-right`
+ * (index.css) puts on *unsized* floated images, so they don't blow up the column next to
+ * text. Once an author explicitly picks a size, that choice is deliberate and should render
+ * at that size - without this override, a size wider than 45% of the column would silently
+ * get shrunk back down by the float cap, ignoring what was actually asked for.
  */
-export function imageSizeStyle(width?: number, height?: number): { width: string; height?: string; aspectRatio?: string } | undefined {
+export function imageSizeStyle(
+  width?: number,
+  height?: number
+): { width: string; height?: string; aspectRatio?: string; maxWidth?: string } | undefined {
   if (!width) return undefined;
-  if (height) return { width: `${width}px`, aspectRatio: `${width} / ${height}` };
-  return { width: `${width}px`, height: "auto" };
+  if (height) return { width: `${width}px`, aspectRatio: `${width} / ${height}`, maxWidth: "none" };
+  return { width: `${width}px`, height: "auto", maxWidth: "none" };
 }
 
 /**
