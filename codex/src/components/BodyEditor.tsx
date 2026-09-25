@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { useEditor, EditorContent, ReactNodeViewRenderer, NodeViewWrapper, type ReactNodeViewProps } from "@tiptap/react";
-import type { Editor } from "@tiptap/core";
+import { Extension, type Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
@@ -282,6 +282,28 @@ const GuideTable = TiptapTable.extend({
   },
 });
 
+// A GFM pipe-table cell can't hold a literal line break. Plain Enter inside one is already a
+// no-op (GuideTableCell/GuideTableHeader's "paragraph | image" content model rejects a second
+// paragraph), but Shift-Enter/Mod-Enter is a *different* command - it inserts a hard break
+// inside the same paragraph, which that content model happily allows. tiptap-markdown can only
+// render a hard break inside a table as an HTML `<br>` (see its hard-break spec), and this
+// editor runs with `html: false` (below), so it falls back to writing the literal text
+// "[hardBreak]" into the cell instead - the same kind of silent corruption the table-level fix
+// above exists to prevent. `priority: 1000` puts this ahead of the default HardBreak keymap
+// (from StarterKit, priority 100) so it gets first refusal inside a cell, and falls through
+// (returns false) to the normal shortcut everywhere else.
+const TableHardBreakGuard = Extension.create({
+  name: "tableHardBreakGuard",
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const insideTableCell = () => this.editor.isActive("tableCell") || this.editor.isActive("tableHeader");
+    return {
+      "Mod-Enter": insideTableCell,
+      "Shift-Enter": insideTableCell,
+    };
+  },
+});
+
 export interface BodyEditorHandle {
   /** Inserts an already-uploaded image/video at the caret, opening the size/position panel first. */
   insertMediaWithPrompt: (filename: string) => void;
@@ -360,6 +382,7 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
       TiptapTableRow,
       GuideTableHeader,
       GuideTableCell,
+      TableHardBreakGuard,
       Markdown.configure({ html: false, tightLists: true, bulletListMarker: "-", linkify: false, breaks: false }),
     ],
     content: value,
@@ -529,6 +552,14 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
   }
 
   const isActive = (name: string, attrs?: Record<string, unknown>) => Boolean(editor?.isActive(name, attrs));
+  // A table cell's content model is "paragraph | image" (see GuideTableCell/GuideTableHeader) -
+  // none of headings, lists, quotes, code blocks or a horizontal rule can ever land there, so
+  // ProseMirror silently no-ops these commands inside a cell rather than doing anything. Left
+  // enabled, that reads as broken (the button lights up "active" with nothing having changed -
+  // see toggleBulletList below); disabling them here is the same treatment the "Row"/"Col"
+  // buttons already get for actions that don't apply to the current selection.
+  const inTableCell = isActive("tableCell") || isActive("tableHeader");
+  const notInCellTitle = "Not available inside a table cell - a cell can only hold text or a single image";
 
   return (
     <div>
@@ -562,13 +593,28 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
           <>
             <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
               <ToolbarGroup label="Heading">
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={isActive("heading", { level: 1 })} title="Heading 1">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()}
+                  active={!inTableCell && isActive("heading", { level: 1 })}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Heading 1"}
+                >
                   H1
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} active={isActive("heading", { level: 2 })} title="Heading 2">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+                  active={!inTableCell && isActive("heading", { level: 2 })}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Heading 2"}
+                >
                   H2
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} active={isActive("heading", { level: 3 })} title="Heading 3">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()}
+                  active={!inTableCell && isActive("heading", { level: 3 })}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Heading 3"}
+                >
                   H3
                 </ToolbarButton>
               </ToolbarGroup>
@@ -590,19 +636,44 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
               <ToolbarDivider />
 
               <ToolbarGroup label="Lists & blocks">
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleBulletList().run()} active={isActive("bulletList")} title="Bullet list">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                  active={!inTableCell && isActive("bulletList")}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Bullet list"}
+                >
                   • List
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={isActive("orderedList")} title="Numbered list">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                  active={!inTableCell && isActive("orderedList")}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Numbered list"}
+                >
                   1. List
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={isActive("blockquote")} title="Quote">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                  active={!inTableCell && isActive("blockquote")}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Quote"}
+                >
                   ❝ Quote
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().toggleCodeBlock().run()} active={isActive("codeBlock")} title="Code block" className="font-mono">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().toggleCodeBlock().run()}
+                  active={!inTableCell && isActive("codeBlock")}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Code block"}
+                  className="font-mono"
+                >
                   {"</>"}
                 </ToolbarButton>
-                <ToolbarButton onClick={() => editor?.chain().focus().setHorizontalRule().run()} title="Horizontal rule (divider line)">
+                <ToolbarButton
+                  onClick={() => editor?.chain().focus().setHorizontalRule().run()}
+                  disabled={inTableCell}
+                  title={inTableCell ? notInCellTitle : "Horizontal rule (divider line)"}
+                >
                   ― Line
                 </ToolbarButton>
               </ToolbarGroup>
