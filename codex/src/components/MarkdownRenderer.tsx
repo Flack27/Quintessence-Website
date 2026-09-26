@@ -2,7 +2,16 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
-import { resolveAssetUrl, parseImageMeta, parseHoverPayload, isVideoAsset, imageSizeStyle } from "@/lib/content";
+import {
+  resolveAssetUrl,
+  parseImageMeta,
+  parseHoverPayload,
+  isVideoAsset,
+  imageSizeStyle,
+  isYouTubeSrc,
+  youTubeVideoId,
+  embedSizeStyle,
+} from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 import { Lightbox } from "./Lightbox";
 
@@ -61,9 +70,25 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
             );
           },
           img: ({ src, alt, title }) => {
-            const resolved = typeof src === "string" ? resolveAssetUrl(slug, src) ?? src : src;
             const { width, height, position, hover } = parseImageMeta(title);
             const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
+
+            // A YouTube embed is stored as `![](youtube:<id> "meta")` - same metadata syntax as
+            // an uploaded image/video, but there's no asset to resolve, just an id to embed.
+            if (typeof src === "string" && isYouTubeSrc(src)) {
+              return (
+                <iframe
+                  src={`https://www.youtube.com/embed/${youTubeVideoId(src)}`}
+                  className={`${floatClass ?? ""} ${width ? "" : "w-full"} rounded-xl border-0`}
+                  style={embedSizeStyle(width, height)}
+                  title={alt || "YouTube video"}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              );
+            }
+
+            const resolved = typeof src === "string" ? resolveAssetUrl(slug, src) ?? src : src;
 
             // Videos are inserted with the same `![](file "meta")` syntax as images (same
             // uploads, same width/height/position metadata) - the extension alone decides

@@ -111,6 +111,38 @@ export function isVideoAsset(filename: string): boolean {
 }
 
 /**
+ * A YouTube embed is stored in a guide's markdown with the same `![](src "meta")` syntax as an
+ * uploaded image/video (see `isVideoAsset`), but `src` is the sentinel `youtube:<video id>`
+ * rather than an uploaded filename - there's nothing to upload, just an id to embed.
+ */
+export function isYouTubeSrc(src: string): boolean {
+  return src.startsWith("youtube:");
+}
+
+export function youTubeVideoId(src: string): string {
+  return src.replace(/^youtube:/, "");
+}
+
+const YOUTUBE_URL_RE = /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/i;
+
+/** Pulls the 11-character video id out of any common YouTube URL shape, or null if none is found. */
+export function extractYouTubeId(url: string): string | null {
+  const match = url.trim().match(YOUTUBE_URL_RE);
+  return match ? match[1] : null;
+}
+
+/**
+ * Inline size style for a YouTube embed. Unlike an uploaded image/video, an `<iframe>` has no
+ * intrinsic size to fall back on, so - unlike `imageSizeStyle` - this always sets an explicit
+ * `aspectRatio` (16:9 unless the author pinned both width and height), and omits `width` entirely
+ * when unset so the caller's own `w-full` class can size it instead.
+ */
+export function embedSizeStyle(width?: number, height?: number): { width?: string; aspectRatio: string; maxWidth?: string } {
+  const aspectRatio = width && height ? `${width} / ${height}` : "16 / 9";
+  return width ? { width: `${width}px`, aspectRatio, maxWidth: "none" } : { aspectRatio };
+}
+
+/**
  * Reads an explicit pixel size and/or left/right placement off a markdown image's
  * title, e.g. `![alt](file.png "400")`, `![alt](file.png "400x250 left")`, or
  * `![alt](file.png "right")`. Lets an author pin an image's size and float it beside

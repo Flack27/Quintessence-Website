@@ -18,7 +18,15 @@ import { TableRow as TiptapTableRow } from "@tiptap/extension-table-row";
 import { TableHeader as TiptapTableHeader } from "@tiptap/extension-table-header";
 import { TableCell as TiptapTableCell } from "@tiptap/extension-table-cell";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
-import { parseImageMeta, isVideoAsset, imageSizeStyle } from "@/lib/content";
+import {
+  parseImageMeta,
+  isVideoAsset,
+  imageSizeStyle,
+  isYouTubeSrc,
+  youTubeVideoId,
+  embedSizeStyle,
+  extractYouTubeId,
+} from "@/lib/content";
 import { HoverPopup } from "./HoverPopup";
 
 /** tiptap-markdown doesn't ship a `Storage` module augmentation for `@tiptap/core`, so
@@ -122,7 +130,8 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeVi
   const alt = typeof node.attrs.alt === "string" ? node.attrs.alt : "";
   const title = typeof node.attrs.title === "string" ? node.attrs.title : null;
   const filename = src.replace(/^\.\//, "");
-  const resolved = ctx.resolveImageSrc(filename);
+  const isYouTube = isYouTubeSrc(filename);
+  const resolved = isYouTube ? "" : ctx.resolveImageSrc(filename);
   const { width, height, position, hover } = parseImageMeta(title);
   const floatClass = position === "left" ? "img-float-left" : position === "right" ? "img-float-right" : undefined;
   const isVideo = isVideoAsset(filename);
@@ -132,7 +141,16 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeVi
     ctx!.openImageOptions(title ?? undefined, (meta) => updateAttributes({ title: buildImageTitle(meta, hover) }));
   }
 
-  const media = isVideo ? (
+  const media = isYouTube ? (
+    <iframe
+      src={`https://www.youtube.com/embed/${youTubeVideoId(filename)}`}
+      className={`${floatClass ?? ""} ${width ? "" : "w-full"} rounded-xl border-0 !my-0`}
+      style={embedSizeStyle(width, height)}
+      title="YouTube video"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+    />
+  ) : isVideo ? (
     <video src={resolved} controls className={`${floatClass ?? ""} !my-0`} style={style} />
   ) : (
     <img src={resolved} alt={alt} className={`${floatClass ?? ""} !my-0`} style={style} draggable={false} />
@@ -142,9 +160,12 @@ function ImageView({ node, updateAttributes, deleteNode, selected }: ReactNodeVi
   return (
     <NodeViewWrapper
       as="div"
+      // An iframe has no intrinsic size to shrink-wrap (unlike img/video), so an unsized,
+      // unfloated embed needs the wrapper itself forced to fill the line - otherwise its
+      // `w-full` child has nothing to size against and collapses to 0.
       className={`group/media relative inline-block ${floatClass ?? "my-6 block"} ${
-        selected ? "rounded-xl ring-2 ring-quint-purple/70" : ""
-      }`}
+        isYouTube && !floatClass && !width ? "!block !w-full" : ""
+      } ${selected ? "rounded-xl ring-2 ring-quint-purple/70" : ""}`}
     >
       {content}
       <span className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover/media:opacity-100">
@@ -491,6 +512,23 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
     },
   }));
 
+  function insertYouTube() {
+    if (!editor) return;
+    capturePendingRange();
+    const url = window.prompt("YouTube video URL", "https://www.youtube.com/watch?v=");
+    if (!url) {
+      pendingRangeRef.current = null;
+      return;
+    }
+    const id = extractYouTubeId(url);
+    if (!id) {
+      window.alert("Couldn't find a video in that link - paste a normal YouTube URL (e.g. https://www.youtube.com/watch?v=...).");
+      pendingRangeRef.current = null;
+      return;
+    }
+    openImageOptions(undefined, (meta) => insertMedia(`youtube:${id}`, meta));
+  }
+
   function insertLink() {
     if (!editor) return;
     capturePendingRange();
@@ -748,6 +786,9 @@ export const BodyEditor = forwardRef<BodyEditorHandle, BodyEditorProps>(function
                     </div>
                   )}
                 </div>
+                <ToolbarButton onClick={insertYouTube} title="YouTube video">
+                  ▶ YouTube
+                </ToolbarButton>
                 <div ref={hoverMenuRef} className="relative">
                   <ToolbarButton
                     onClick={() => {
