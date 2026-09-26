@@ -1,5 +1,5 @@
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSlug from "rehype-slug";
 import {
@@ -49,6 +49,10 @@ export function MarkdownRenderer({ slug, content }: MarkdownRendererProps) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeSlug]}
+        // react-markdown's default URL sanitizer blanks any `src`/`href` whose scheme it
+        // doesn't recognize (e.g. our `youtube:<id>` sentinel) down to "" as an XSS guard -
+        // let that one sentinel through unchanged and defer to the default for everything else.
+        urlTransform={(url) => (isYouTubeSrc(url) ? url : defaultUrlTransform(url))}
         components={{
           a: ({ href, title, children }) => {
             if (href === "hover") {
