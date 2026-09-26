@@ -7,7 +7,7 @@ import type { Post } from "@/types/post";
  * guides can carry a value outside this list - `groupBySection` below puts
  * those in an "Other" group appended after the known ones.
  */
-export const SECTION_ORDER = ["PvE Guide", "PvP Guide", "General", "Class Guide", "Others"] as const;
+export const SECTION_ORDER = ["General", "Class Guide", "PvE Guide", "PvP Guide", "Others"] as const;
 
 export interface PostSectionGroup {
   section: string;
