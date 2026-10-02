@@ -101,6 +101,32 @@ namespace QuintessenceWebsiteDAL.Store
             }
         }
 
+        /// <summary>
+        /// Moves a guide (and its image folder, if any) from one slug to another. Used when a
+        /// title edit changes the slug derived from it, so the URL keeps tracking the title.
+        /// False if there is nothing at <paramref name="oldSlug"/> or something already occupies
+        /// <paramref name="newSlug"/> - the caller is expected to have checked the latter already
+        /// so it can return a clean conflict response instead of this swallowing it.
+        /// </summary>
+        public bool Rename(string oldSlug, string newSlug)
+        {
+            lock (_lock)
+            {
+                var oldDir = Path.Combine(_guidesDir, oldSlug);
+                var newDir = Path.Combine(_guidesDir, newSlug);
+                if (!Directory.Exists(oldDir) || Directory.Exists(newDir)) return false;
+
+                Directory.Move(oldDir, newDir);
+
+                var oldImages = Path.Combine(_imagesDir, oldSlug);
+                var newImages = Path.Combine(_imagesDir, newSlug);
+                if (Directory.Exists(oldImages) && !Directory.Exists(newImages))
+                    Directory.Move(oldImages, newImages);
+
+                return true;
+            }
+        }
+
         public bool Delete(string slug)
         {
             lock (_lock)

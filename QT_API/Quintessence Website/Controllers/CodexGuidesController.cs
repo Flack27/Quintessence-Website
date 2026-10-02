@@ -198,10 +198,35 @@ namespace Quintessence_Website.Controllers
             if (!await MayEditAsync(existing, ct))
                 return StatusCode(403, new { error = "Only the guide's author, an invited editor or a moderator can edit it." });
 
-            // Its slug is already fixed, so new images went straight to {slug}/images
-            // (see UploadImage) as soon as they were picked - nothing to adopt here.
+            // New images went straight to {slug}/images (see UploadImage) as soon as they were
+            // picked, using the slug the edit form was opened with - nothing to adopt here even
+            // if the title change below ends up renaming that slug.
 
-            existing.Title = string.IsNullOrWhiteSpace(body.Title) ? existing.Title : body.Title.Trim();
+            var newTitle = string.IsNullOrWhiteSpace(body.Title) ? existing.Title : body.Title.Trim();
+
+            // Keep the URL tracking the title: a title change that produces a different slug
+            // renames the guide's storage (and its image folder) to match, rather than leaving
+            // old titles permanently baked into the URL.
+            if (!string.Equals(newTitle, existing.Title, StringComparison.Ordinal))
+            {
+                var candidate = SafeSlug(GuideStore.Slugify(newTitle));
+                if (candidate != slug)
+                {
+                    if (_store.Exists(candidate))
+                        return Conflict(new { error = $"A guide already exists at \"{candidate}\"." });
+
+                    _store.Rename(slug, candidate);
+                    _views.Update(list =>
+                    {
+                        foreach (var entry in list.Where(v => v.Slug == slug)) entry.Slug = candidate;
+                    });
+
+                    existing.Slug = candidate;
+                    slug = candidate;
+                }
+            }
+
+            existing.Title = newTitle;
             existing.Subtitle = Blank(body.Subtitle);
             existing.Description = body.Description?.Trim() ?? existing.Description;
             existing.Game = Blank(body.Game) ?? existing.Game;
