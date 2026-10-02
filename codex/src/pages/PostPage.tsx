@@ -56,10 +56,10 @@ export function PostPage() {
   const canEdit = canPublish && (canModerate || isOwner || isEditor);
   const canAdminister = canPublish && (canModerate || isOwner);
 
-  // Admin-only. Reading a guide otherwise needs the Discord role configured for its game,
-  // so this is the switch that puts one in front of the open internet instead.
-  async function toggleVisibility() {
-    const next = !frontmatter.isPublic;
+  // Admin-only. Reading a guide otherwise needs the Discord role configured for its game
+  // ("members"), or is opened to everyone ("public"), or locked to managers and the guide's
+  // own owner/editors ("admin").
+  async function setVisibility(next: "members" | "public" | "admin") {
     setVisibilityBusy(true);
     setVisibilityError(null);
 
@@ -68,14 +68,16 @@ export function PostPage() {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: next }),
+        body: JSON.stringify({ visibility: next }),
       });
 
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Couldn't change who can see this.");
 
       setPost((prev) =>
-        prev ? { ...prev, frontmatter: { ...prev.frontmatter, isPublic: data.isPublic } } : prev
+        prev
+          ? { ...prev, frontmatter: { ...prev.frontmatter, isPublic: data.isPublic, adminOnly: data.adminOnly } }
+          : prev
       );
     } catch (err) {
       setVisibilityError(err instanceof Error ? err.message : "Couldn't change who can see this.");
@@ -83,6 +85,12 @@ export function PostPage() {
       setVisibilityBusy(false);
     }
   }
+
+  const visibility: "members" | "public" | "admin" = frontmatter.adminOnly
+    ? "admin"
+    : frontmatter.isPublic
+      ? "public"
+      : "members";
 
   async function handleDelete() {
     if (!window.confirm(`Delete "${frontmatter.title}"? This can't be undone.`)) return;
@@ -135,36 +143,41 @@ export function PostPage() {
             >
               Edit guide
             </Link>
-            {/* Admins get a switch; everyone else who can edit gets to see the state, since
-                "who can read this" matters when you are writing it. */}
+            {/* Admins get a select across all three states; everyone else who can edit gets to
+                see which one is active, since "who can read this" matters when you are writing
+                it - but only managers get to change it (see SetVisibility on the API). */}
             {canModerate ? (
-              <button
-                type="button"
-                onClick={toggleVisibility}
+              <select
+                value={visibility}
                 disabled={visibilityBusy}
-                title={
-                  frontmatter.isPublic
-                    ? "Anyone can read this guide. Click to put it back behind the game's role."
-                    : "Only members with this game's Discord role can read this guide. Click to make it public."
-                }
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-50 ${
-                  frontmatter.isPublic
-                    ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-                    : "border-white/15 text-slate-300 hover:border-quint-purple/50 hover:text-white"
+                onChange={(e) => setVisibility(e.target.value as "members" | "public" | "admin")}
+                title="Who can see this guide"
+                className={`rounded-full border bg-void-950 px-3 py-1 text-xs font-semibold outline-none transition-colors disabled:opacity-50 ${
+                  visibility === "public"
+                    ? "border-emerald-500/40 text-emerald-400"
+                    : visibility === "admin"
+                      ? "border-red-500/40 text-red-400"
+                      : "border-white/15 text-slate-300"
                 }`}
               >
-                {visibilityBusy ? "Saving…" : frontmatter.isPublic ? "Public" : "Members only"}
-              </button>
+                <option value="members" className="bg-void-950 text-slate-100">Members only</option>
+                <option value="public" className="bg-void-950 text-slate-100">Public</option>
+                <option value="admin" className="bg-void-950 text-slate-100">Admin only</option>
+              </select>
             ) : (
               <span
-                className="rounded-full border border-white/10 px-3 py-1 text-xs font-semibold text-slate-500"
+                className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                  visibility === "admin" ? "border-red-500/30 text-red-400" : "border-white/10 text-slate-500"
+                }`}
                 title={
-                  frontmatter.isPublic
+                  visibility === "public"
                     ? "Anyone can read this guide."
-                    : "Only members with this game's Discord role can read this guide."
+                    : visibility === "admin"
+                      ? "Only managers and this guide's owner/editors can read it."
+                      : "Only members with this game's Discord role can read this guide."
                 }
               >
-                {frontmatter.isPublic ? "Public" : "Members only"}
+                {visibility === "public" ? "Public" : visibility === "admin" ? "Admin only" : "Members only"}
               </span>
             )}
 

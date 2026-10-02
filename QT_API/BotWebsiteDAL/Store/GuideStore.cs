@@ -327,6 +327,7 @@ namespace QuintessenceWebsiteDAL.Store
                             case "draft": guide.Draft = Unquote(value).Equals("true", StringComparison.OrdinalIgnoreCase); break;
                             // Absent means private - guides are members-only unless opened up.
                             case "public": guide.IsPublic = Unquote(value).Equals("true", StringComparison.OrdinalIgnoreCase); break;
+                            case "adminonly": guide.AdminOnly = Unquote(value).Equals("true", StringComparison.OrdinalIgnoreCase); break;
                             case "tags": guide.Tags = ParseList(value); break;
                         }
                     }
@@ -357,6 +358,7 @@ namespace QuintessenceWebsiteDAL.Store
             if (!string.IsNullOrWhiteSpace(g.Cover)) sb.Append($"cover: {Quote(g.Cover!)}\n");
             if (g.Draft) sb.Append("draft: true\n");
             if (g.IsPublic) sb.Append("public: true\n");
+            if (g.AdminOnly) sb.Append("adminOnly: true\n");
             sb.Append("---\n\n");
             sb.Append((g.Content ?? string.Empty).Replace("\r\n", "\n").TrimStart('\n'));
             if (!sb.ToString().EndsWith("\n")) sb.Append('\n');

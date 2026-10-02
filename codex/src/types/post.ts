@@ -25,6 +25,11 @@ export interface PostFrontmatter {
    * unless an admin opens one up, and otherwise need the Discord role set for their game.
    */
   isPublic?: boolean;
+  /**
+   * Locked to managers and the guide's own owner/editors, regardless of `isPublic` or the
+   * game's members-only role gate. Wins over `isPublic` if both are somehow set.
+   */
+  adminOnly?: boolean;
 }
 
 export interface Post {

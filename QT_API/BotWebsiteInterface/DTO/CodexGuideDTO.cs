@@ -53,6 +53,14 @@ namespace QuintessenceWebsiteInterface.DTO
         /// </summary>
         public bool IsPublic { get; set; }
 
+        /// <summary>
+        /// Restricts reading to the guide's owner/invited editors and managers, regardless of
+        /// the game's members-only role gate or <see cref="IsPublic"/> - for guides an admin
+        /// wants hidden from everyone but other admins. Only managers can change this, and it
+        /// wins if a guide somehow has both this and <see cref="IsPublic"/> set.
+        /// </summary>
+        public bool AdminOnly { get; set; }
+
         /// <summary>Markdown body, frontmatter stripped. Null in index responses.</summary>
         public string? Content { get; set; }
 
@@ -73,10 +81,11 @@ namespace QuintessenceWebsiteInterface.DTO
         public DateTime UpdatedUtc { get; set; }
     }
 
-    /// <summary>Admin-only change to whether a guide is world-readable.</summary>
+    /// <summary>Admin-only change to who can read a guide.</summary>
     public class CodexGuideVisibilityDTO
     {
-        public bool IsPublic { get; set; }
+        /// <summary>One of "members" (default, role-gated), "public" (anyone), or "admin" (managers and the guide's own editors only).</summary>
+        public string Visibility { get; set; } = "members";
     }
 
     /// <summary>A guild member as the access dialog lists them.</summary>

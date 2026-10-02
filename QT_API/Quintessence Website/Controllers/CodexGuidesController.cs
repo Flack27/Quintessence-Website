@@ -204,26 +204,24 @@ namespace Quintessence_Website.Controllers
 
             var newTitle = string.IsNullOrWhiteSpace(body.Title) ? existing.Title : body.Title.Trim();
 
-            // Keep the URL tracking the title: a title change that produces a different slug
-            // renames the guide's storage (and its image folder) to match, rather than leaving
-            // old titles permanently baked into the URL.
-            if (!string.Equals(newTitle, existing.Title, StringComparison.Ordinal))
+            // Keep the URL tracking the title: every save re-derives the slug from the current
+            // title, not just ones where the title field itself changed this time - so a guide
+            // whose title was edited back when editing never touched the slug fixes itself the
+            // next time it's simply saved, with no need to retype the title to force it.
+            var candidate = SafeSlug(GuideStore.Slugify(newTitle));
+            if (candidate != slug)
             {
-                var candidate = SafeSlug(GuideStore.Slugify(newTitle));
-                if (candidate != slug)
+                if (_store.Exists(candidate))
+                    return Conflict(new { error = $"A guide already exists at \"{candidate}\"." });
+
+                _store.Rename(slug, candidate);
+                _views.Update(list =>
                 {
-                    if (_store.Exists(candidate))
-                        return Conflict(new { error = $"A guide already exists at \"{candidate}\"." });
+                    foreach (var entry in list.Where(v => v.Slug == slug)) entry.Slug = candidate;
+                });
 
-                    _store.Rename(slug, candidate);
-                    _views.Update(list =>
-                    {
-                        foreach (var entry in list.Where(v => v.Slug == slug)) entry.Slug = candidate;
-                    });
-
-                    existing.Slug = candidate;
-                    slug = candidate;
-                }
+                existing.Slug = candidate;
+                slug = candidate;
             }
 
             existing.Title = newTitle;
@@ -257,11 +255,13 @@ namespace Quintessence_Website.Controllers
         }
 
         /// <summary>
-        /// Opens a guide to everyone, or puts it back behind its game's role.
+        /// Opens a guide to everyone, puts it back behind its game's role, or locks it down to
+        /// managers (and its own editors) only.
         ///
-        /// Admins only - not the guide's owner. Publishing something to the open internet is a
-        /// guild-wide call about what outsiders can read, not an authoring decision, and the
-        /// default has to be the safe one for "private by default" to mean anything.
+        /// Admins only - not the guide's owner. Deciding what outsiders can read, or hiding
+        /// something from the membership entirely, is a guild-wide call, not an authoring
+        /// decision, and the default has to be the safe one for "private by default" to mean
+        /// anything.
         /// </summary>
         [HttpPut("{slug}/visibility")]
         [Authorize(Policy = "CodexManager", AuthenticationSchemes = CookieAuthenticationDefaults.AuthenticationScheme)]
@@ -271,14 +271,33 @@ namespace Quintessence_Website.Controllers
             var guide = _store.Read(safeSlug);
             if (guide is null) return NotFound(new { error = "No such guide." });
 
-            guide.IsPublic = body.IsPublic;
+            switch (body.Visibility?.Trim().ToLowerInvariant())
+            {
+                case "public":
+                    guide.IsPublic = true;
+                    guide.AdminOnly = false;
+                    break;
+                case "admin":
+                    guide.IsPublic = false;
+                    guide.AdminOnly = true;
+                    break;
+                case "members":
+                case null:
+                case "":
+                    guide.IsPublic = false;
+                    guide.AdminOnly = false;
+                    break;
+                default:
+                    return BadRequest(new { error = $"Unknown visibility \"{body.Visibility}\"." });
+            }
+
             _store.Write(guide);
 
             _logger.LogInformation(
-                "Codex guide \"{Slug}\" set {Visibility} by {UserId}",
-                safeSlug, guide.IsPublic ? "public" : "members-only", DiscordId);
+                "Codex guide \"{Slug}\" set to {Visibility} by {UserId}",
+                safeSlug, body.Visibility, DiscordId);
 
-            return Ok(new { isPublic = guide.IsPublic });
+            return Ok(new { isPublic = guide.IsPublic, adminOnly = guide.AdminOnly });
         }
 
         // -----------------------------------------------------------------------------
@@ -445,6 +464,11 @@ namespace Quintessence_Website.Controllers
             // A draft is unfinished work - being allowed to read the game's guides is not the
             // same as being shown something its author has not published yet.
             if (guide.Draft) return false;
+
+            // Locked to managers (and the owner/editors, already covered above) regardless of
+            // the game's members-only role gate or IsPublic - wins over IsPublic if a guide
+            // somehow has both set.
+            if (guide.AdminOnly) return false;
 
             if (guide.IsPublic) return true;
 
